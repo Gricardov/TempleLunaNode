@@ -1,0 +1,109 @@
+const Event = require("../models/event");
+
+const getEvents = async (req = Request, res = Response) => {
+  const { limit = "5", order = "startDate", desc = "1" } = req.query;
+  try {
+    const limitAux = parseInt(limit);
+    const descAux = parseInt(desc);
+    const events = await Event.findAll({
+      //order: [[order, descAux ? "DESC" : "ASC"]],
+      limit: limitAux,
+    });
+    res.json({ events });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      msg: "Parámetros inválidos",
+    });
+  }
+};
+
+const getEvent = async (req = Request, res = Response) => {
+  const { alias } = req.params;
+  const event = await Event.findOne({
+    where: {
+      alias,
+    },
+  });
+  if (event) {
+    res.json(event);
+  } else {
+    res.status(404).json({
+      msg: "No existe evento con ese alias",
+    });
+  }
+};
+
+const postEvent = async (req = Request, res = Response) => {
+  const { body } = req;
+  try {
+    const existsAlias = await Event.findOne({
+      where: {
+        alias: body.alias,
+      },
+    });
+
+    if (existsAlias) {
+      return res.status(400).json({
+        msg: "Ya existe un evento con ese alias",
+      });
+    }
+
+    const event = Event.build(body);
+    await event.save();
+    res.json(event);
+  } catch (error) {
+    console.log(error);
+    res.status(404).json({
+      msg: "Hable con el administrador",
+    });
+  }
+};
+
+const putEvent = async (req = Request, res = Response) => {
+  const { id } = req.params;
+  const { body } = req;
+  try {
+    const event = await Event.findByPk(id);
+    if (!event) {
+      return res.status(404).json({
+        msg: "No existe un evento con ese id",
+      });
+    }
+    await event.update(body);
+    res.json(event);
+  } catch (error) {
+    console.log(error);
+    res.status(404).json({
+      msg: "Hable con el administrador",
+    });
+  }
+};
+
+const deleteEvent = async (req = Request, res = Response) => {
+  const { id } = req.params;
+
+  const event = await Event.findByPk(id);
+  if (!event) {
+    return res.status(404).json({
+      msg: "No existe un evento con ese id",
+    });
+  }
+
+  // Eliminación física
+  //await user.destroy();
+
+  // Eliminación lógica
+  await event.update({ status: false });
+
+  res.json(event);
+};
+
+
+module.exports = {
+  getEvents,
+  getEvent,
+  putEvent,
+  postEvent,
+  deleteEvent
+}

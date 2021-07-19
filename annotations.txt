@@ -1,0 +1,10 @@
+To create migration file:
+
+> npx sequelize-cli migration:generate --name migration-skeleton
+
+To migrate:
+
+> npx sequelize-cli db:migrate --env <development | production>
+
+JOIN examples
+https://stackoverflow.com/questions/20460270/how-to-make-join-queries-using-sequelize-on-node-js

@@ -1,12 +1,11 @@
-import { Request, Response } from "express";
-import User from "../models/user";
+const User = require("../models/user");
 
-export const getUsers = async (req: Request, res: Response) => {
+const getUsers = async (req, res) => {
   const users = await User.findAll();
   res.json({ users });
 };
 
-export const getUser = async (req: Request, res: Response) => {
+const getUser = async (req, res) => {
   const { id } = req.params;
   const user = await User.findByPk(id);
   if (user) {
@@ -18,7 +17,7 @@ export const getUser = async (req: Request, res: Response) => {
   }
 };
 
-export const postUser = async (req: Request, res: Response) => {
+const postUser = async (req, res) => {
   const { body } = req;
   try {
     const existeEmail = await User.findOne({
@@ -44,7 +43,7 @@ export const postUser = async (req: Request, res: Response) => {
   }
 };
 
-export const putUser = async (req: Request, res: Response) => {
+const putUser = async (req, res) => {
   const { id } = req.params;
   const { body } = req;
   try {
@@ -64,7 +63,7 @@ export const putUser = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteUser = async (req: Request, res: Response) => {
+const deleteUser = async (req, res) => {
   const { id } = req.params;
 
   const user = await User.findByPk(id);
@@ -82,3 +81,11 @@ export const deleteUser = async (req: Request, res: Response) => {
 
   res.json(user);
 };
+
+module.exports = {
+  getUser,
+  getUsers,
+  putUser,
+  postUser,
+  deleteUser
+}

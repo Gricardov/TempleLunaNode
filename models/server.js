@@ -1,13 +1,15 @@
-import express, { Application } from "express";
-import userRoutes from "../routes/user";
-import cors from "cors";
-import db from "../database/connections";
+const express = require("express");
+const userRoutes = require("../routes/user");
+const eventRoutes = require("../routes/event");
+const cors = require("cors");
+const db = require("../database/connections");
 
 class Server {
-  private app: Application;
-  private port: string;
-  private apiPaths = {
+  app;
+  port;
+  apiPaths = {
     user: "/api/user",
+    event: "/api/event",
   };
 
   constructor() {
@@ -45,6 +47,7 @@ class Server {
   }
   routes() {
     this.app.use(this.apiPaths.user, userRoutes);
+    this.app.use(this.apiPaths.event, eventRoutes);
   }
   listen() {
     this.app.listen(this.port, () => {
@@ -53,4 +56,4 @@ class Server {
   }
 }
 
-export default Server;
+module.exports = Server;
