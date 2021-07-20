@@ -1,8 +1,8 @@
 const express = require("express");
-const userRoutes = require("../routes/user");
-const eventRoutes = require("../routes/event");
+const userRoutes = require("../../routes/user");
+const eventRoutes = require("../../routes/event");
 const cors = require("cors");
-const db = require("../database/connections");
+const db = require("../connection");
 
 class Server {
   app;

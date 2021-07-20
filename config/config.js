@@ -7,13 +7,13 @@ module.exports = {
     password: process.env.D_PASS,
     database: process.env.D_DB,
     host: process.env.D_HOST,
-    dialect: "mysql",
+    dialect: "mariadb",
   },
   production: {
     username: process.env.P_USER,
     password: process.env.P_PASS,
     database: process.env.P_DB,
     host: process.env.P_HOST,
-    dialect: "mysql",
+    dialect: "mariadb",
   },
 };

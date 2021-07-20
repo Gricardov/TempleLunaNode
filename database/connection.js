@@ -3,8 +3,9 @@ const config = require("../config/config");
 const dotenv = require("dotenv");
 dotenv.config();
 
-const { username, password, database, host } =
-  config[process.env.NODE_ENV?.trim()];
+const env = process.env.NODE_ENV ? process.env.NODE_ENV.trim() : 'development';
+
+const { username, password, database, host } = config[env];
 
 const db = new Sequelize(database, username, password, {
   host: host,

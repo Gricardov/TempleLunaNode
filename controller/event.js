@@ -1,4 +1,4 @@
-const Event = require("../models/event");
+const { Event } = require("../database/models/event");
 
 const getEvents = async (req = Request, res = Response) => {
   const { limit = "5", order = "startDate", desc = "1" } = req.query;
@@ -9,6 +9,7 @@ const getEvents = async (req = Request, res = Response) => {
       //order: [[order, descAux ? "DESC" : "ASC"]],
       limit: limitAux,
     });
+    console.log(events)
     res.json({ events });
   } catch (error) {
     console.log(error);

@@ -1,5 +1,5 @@
 const { DataTypes } = require("sequelize");
-const db = require("../database/connections");
+const db = require("../connection");
 
 const schema = {
   id: {
@@ -9,15 +9,19 @@ const schema = {
   },
   name: {
     type: DataTypes.STRING,
+    allowNull: false
   },
   urlBg: {
-    type: DataTypes.BOOLEAN,
+    type: DataTypes.STRING,
+    defaultValue: 'https://images.pexels.com/photos/4240602/pexels-photo-4240602.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500'
   },
   urlPresentation: {
     type: DataTypes.STRING,
+    defaultValue: ''
   },
   requisites: {
     type: DataTypes.JSON,
+    defaultValue: [],
     get: function () {
       return JSON.parse(this.getDataValue("requisites"));
     },
@@ -27,6 +31,8 @@ const schema = {
   },
   objectives: {
     type: DataTypes.JSON,
+    defaultValue: [],
+    allowNull: false,
     get: function () {
       return JSON.parse(this.getDataValue("objectives"));
     },
@@ -36,6 +42,8 @@ const schema = {
   },
   benefits: {
     type: DataTypes.JSON,
+    defaultValue: [],
+    allowNull: false,
     get: function () {
       return JSON.parse(this.getDataValue("benefits"));
     },
@@ -45,6 +53,8 @@ const schema = {
   },
   topics: {
     type: DataTypes.JSON,
+    defaultValue: [],
+    allowNull: false,
     get: function () {
       return JSON.parse(this.getDataValue("topics"));
     },
@@ -54,53 +64,70 @@ const schema = {
   },
   price: {
     type: DataTypes.DOUBLE,
+    defaultValue: 0
   },
   currency: {
-    type: DataTypes.STRING,
+    type: DataTypes.STRING(100),
+    defaultValue: ''
   },
   platform: {
-    type: DataTypes.STRING,
+    type: DataTypes.STRING(100),
+    defaultValue: '',
+    allowNull: false
   },
   title: {
     type: DataTypes.STRING,
+    allowNull: false
   },
   description: {
-    type: DataTypes.STRING,
+    type: DataTypes.STRING(2000),
+    allowNull: false
   },
   paymentLink: {
     type: DataTypes.STRING,
+    defaultValue: ''
   },
   paymentMethod: {
     type: DataTypes.STRING,
+    defaultValue: ''
   },
   paymentFacilities: {
     type: DataTypes.STRING,
+    defaultValue: ''
   },
   condition: {
     type: DataTypes.STRING,
+    defaultValue: ''
   },
   timezoneText: {
     type: DataTypes.STRING,
+    defaultValue: ''
   },
   whatsappGroup: {
     type: DataTypes.STRING,
+    defaultValue: ''
   },
   extraData: {
     type: DataTypes.JSON,
+    defaultValue: [],
     get: function () {
-      return JSON.parse(this.getDataValue("extraInfo"));
+      return JSON.parse(this.getDataValue("extraData"));
     },
     set: function (value) {
-      this.setDataValue("extraInfo", JSON.stringify(value));
+      this.setDataValue("extraData", JSON.stringify(value));
     },
   },
   alias: {
     type: DataTypes.STRING,
+    allowNull: false
   },
+  createdAt: DataTypes.DATE,
+  updatedAt: DataTypes.DATE,
 };
 
-const Event = db.define("events", schema, {
-  tableName: "events",
-});
+const Event = db.define("event", schema, { tableName: "events", });
 
-module.exports = Event;
+module.exports = {
+  schema,
+  Event
+};
