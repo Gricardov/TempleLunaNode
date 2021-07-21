@@ -1,26 +1,24 @@
-const { Event } = require("../database/models/event");
+const { queryDB } = require('../database/pool');
 
 const getEvents = async (req = Request, res = Response) => {
   const { limit = "5", order = "startDate", desc = "1" } = req.query;
   try {
     const limitAux = parseInt(limit);
     const descAux = parseInt(desc);
-    const events = await Event.findAll({
-      //order: [[order, descAux ? "DESC" : "ASC"]],
-      limit: limitAux,
-    });
-    console.log(events)
-    res.json({ events });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      msg: "Parámetros inválidos",
-    });
+    const result = await queryDB('SELECT * FROM events WHERE id = ?', ['0000000001']);
+    res.json({ result });
+  } catch (err) {
+    res.status(500).json({ msg: 'error' });
   }
+
+  /*const events = await Event.findAll({
+    //order: [[order, descAux ? "DESC" : "ASC"]],
+    limit: limitAux,
+  });*/
 };
 
 const getEvent = async (req = Request, res = Response) => {
-  const { alias } = req.params;
+  /*const { alias } = req.params;
   const event = await Event.findOne({
     where: {
       alias,
@@ -32,11 +30,11 @@ const getEvent = async (req = Request, res = Response) => {
     res.status(404).json({
       msg: "No existe evento con ese alias",
     });
-  }
+  }*/
 };
 
 const postEvent = async (req = Request, res = Response) => {
-  const { body } = req;
+  /*const { body } = req;
   try {
     const existsAlias = await Event.findOne({
       where: {
@@ -58,11 +56,11 @@ const postEvent = async (req = Request, res = Response) => {
     res.status(404).json({
       msg: "Hable con el administrador",
     });
-  }
+  }*/
 };
 
 const putEvent = async (req = Request, res = Response) => {
-  const { id } = req.params;
+  /*const { id } = req.params;
   const { body } = req;
   try {
     const event = await Event.findByPk(id);
@@ -78,11 +76,11 @@ const putEvent = async (req = Request, res = Response) => {
     res.status(404).json({
       msg: "Hable con el administrador",
     });
-  }
+  }*/
 };
 
 const deleteEvent = async (req = Request, res = Response) => {
-  const { id } = req.params;
+  /*const { id } = req.params;
 
   const event = await Event.findByPk(id);
   if (!event) {
@@ -97,7 +95,7 @@ const deleteEvent = async (req = Request, res = Response) => {
   // Eliminación lógica
   await event.update({ status: false });
 
-  res.json(event);
+  res.json(event);*/
 };
 
 

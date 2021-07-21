@@ -1,12 +1,10 @@
-const User = require("../database/models/user");
 
 const getUsers = async (req, res) => {
-  const users = await User.findAll();
-  res.json({ users });
+  res.json({});
 };
 
 const getUser = async (req, res) => {
-  const { id } = req.params;
+  /*const { id } = req.params;
   const user = await User.findByPk(id);
   if (user) {
     res.json(user);
@@ -14,11 +12,11 @@ const getUser = async (req, res) => {
     res.status(404).json({
       msg: "No existe usuario con ese id",
     });
-  }
+  }*/
 };
 
 const postUser = async (req, res) => {
-  const { body } = req;
+  /*const { body } = req;
   try {
     const existeEmail = await User.findOne({
       where: {
@@ -40,11 +38,11 @@ const postUser = async (req, res) => {
     res.status(404).json({
       msg: "Hable con el administrador",
     });
-  }
+  }*/
 };
 
 const putUser = async (req, res) => {
-  const { id } = req.params;
+  /*const { id } = req.params;
   const { body } = req;
   try {
     const user = await User.findByPk(id);
@@ -60,11 +58,11 @@ const putUser = async (req, res) => {
     res.status(404).json({
       msg: "Hable con el administrador",
     });
-  }
+  }*/
 };
 
 const deleteUser = async (req, res) => {
-  const { id } = req.params;
+  /*const { id } = req.params;
 
   const user = await User.findByPk(id);
   if (!user) {
@@ -79,7 +77,7 @@ const deleteUser = async (req, res) => {
   // Eliminación lógica
   await user.update({ status: false });
 
-  res.json(user);
+  res.json(user);*/
 };
 
 module.exports = {
