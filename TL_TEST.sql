@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS EVENTS (
 );
 
 ALTER TABLE EVENTS
-ADD UNIQUE INDEX EVENTS_ALIAS_INDEX(alias);
+ADD CONSTRAINT EVENTS_UNIQUE_ALIAS UNIQUE (alias);
 
 -- Fechas de los eventos (Un evento puede tener varias fechas en las que se lleva a cabo. Se crea una tabla aparte para facilitar los queries)
 CREATE TABLE IF NOT EXISTS EVENT_DATES (
@@ -82,8 +82,9 @@ CREATE TABLE USERS (
 );
 
 ALTER TABLE USERS
+ADD CONSTRAINT USERS_UNIQUE_FOLLOWNAME UNIQUE (followName),
+ADD CONSTRAINT USERS_UNIQUE_EMAIL UNIQUE (email),
 ADD FOREIGN KEY (appId) REFERENCES CONTACT_APPS(id),
-ADD UNIQUE INDEX USERS_EMAIL_INDEX (email),
 ADD UNIQUE INDEX USERS_FOLLOWNAME_INDEX (followName);
 
 -- Roles de los usuarios (Ejemplo: admin, moderador, colaborador)
@@ -110,10 +111,10 @@ CREATE TABLE INSCRIPTIONS (
   id INT(10) ZEROFILL UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   eventId INT(10) ZEROFILL UNSIGNED NOT NULL ,
   userId INT(10) ZEROFILL UNSIGNED NULL,
-  name VARCHAR(200) NOT NULL,
-  age TINYINT NOT NULL,
-  phone VARCHAR(50) NOT NULL,
-  email VARCHAR(200) NOT NULL,
+  names VARCHAR(200) NULL,
+  age TINYINT NULL,
+  phone VARCHAR(50) NULL,
+  email VARCHAR(200) NULL,
   extraData JSON NULL DEFAULT '{}',
   active BOOLEAN NOT NULL DEFAULT 1,
   createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -132,12 +133,13 @@ CREATE TABLE SERVICES (
 
 -- Sub servicios (Por ejemplo, el servicio de diseños tiene portadas, banners)
 CREATE TABLE SUBSERVICES (
-  id VARCHAR(50) PRIMARY KEY,
+  id VARCHAR(50) NOT NULL,
   serviceId VARCHAR(50) NOT NULL,
   name VARCHAR(100) NOT NULL  
 );
 
 ALTER TABLE SUBSERVICES
+ADD PRIMARY KEY (id, serviceId),
 ADD FOREIGN KEY (serviceId) REFERENCES SERVICES(id);
 
 -- Servicios por usuario (Ejemplo: Críticas, diseños, booktrailers + sus respectivas condiciones)
@@ -147,20 +149,18 @@ CREATE TABLE SERVICES_BY_USER (
   serviceId VARCHAR(50) NOT NULL,
   subServiceId VARCHAR(50) NULL,
   urlBg VARCHAR(500) NULL DEFAULT 'https://images.pexels.com/photos/4240602/pexels-photo-4240602.jpeg?',
-  title VARCHAR(500) NOT NULL,
-  about VARCHAR(500) NOT NULL,
-  benefits JSON NOT NULL DEFAULT '[]',  
-  requisites JSON NOT NULL DEFAULT '[]',
-  teamPolicy VARCHAR(500) NOT NULL DEFAULT '',
-  pricePolicy VARCHAR(500) NOT NULL DEFAULT '',
-  contributePolicy VARCHAR(500) NOT NULL DEFAULT '',
-  volunteerPolicy VARCHAR(500) NOT NULL DEFAULT '',
-  timePolicy VARCHAR(500) NOT NULL DEFAULT '',
+  title VARCHAR(500) NULL,
+  about VARCHAR(500) NULL,
+  benefits JSON NULL DEFAULT '[]',  
+  requisites JSON NULL DEFAULT '[]',
+  aboutMePolicy VARCHAR(500) NULL DEFAULT '',
+  pricePolicy VARCHAR(500) NULL DEFAULT '',
+  contributePolicy VARCHAR(500) NULL DEFAULT '',
+  timePolicy VARCHAR(500) NULL DEFAULT '',
   minPrice DOUBLE NOT NULL DEFAULT 0,
   maxPrice DOUBLE NOT NULL DEFAULT 0,
   currency VARCHAR(50) NULL DEFAULT 'USD',
   extraData JSON NULL DEFAULT '[]',
-  active BOOLEAN NOT NULL DEFAULT 1,
   createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP  
 );
@@ -191,7 +191,10 @@ CREATE TABLE EDITORIALS (
 );
 
 ALTER TABLE EDITORIALS
-ADD FOREIGN KEY (appId) REFERENCES CONTACT_APPS(id);
+ADD CONSTRAINT EDITORIALS_UNIQUE_FOLLOWNAME UNIQUE (followName),
+ADD CONSTRAINT EDITORIALS_UNIQUE_EMAIL UNIQUE (email),
+ADD FOREIGN KEY (appId) REFERENCES CONTACT_APPS(id),
+ADD UNIQUE INDEX EDITORIALS_FOLLOWNAME_INDEX (followName);
 
 -- Servicios por editorial (Ejemplo: Críticas, diseños, booktrailers + sus respectivas condiciones)
 CREATE TABLE SERVICES_BY_EDITORIAL (
@@ -295,8 +298,9 @@ CREATE TABLE ORDERS (
   details VARCHAR(500) NULL,
   intention VARCHAR(500) NULL,
   mainPhrase VARCHAR(200) NULL,
-  urlImgRef VARCHAR(500) NULL,
+  urlImgRef VARCHAR(500) NULL,  
   critiqueTopics JSON NULL DEFAULT '[]',
+  observations VARCHAR(500) NULL,
   extraData JSON NULL DEFAULT '[]',
   publicResult BOOLEAN NOT NULL DEFAULT 1, -- Esto define si el link a la obra puede quedar público en el portafolio del autor
   resultUrl VARCHAR(500) NULL DEFAULT NULL,
@@ -309,6 +313,7 @@ CREATE TABLE ORDERS (
 );
 
 ALTER TABLE ORDERS
+  ADD UNIQUE INDEX ORDERS_CREATED_AT_INDEX(createdAt),
   ADD FOREIGN KEY (clientUserId) REFERENCES USERS(id),
   ADD FOREIGN KEY (clientAppId) REFERENCES CONTACT_APPS(id),
   ADD FOREIGN KEY (workerUserId) REFERENCES USERS(id),
@@ -318,7 +323,7 @@ ALTER TABLE ORDERS
   ADD FOREIGN KEY (statusId) REFERENCES ORDER_STATUS(id);
 
 -- Revista
-CREATE TABLE MAGAZINE (
+CREATE TABLE MAGAZINES (
   id INT(10) ZEROFILL UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   title VARCHAR(500) NOT NULL,
   urlPortrait VARCHAR(500) NOT NULL,
@@ -331,6 +336,9 @@ CREATE TABLE MAGAZINE (
   numViews INT NOT NULL DEFAULT 0, -- BY TRIGGER
   alias VARCHAR(200) NOT NULL
 );
+
+ALTER TABLE MAGAZINES
+ADD CONSTRAINT MAGAZINES_UNIQUE_ALIAS UNIQUE (alias);
 
 -- Estados de un comentario (Ejemplo: En revisión, aprobado, rechazado)
 CREATE TABLE COMMENT_STATUS (
@@ -345,7 +353,8 @@ CREATE TABLE COMMENTS (
   orderId INT(10) ZEROFILL UNSIGNED NULL,
   magazineId INT(10) ZEROFILL UNSIGNED NULL,
   content VARCHAR(1000) NOT NULL,
-  statusId VARCHAR(50) NOT NULL,
+  observations VARCHAR(500) NULL,
+  statusId VARCHAR(50) NOT NULL,  
   createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP  
 );
@@ -353,7 +362,7 @@ CREATE TABLE COMMENTS (
 ALTER TABLE COMMENTS
   ADD FOREIGN KEY (userId) REFERENCES USERS(id),
   ADD FOREIGN KEY (orderId) REFERENCES ORDERS(id),
-  ADD FOREIGN KEY (magazineId) REFERENCES MAGAZINE(id),
+  ADD FOREIGN KEY (magazineId) REFERENCES MAGAZINES(id),
   ADD FOREIGN KEY (statusId) REFERENCES COMMENT_STATUS(id);
 
 -- Suscriptores
@@ -393,10 +402,268 @@ CREATE TABLE ACTIONS_BY_USER_ON_ITEM (
 ALTER TABLE ACTIONS_BY_USER_ON_ITEM
   ADD FOREIGN KEY (userId) REFERENCES USERS(id),
   ADD FOREIGN KEY (orderId) REFERENCES ORDERS(id),
-  ADD FOREIGN KEY (magazineId) REFERENCES MAGAZINE(id),
+  ADD FOREIGN KEY (magazineId) REFERENCES MAGAZINES(id),
   ADD FOREIGN KEY (actionId) REFERENCES ACTIONS_ON_ITEM(id);
 
 -- Inserciones
+
+-- Inserciones maestras
+
+INSERT INTO CONTACT_APPS VALUES
+('WSP','Whatsapp'),
+('TLG','Telegram'),
+('SIG','Signal'),
+('OAPP','Otra app');
+
+INSERT INTO USER_ROLES VALUES
+('FOUNDER','Fundador'), -- Solo para el creador
+('ADMIN','Administrador'), -- Para los que tienen privilegios de hacer cambios en la plataforma
+('MOD','Moderador'), -- Para los que aprueban contenidos
+('COLAB','Colaborador'), -- Para los que dan servicios
+('CREATOR','Creador de contenidos'), -- Para los que crean sus contenidos como blogs
+('BASIC','Básico'); -- Todos
+
+INSERT INTO SERVICES VALUES
+('CRITICA','Crítica'),
+('DISENO','Diseño'),
+('CORRECCION','Corrección'),
+('ESCUCHA','Escucha'),
+('BTRAILER','Booktrailer');
+
+INSERT INTO SUBSERVICES VALUES
+('POR', 'DISENO','Portada'),
+('BAN','DISENO','Banner para redes');
+
+INSERT INTO EDITORIAL_MEMBER_ROLES VALUES
+('ADMIN','Administrador'),
+('CRITICO','Crítico'),
+('DISEÑADOR','Diseñador'),
+('CORRECTOR','Corrector'),
+('ESCUCHADOR','Escuchador'),
+('PRODUCTOR-BTRAILER','Productor de booktrailer');
+
+INSERT INTO ORDER_STATUS VALUES
+('DISPONIBLE','Disponible'),
+('TOMADO','Tomado'),
+('ANULADO','Anulado'),
+('HECHO','Hecho');
+
+INSERT INTO COMMENT_STATUS VALUES
+('REVISION','En revisión'),
+('APROBADO','Aprobado'),
+('RECHAZADO','Rechazado');
+
+INSERT INTO ACTIONS_ON_ITEM VALUES
+('VER','Visualizar'),
+('GUSTAR','Dar like'),
+('COMPARTIR','Compartir'),
+('DESCARGAR','Descargar');
+
+-- Inserciones no maestras
+
+-- Eventos
+INSERT INTO EVENTS VALUES
+(DEFAULT,
+'Evento 1',
+'https://images.pexels.com/photos/6383219/pexels-photo-6383219.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500',
+'https://www.youtube.com/watch?v=cD2bQH8-pos&t=424s&ab_channel=Ra%C3%BAlValverde',
+'["Requisito 1", "Requisito 2", "Requisito 3"]',
+'["Objetivo 1", "Objetivo 2"]',
+'["Beneficio 1","Beneficio 2"]',
+'["Tema 1", "Tema 2", "Tema 3"]',
+0,
+NULL,
+'Zoom',
+NULL,
+NULL,
+NULL,
+'Aprende a crear tu libro desde cero',
+'Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry"s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book',
+'10 inscritos como mínimo',
+NULL,
+'[{"name":"Obras llevadas al teatro","link":{"name":"Leer aquí","href":"https://www.google.com"}}]',
+'APRENDE-A-CREAR-TU-LIBRO-DESDE-CERO-AMASCARITA-1-2021',
+'https://chat.whatsapp.com/FW4fmEli2WsATci5RYU2nI',
+DEFAULT,
+DEFAULT,
+DEFAULT);
+
+INSERT INTO EVENTS VALUES
+(DEFAULT,
+'Evento 2',
+'https://images.pexels.com/photos/6383219/pexels-photo-6383219.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500',
+DEFAULT,
+'["Requisito 1", "Requisito 2", "Requisito 3", "Requisito 4"]',
+'["Objetivo 1", "Objetivo 2", "Objetivo 3"]',
+'["Beneficio 1"]',
+'["Tema 1", "Tema 2" ,"Tema 3"]',
+0,
+NULL,
+'Zoom',
+NULL,
+NULL,
+NULL,
+'Aprende a crear tu editorial',
+'Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry"s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book',
+'10 inscritos como mínimo',
+NULL,
+'[{"name":"Obras llevadas al teatro","link":{"name":"Leer aquí","href":"https://www.google.com"}}]',
+'APRENDE-A-CREAR-TU-EDITORIAL-AMASCARITA-1-2021',
+'https://chat.whatsapp.com/FW4fmEli2WsATci5RYU2nI',
+DEFAULT,
+DEFAULT,
+DEFAULT);
+
+-- Fechas de los eventos
+INSERT INTO EVENT_DATES VALUES
+(DEFAULT, 0000000001, DATE_ADD(NOW(), INTERVAL 10 DAY), DATE_ADD(NOW(), INTERVAL 11 DAY), 0, DEFAULT, DEFAULT, DEFAULT);
+
+INSERT INTO EVENT_DATES VALUES
+(DEFAULT, 0000000001, DATE_ADD(NOW(), INTERVAL 13 DAY), DATE_ADD(NOW(), INTERVAL 14 DAY), 0, DEFAULT, DEFAULT, DEFAULT);
+
+INSERT INTO EVENT_DATES VALUES
+(DEFAULT, 0000000002, DATE_ADD(NOW(), INTERVAL 1 HOUR), DATE_ADD(NOW(), INTERVAL 2 HOUR), 0, DEFAULT, DEFAULT, DEFAULT);
+
+-- Usuarios
+INSERT INTO USERS VALUES
+(DEFAULT,
+'corazon@gmail.com',
+1,
+'contacto@gmail.com',
+'Alyoh',
+'Mascarita',
+'1995-04-20',
+'+51999999999',
+'WSP',
+'Alyoh Mascarita',
+'alyohmascarita',
+DEFAULT,
+DEFAULT,
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Flindo.jpg?alt=media&token=177bb113-efb9-4e15-9291-743a525a2420',
+'["https://www.facebook.com/", "https://www.instagram.com/"]',
+DEFAULT,
+DEFAULT,
+DEFAULT);
+
+INSERT INTO USERS VALUES
+(DEFAULT,
+'pilyy@gmail.com',
+1,
+'contactopilyy@gmail.com',
+'Pilyy',
+'Hernandez',
+'1992-04-01',
+'+529999999',
+'TLG',
+'Pilyy Hernandez',
+'pilyyhernandez',
+DEFAULT,
+DEFAULT,
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fsayrih.jpg?alt=media&token=6a770c21-f3c9-475b-ae03-8423f1876c45',
+'["https://www.facebook.com/", "https://www.instagram.com/"]',
+DEFAULT,
+DEFAULT,
+DEFAULT);
+
+-- Roles por usuario
+INSERT INTO ROLES_BY_USER VALUES
+(1,'BASIC',DEFAULT,DEFAULT),
+(1,'ADMIN',DEFAULT,DEFAULT),
+(2,'BASIC',DEFAULT,DEFAULT),
+(2,'COLAB',DEFAULT,DEFAULT),
+(2,'MOD',DEFAULT,DEFAULT);
+
+-- Inscripciones
+INSERT INTO INSCRIPTIONS VALUES
+(DEFAULT, 0000000001, 0000000001, NULL, NULL, NULL, NULL, NULL, 1, DEFAULT, DEFAULT),
+(DEFAULT, 0000000001, NULL, 'Tipito Enojado', 26, '+519999999', 'tipitoenojada@gmail.com', NULL, 1, DEFAULT, DEFAULT);
+
+-- Servicios por usuario
+INSERT INTO SERVICES_BY_USER VALUES
+(DEFAULT,
+0000000002,
+'CRITICA',
+NULL,
+DEFAULT,
+'Servicio de críticas',
+'Este es mi servicio',
+'["Beneficio 1"]',
+'["Requisito 1", "Requisito 2"]',
+'Política de sobre mí',
+'Política de precios',
+'Política de contribución',
+'Política de tiempo',
+0,
+0,
+DEFAULT,
+NULL,
+DEFAULT,
+DEFAULT
+);
+
+INSERT INTO SERVICES_BY_USER VALUES
+(DEFAULT,
+0000000002,
+'DISENO',
+NULL,
+DEFAULT,
+'Servicio de diseños',
+'Este es mi diseño',
+'["Beneficio 1"]',
+'["Requisito 1", "Requisito 2"]',
+'Política sobre mí',
+'Política de precios',
+'Política de contribución',
+'Política de tiempo',
+0,
+0,
+DEFAULT,
+NULL,
+DEFAULT,
+DEFAULT
+);
+
+INSERT INTO SERVICES_BY_USER VALUES
+(DEFAULT,
+0000000002,
+'DISENO',
+'BAN',
+DEFAULT,
+'Servicio de diseños',
+'Este es mi diseño',
+'["Beneficio 1"]',
+'["Requisito 1", "Requisito 2"]',
+'Política sobre mí',
+'Política de precios',
+'Política de contribución',
+'Política de tiempo',
+0,
+0,
+DEFAULT,
+NULL,
+DEFAULT,
+DEFAULT
+);
+
+-- Editoriales
+INSERT INTO EDITORIALS VALUES
+(DEFAULT,
+'Editorial Miranda',
+'Somos la editorial Miranda, la mejor editorial del mundo',
+'editorialmiranda',
+'+519999999',
+'WSP',
+'editorialmiranda@templeluna.app',
+DEFAULT,
+DEFAULT,
+'https://images.cdn1.buscalibre.com/fit-in/360x360/db/75/db7537f6ac45ba635405841d9c4cbede.jpg',
+'#BABABA',
+'["https://www.facebook.com/", "https://www.instagram.com/"]',
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT
+);
 
 -- INSERT INTO events VALUES (DEFAULT,'Evento 1',DEFAULT,'https://www.youtube.com/watch?v=cD2bQH8-pos&t=424s&ab_channel=Ra%C3%BAlValverde',DEFAULT,'["Objetivo1", "Objetivo2"]','["Beneficio1", "Beneficio2"]','["Tema1","Tema2"]',0,NULL,DEFAULT,DEFAULT,DEFAULT,DEFAULT,'Título del evento','Cuéntame que es de tu vida y trataré de quererte todavía',DEFAULT,DEFAULT,'[{"name":"Obras llevadas al teatro","link":{"name":"Leer aquí","href":"https://www.google.com"}}]','GRAN-TEXTO-GUION-TEXTO-Y-NOVELA-CCADENA-1',DEFAULT,DEFAULT,DEFAULT);
 

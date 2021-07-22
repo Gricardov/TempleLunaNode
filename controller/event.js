@@ -5,8 +5,8 @@ const getEvents = async (req = Request, res = Response) => {
   try {
     const limitAux = parseInt(limit);
     const descAux = parseInt(desc);
-    const result = await queryDB('SELECT * FROM events WHERE id = ?', ['0000000001']);
-    res.json({ result });
+    const result = await queryDB('SELECT * FROM events');
+    res.json(result);
   } catch (err) {
     res.status(500).json({ msg: 'error' });
   }
