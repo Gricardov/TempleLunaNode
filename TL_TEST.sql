@@ -5,7 +5,7 @@ CREATE DATABASE IF NOT EXISTS TL_TEST;
 
 USE TL_TEST;
 
--- TABLAS
+-- Tablas
 
 -- Apps de contacto (Ejemplo: Whatsapp, Telegram o línea directa)
 CREATE TABLE IF NOT EXISTS CONTACT_APPS (
@@ -75,6 +75,8 @@ CREATE TABLE USERS (
   numFollowers INT NOT NULL DEFAULT 0, -- BY TRIGGER
   numHearts INT NOT NULL DEFAULT 0, -- BY TRIGGER
   urlProfileImg VARCHAR(500) NULL DEFAULT NULL,  
+  occupation VARCHAR(200) NULL DEFAULT NULL,
+  about VARCHAR(1000) NULL DEFAULT NULL,
   networks JSON NOT NULL DEFAULT '[]',
   active BOOLEAN NOT NULL DEFAULT 1,
   createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -124,6 +126,31 @@ CREATE TABLE INSCRIPTIONS (
 ALTER TABLE INSCRIPTIONS
 ADD FOREIGN KEY (eventId) REFERENCES EVENTS(id),
 ADD FOREIGN KEY (userId) REFERENCES USERS(id);
+
+-- Instructores por eventos (Ejemplo: Profesor X dirige Z evento)
+CREATE TABLE INSTRUCTORS_BY_EVENT (
+  id INT(10) ZEROFILL UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  eventId INT(10) ZEROFILL UNSIGNED NOT NULL ,
+  userId INT(10) ZEROFILL UNSIGNED NULL,
+  fName VARCHAR(200) NULL,
+  lName VARCHAR(200) NULL,
+  birthday DATETIME NULL, 
+  phone VARCHAR(50) NULL,
+  appId VARCHAR(50) NULL,
+  email VARCHAR(200) NULL,
+  urlProfileImg VARCHAR(500) NULL DEFAULT NULL,
+  occupation VARCHAR(200) NULL,
+  about VARCHAR(1000) NULL,
+  networks JSON NULL DEFAULT '[]',
+  extraData JSON NULL DEFAULT '{}',
+  createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP  
+);
+
+ALTER TABLE INSTRUCTORS_BY_EVENT
+ADD FOREIGN KEY (eventId) REFERENCES EVENTS(id),
+ADD FOREIGN KEY (userId) REFERENCES USERS(id),
+ADD FOREIGN KEY (appId) REFERENCES CONTACT_APPS(id);
 
 -- Servicios (Ejemplo: Diseño, críticas, booktrailers)
 CREATE TABLE SERVICES (
@@ -516,12 +543,8 @@ DEFAULT);
 
 -- Fechas de los eventos
 INSERT INTO EVENT_DATES VALUES
-(DEFAULT, 0000000001, DATE_ADD(NOW(), INTERVAL 10 DAY), DATE_ADD(NOW(), INTERVAL 11 DAY), 0, DEFAULT, DEFAULT, DEFAULT);
-
-INSERT INTO EVENT_DATES VALUES
-(DEFAULT, 0000000001, DATE_ADD(NOW(), INTERVAL 13 DAY), DATE_ADD(NOW(), INTERVAL 14 DAY), 0, DEFAULT, DEFAULT, DEFAULT);
-
-INSERT INTO EVENT_DATES VALUES
+(DEFAULT, 0000000001, DATE_ADD(NOW(), INTERVAL 10 DAY), DATE_ADD(NOW(), INTERVAL 11 DAY), 0, DEFAULT, DEFAULT, DEFAULT),
+(DEFAULT, 0000000001, DATE_ADD(NOW(), INTERVAL 13 DAY), DATE_ADD(NOW(), INTERVAL 14 DAY), 0, DEFAULT, DEFAULT, DEFAULT),
 (DEFAULT, 0000000002, DATE_ADD(NOW(), INTERVAL 1 HOUR), DATE_ADD(NOW(), INTERVAL 2 HOUR), 0, DEFAULT, DEFAULT, DEFAULT);
 
 -- Usuarios
@@ -540,6 +563,8 @@ INSERT INTO USERS VALUES
 DEFAULT,
 DEFAULT,
 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Flindo.jpg?alt=media&token=177bb113-efb9-4e15-9291-743a525a2420',
+DEFAULT,
+DEFAULT,
 '["https://www.facebook.com/", "https://www.instagram.com/"]',
 DEFAULT,
 DEFAULT,
@@ -560,6 +585,8 @@ INSERT INTO USERS VALUES
 DEFAULT,
 DEFAULT,
 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fsayrih.jpg?alt=media&token=6a770c21-f3c9-475b-ae03-8423f1876c45',
+DEFAULT,
+DEFAULT,
 '["https://www.facebook.com/", "https://www.instagram.com/"]',
 DEFAULT,
 DEFAULT,
@@ -577,6 +604,11 @@ INSERT INTO ROLES_BY_USER VALUES
 INSERT INTO INSCRIPTIONS VALUES
 (DEFAULT, 0000000001, 0000000001, NULL, NULL, NULL, NULL, NULL, 1, DEFAULT, DEFAULT),
 (DEFAULT, 0000000001, NULL, 'Tipito Enojado', 26, '+519999999', 'tipitoenojada@gmail.com', NULL, 1, DEFAULT, DEFAULT);
+
+-- Instructores por evento
+INSERT INTO INSTRUCTORS_BY_EVENT VALUES
+(DEFAULT, 2, 1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'Soy escritor y poeta amateur',NULL,NULL,NULL,DEFAULT,DEFAULT),
+(DEFAULT,1,NULL,'Cosme','Fulanito',NOW(),'+519999999','TLG','cosme@gmail.com', 'https://i.ytimg.com/vi/xnoummdS3DA/maxresdefault.jpg','Escritor y poeta','Lo siento nene vas a morir. Me quitaste lo que más quería y volverá conmigo, volverá algún día.','["https://facebook.com"]',NULL,DEFAULT,DEFAULT);
 
 -- Servicios por usuario
 INSERT INTO SERVICES_BY_USER VALUES
@@ -664,6 +696,54 @@ DEFAULT,
 DEFAULT,
 DEFAULT
 );
+
+-- Procedimientos
+
+-- Obtiene los eventos más cercanos a iniciar
+DROP PROCEDURE IF EXISTS USP_GET_LATEST_EVENTS;
+DELIMITER //
+CREATE PROCEDURE USP_GET_LATEST_EVENTS (P_LIMIT INT, P_LAST_DATE DATETIME)
+BEGIN
+DECLARE V_LAST_DATE DATETIME;
+IF (P_LAST_DATE IS NULL) THEN
+BEGIN
+	SET V_LAST_DATE = DATE_ADD((SELECT MAX(ED.from) FROM EVENT_DATES ED), INTERVAL 1 HOUR);
+END;
+ELSE
+BEGIN
+	SET V_LAST_DATE = P_LAST_DATE;    
+END;
+END IF;
+
+SELECT E.id, E.name, E.urlBg, E.urlPresentation, E.requisites, E.objectives, E.benefits, E.topics, E.price, E.currency, E.platform, E.paymentLink, E.paymentMethod, E.paymentFacilities, E.title, E.about, E.condition, E.timezoneText, E.alias, ED.from, ED.until, ED.recurrent
+FROM EVENTS E
+JOIN EVENT_DATES ED
+ON E.id = ED.eventId
+WHERE ED.from < V_LAST_DATE AND ED.active = 1 AND E.active = 1
+GROUP BY E.id
+ORDER BY ED.from DESC
+LIMIT P_LIMIT;
+END; //
+DELIMITER ;
+
+-- Obtiene los instructores de los eventos
+DROP PROCEDURE IF EXISTS USP_GET_INSTRUCTORS_BY_EVENT;
+DELIMITER //
+CREATE PROCEDURE USP_GET_INSTRUCTORS_BY_EVENT (P_EVENT_ID INT)
+BEGIN
+SELECT -- Si userId es nulo, significa que los datos están en la tabla actual. Caso contrario, debo consultarlo desde la tabla USERS
+IBE.eventId,
+IBE.userId,
+CASE WHEN IBE.userId IS NULL THEN IBE.fName ELSE (SELECT fName FROM USERS WHERE id = IBE.userId LIMIT 1) END as fName,
+CASE WHEN IBE.userId IS NULL THEN IBE.lName ELSE (SELECT lName FROM USERS WHERE id = IBE.userId LIMIT 1) END as lName,
+CASE WHEN IBE.userId IS NULL THEN IBE.urlProfileImg ELSE (SELECT urlProfileImg FROM USERS WHERE id = IBE.userId LIMIT 1) END as urlProfileImg,
+CASE WHEN IBE.userId IS NULL THEN IBE.occupation ELSE (SELECT occupation FROM USERS WHERE id = IBE.userId LIMIT 1) END as occupation,
+CASE WHEN IBE.userId IS NULL THEN IBE.about ELSE (SELECT about FROM USERS WHERE id = IBE.userId LIMIT 1) END as about,
+CASE WHEN IBE.userId IS NULL THEN IBE.networks ELSE (SELECT networks FROM USERS WHERE id = IBE.userId LIMIT 1) END as networks
+FROM INSTRUCTORS_BY_EVENT IBE
+WHERE eventId=P_EVENT_ID;
+END; //
+DELIMITER ;
 
 -- INSERT INTO events VALUES (DEFAULT,'Evento 1',DEFAULT,'https://www.youtube.com/watch?v=cD2bQH8-pos&t=424s&ab_channel=Ra%C3%BAlValverde',DEFAULT,'["Objetivo1", "Objetivo2"]','["Beneficio1", "Beneficio2"]','["Tema1","Tema2"]',0,NULL,DEFAULT,DEFAULT,DEFAULT,DEFAULT,'Título del evento','Cuéntame que es de tu vida y trataré de quererte todavía',DEFAULT,DEFAULT,'[{"name":"Obras llevadas al teatro","link":{"name":"Leer aquí","href":"https://www.google.com"}}]','GRAN-TEXTO-GUION-TEXTO-Y-NOVELA-CCADENA-1',DEFAULT,DEFAULT,DEFAULT);
 

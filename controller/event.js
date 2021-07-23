@@ -1,14 +1,15 @@
 const { queryDB } = require('../database/pool');
 
 const getEvents = async (req = Request, res = Response) => {
-  const { limit = "5", order = "startDate", desc = "1" } = req.query;
+  const { limit } = req.query;
   try {
-    const limitAux = parseInt(limit);
-    const descAux = parseInt(desc);
-    const result = await queryDB('SELECT * FROM events');
-    res.json(result);
+    const eventsRes = await queryDB('CALL USP_GET_LATEST_EVENTS(?,?)', [limit, null]);
+    const instructorsPromises = eventsRes[0].map(event => queryDB('CALL USP_GET_INSTRUCTORS_BY_EVENT(?)', [event.id]));
+    const instructorsResArray = await Promise.all(instructorsPromises);
+    instructorsResArray.map((res, i) => eventsRes[0][i].instructors = res[0]);
+    res.json(eventsRes[0]);
   } catch (err) {
-    res.status(500).json({ msg: 'error' });
+    res.status(500).json({ msg: 'Error de servidor' });
   }
 
   /*const events = await Event.findAll({
