@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS EVENTS (
   about VARCHAR(1000) NOT NULL,
   `condition` VARCHAR(500) NULL DEFAULT '',
   timezoneText VARCHAR(200) NULL DEFAULT '',
+  recordings JSON NULL DEFAULT '[]',
   extraData JSON NULL DEFAULT '[]',
   alias VARCHAR(200) NOT NULL,
   whatsappGroup VARCHAR(500) NULL DEFAULT '',
@@ -59,6 +60,12 @@ CREATE TABLE IF NOT EXISTS EVENT_DATES (
 ALTER TABLE EVENT_DATES
 ADD FOREIGN KEY (eventId) REFERENCES EVENTS(id);
 
+-- Roles de los usuarios (Ejemplo: admin, moderador, colaborador)
+CREATE TABLE USER_ROLES (
+	id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(50) NOT NULL
+);
+
 -- Usuarios. Más adelante debemos guardar una tabla con sus preferencias (Más lector, escritor, etc)
 CREATE TABLE USERS (
   id INT(10) ZEROFILL UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -78,6 +85,7 @@ CREATE TABLE USERS (
   occupation VARCHAR(200) NULL DEFAULT NULL,
   about VARCHAR(1000) NULL DEFAULT NULL,
   networks JSON NOT NULL DEFAULT '[]',
+  roleId VARCHAR(50) NOT NULL DEFAULT 'BASIC',
   active BOOLEAN NOT NULL DEFAULT 1,
   createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -87,15 +95,10 @@ ALTER TABLE USERS
 ADD CONSTRAINT USERS_UNIQUE_FOLLOWNAME UNIQUE (followName),
 ADD CONSTRAINT USERS_UNIQUE_EMAIL UNIQUE (email),
 ADD FOREIGN KEY (appId) REFERENCES CONTACT_APPS(id),
+ADD FOREIGN KEY (roleId) REFERENCES USER_ROLES(id),
 ADD UNIQUE INDEX USERS_FOLLOWNAME_INDEX (followName);
 
--- Roles de los usuarios (Ejemplo: admin, moderador, colaborador)
-CREATE TABLE USER_ROLES (
-	id VARCHAR(50) PRIMARY KEY,
-    name VARCHAR(50) NOT NULL
-);
-
--- Roles por usuario (Un usuario puede ser admin, moderador, colaborador)
+/*-- Roles por usuario (Un usuario puede ser admin, moderador, colaborador)
 CREATE TABLE ROLES_BY_USER (
 	userId INT(10) ZEROFILL UNSIGNED NOT NULL,
     roleId VARCHAR(50) NOT NULL,
@@ -106,7 +109,7 @@ CREATE TABLE ROLES_BY_USER (
 ALTER TABLE ROLES_BY_USER
 ADD PRIMARY KEY (userId, roleId),
 ADD FOREIGN KEY (userId) REFERENCES USERS(id),
-ADD FOREIGN KEY (roleId) REFERENCES USER_ROLES(id);
+ADD FOREIGN KEY (roleId) REFERENCES USER_ROLES(id);*/
 
 -- Inscripciones a los eventos
 CREATE TABLE INSCRIPTIONS (
@@ -124,6 +127,8 @@ CREATE TABLE INSCRIPTIONS (
 );
 
 ALTER TABLE INSCRIPTIONS
+ADD CONSTRAINT INSCRIPTIONS_UNIQUE_USER_ID_BY_EVENT_ID UNIQUE (eventId, userId),
+ADD CONSTRAINT INSCRIPTIONS_UNIQUE_EMAIL_BY_EVENT_ID UNIQUE (eventId, email),
 ADD FOREIGN KEY (eventId) REFERENCES EVENTS(id),
 ADD FOREIGN KEY (userId) REFERENCES USERS(id);
 
@@ -491,7 +496,7 @@ INSERT INTO ACTIONS_ON_ITEM VALUES
 -- Eventos
 INSERT INTO EVENTS VALUES
 (DEFAULT,
-'Evento 1',
+'Aprende a construir tu libro desde cero',
 'https://images.pexels.com/photos/6383219/pexels-photo-6383219.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500',
 'https://www.youtube.com/watch?v=cD2bQH8-pos&t=424s&ab_channel=Ra%C3%BAlValverde',
 '["Requisito 1", "Requisito 2", "Requisito 3"]',
@@ -504,10 +509,11 @@ NULL,
 NULL,
 NULL,
 NULL,
-'Aprende a crear tu libro desde cero',
+'Este es el encabezado del evento',
 'Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry"s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book',
 '10 inscritos como mínimo',
 NULL,
+'[{"name":"Introducción al curso","url":"https://www.youtube.com/watch?v=c70NJVO9jtE&ab_channel=M%C3%9ASICAVARIADALBA","resources":[]},{"name":"Creando la historia","url":"https://www.youtube.com/watch?v=6nemwgJZCc8&ab_channel=Pat%C3%A9deFu%C3%A1","resources":[]}]',
 '[{"name":"Obras llevadas al teatro","link":{"name":"Leer aquí","href":"https://www.google.com"}}]',
 'APRENDE-A-CREAR-TU-LIBRO-DESDE-CERO-AMASCARITA-1-2021',
 'https://chat.whatsapp.com/FW4fmEli2WsATci5RYU2nI',
@@ -517,26 +523,27 @@ DEFAULT);
 
 INSERT INTO EVENTS VALUES
 (DEFAULT,
-'Evento 2',
+'Aprende a crear tu historial desde cero',
 'https://images.pexels.com/photos/6383219/pexels-photo-6383219.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500',
 DEFAULT,
 '["Requisito 1", "Requisito 2", "Requisito 3", "Requisito 4"]',
 '["Objetivo 1", "Objetivo 2", "Objetivo 3"]',
 '["Beneficio 1"]',
 '["Tema 1", "Tema 2" ,"Tema 3"]',
-0,
-NULL,
+20,
+'USD',
 'Zoom',
-NULL,
-NULL,
-NULL,
-'Aprende a crear tu editorial',
+'https://paypal.me/gricardov',
+'Bitcoin',
+'Estas son las facilidades de pago',
+'Este es el encabezado del evento',
 'Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry"s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book',
 '10 inscritos como mínimo',
 NULL,
+'[{"name":"Introducción al taller","url":"https://www.youtube.com/watch?v=c70NJVO9jtE&ab_channel=M%C3%9ASICAVARIADALBA","resources":[]},{"name":"Creando la pupusa","url":"https://www.youtube.com/watch?v=6nemwgJZCc8&ab_channel=Pat%C3%A9deFu%C3%A1","resources":[]}]',
 '[{"name":"Obras llevadas al teatro","link":{"name":"Leer aquí","href":"https://www.google.com"}}]',
 'APRENDE-A-CREAR-TU-EDITORIAL-AMASCARITA-1-2021',
-'https://chat.whatsapp.com/FW4fmEli2WsATci5RYU2nI',
+DEFAULT,
 DEFAULT,
 DEFAULT,
 DEFAULT);
@@ -566,6 +573,7 @@ DEFAULT,
 DEFAULT,
 DEFAULT,
 '["https://www.facebook.com/", "https://www.instagram.com/"]',
+'BASIC',
 DEFAULT,
 DEFAULT,
 DEFAULT);
@@ -588,17 +596,18 @@ DEFAULT,
 DEFAULT,
 DEFAULT,
 '["https://www.facebook.com/", "https://www.instagram.com/"]',
+'BASIC',
 DEFAULT,
 DEFAULT,
 DEFAULT);
 
--- Roles por usuario
+/*-- Roles por usuario
 INSERT INTO ROLES_BY_USER VALUES
 (1,'BASIC',DEFAULT,DEFAULT),
 (1,'ADMIN',DEFAULT,DEFAULT),
 (2,'BASIC',DEFAULT,DEFAULT),
 (2,'COLAB',DEFAULT,DEFAULT),
-(2,'MOD',DEFAULT,DEFAULT);
+(2,'MOD',DEFAULT,DEFAULT);*/
 
 -- Inscripciones
 INSERT INTO INSCRIPTIONS VALUES
@@ -608,7 +617,7 @@ INSERT INTO INSCRIPTIONS VALUES
 -- Instructores por evento
 INSERT INTO INSTRUCTORS_BY_EVENT VALUES
 (DEFAULT, 2, 1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'Soy escritor y poeta amateur',NULL,NULL,NULL,DEFAULT,DEFAULT),
-(DEFAULT,1,NULL,'Cosme','Fulanito',NOW(),'+519999999','TLG','cosme@gmail.com', 'https://i.ytimg.com/vi/xnoummdS3DA/maxresdefault.jpg','Escritor y poeta','Lo siento nene vas a morir. Me quitaste lo que más quería y volverá conmigo, volverá algún día.','["https://facebook.com"]',NULL,DEFAULT,DEFAULT);
+(DEFAULT,1,NULL,'Cosme','Fulanito',NOW(),'+519999999','TLG','cosme@gmail.com', 'https://i.ytimg.com/vi/xnoummdS3DA/maxresdefault.jpg','Escritor y poeta','Lo siento nene vas a morir. Me quitaste lo que más quería y volverá conmigo, volverá algún día.','["https://www.facebook.com"]',NULL,DEFAULT,DEFAULT);
 
 -- Servicios por usuario
 INSERT INTO SERVICES_BY_USER VALUES
@@ -715,7 +724,7 @@ BEGIN
 END;
 END IF;
 
-SELECT E.id, E.name, E.urlBg, E.urlPresentation, E.requisites, E.objectives, E.benefits, E.topics, E.price, E.currency, E.platform, E.paymentLink, E.paymentMethod, E.paymentFacilities, E.title, E.about, E.condition, E.timezoneText, E.alias, ED.from, ED.until, ED.recurrent
+SELECT E.id, E.name, E.urlBg, E.price, E.currency, E.platform, E.title, E.about, E.timezoneText, E.alias, ED.from, ED.until, ED.recurrent
 FROM EVENTS E
 JOIN EVENT_DATES ED
 ON E.id = ED.eventId
@@ -726,13 +735,37 @@ LIMIT P_LIMIT;
 END; //
 DELIMITER ;
 
+-- Obtiene los eventos
+DROP PROCEDURE IF EXISTS USP_GET_EVENT_BY_ALIAS;
+DELIMITER //
+CREATE PROCEDURE USP_GET_EVENT_BY_ALIAS (P_ALIAS VARCHAR(200))
+BEGIN
+SELECT E.id, E.name, E.urlBg, E.urlPresentation, E.requisites, E.objectives, E.benefits, E.topics, E.price, E.currency, E.platform, E.paymentLink, E.paymentMethod, E.paymentFacilities, E.recordings, E.title, E.about, E.condition, E.timezoneText, E.whatsappGroup, E.alias, E.extraData
+FROM EVENTS E
+WHERE E.alias = P_ALIAS AND E.active = 1
+LIMIT 1;
+END; //
+DELIMITER ;
+
+-- Obtiene las fechas de los eventos
+DROP PROCEDURE IF EXISTS USP_GET_DATES_BY_EVENT;
+DELIMITER //
+CREATE PROCEDURE USP_GET_DATES_BY_EVENT (P_ALIAS VARCHAR(200))
+BEGIN
+SELECT ED.from, ED.until, ED.recurrent
+FROM EVENT_DATES ED
+JOIN EVENTS E
+ON E.id = ED.eventId
+WHERE E.alias=P_ALIAS AND E.active = 1 AND ED.active = 1;
+END; //
+DELIMITER ;
+
 -- Obtiene los instructores de los eventos
 DROP PROCEDURE IF EXISTS USP_GET_INSTRUCTORS_BY_EVENT;
 DELIMITER //
-CREATE PROCEDURE USP_GET_INSTRUCTORS_BY_EVENT (P_EVENT_ID INT)
+CREATE PROCEDURE USP_GET_INSTRUCTORS_BY_EVENT (P_ALIAS VARCHAR(200))
 BEGIN
 SELECT -- Si userId es nulo, significa que los datos están en la tabla actual. Caso contrario, debo consultarlo desde la tabla USERS
-IBE.eventId,
 IBE.userId,
 CASE WHEN IBE.userId IS NULL THEN IBE.fName ELSE (SELECT fName FROM USERS WHERE id = IBE.userId LIMIT 1) END as fName,
 CASE WHEN IBE.userId IS NULL THEN IBE.lName ELSE (SELECT lName FROM USERS WHERE id = IBE.userId LIMIT 1) END as lName,
@@ -741,9 +774,43 @@ CASE WHEN IBE.userId IS NULL THEN IBE.occupation ELSE (SELECT occupation FROM US
 CASE WHEN IBE.userId IS NULL THEN IBE.about ELSE (SELECT about FROM USERS WHERE id = IBE.userId LIMIT 1) END as about,
 CASE WHEN IBE.userId IS NULL THEN IBE.networks ELSE (SELECT networks FROM USERS WHERE id = IBE.userId LIMIT 1) END as networks
 FROM INSTRUCTORS_BY_EVENT IBE
-WHERE eventId=P_EVENT_ID;
+JOIN EVENTS E
+ON E.id = IBE.eventId
+WHERE E.alias = P_ALIAS;
 END; //
 DELIMITER ;
+
+-- Registra inscripción a un evento
+DROP PROCEDURE IF EXISTS USP_INSERT_INSCRIPTION;
+DELIMITER //
+CREATE PROCEDURE USP_INSERT_INSCRIPTION (P_EVENT_ID INT(10), P_USER_ID INT(10), P_NAMES VARCHAR(200), P_AGE TINYINT, P_PHONE VARCHAR(50), P_EMAIL VARCHAR(200), P_EXTRA_DATA JSON)
+BEGIN
+INSERT INTO INSCRIPTIONS VALUES (DEFAULT, P_EVENT_ID, P_USER_ID, P_NAMES, P_AGE, P_PHONE, P_EMAIL, P_EXTRA_DATA, DEFAULT, DEFAULT, DEFAULT);
+END; //
+DELIMITER ;
+
+-- Verifica si un correo ya se registró en un evento. Si se registró con userId, verifica el email en la tabla Users también
+DROP PROCEDURE IF EXISTS USP_EXISTS_INSCRIPTION;
+DELIMITER //
+CREATE PROCEDURE USP_EXISTS_IN_INSCRIPTION (P_EVENT_ID INT(10), P_USER_ID INT(10), P_EMAIL VARCHAR(200)) -- Si paso P_USER_ID, se supone que no debo pasar el email, porque la info ya es suficiente. Viceversa con P_EMAIL
+BEGIN
+SELECT EXISTS (
+SELECT id FROM INSCRIPTIONS WHERE eventId=P_EVENT_ID AND (email=P_EMAIL OR userId=P_USER_ID)
+UNION
+SELECT I.id FROM INSCRIPTIONS I
+JOIN
+USERS U
+ON U.id = I.userId
+WHERE I.eventId=P_EVENT_ID AND (U.email=P_EMAIL OR U.id=P_USER_ID)
+) AS 'exists';
+END; //
+DELIMITER ;
+
+call USP_EXISTS_IN_INSCRIPTION(1,null,'corazon@gmail.com');
+
+SELECT*FROM USERS;
+SELECT*FROM INSCRIPTIONS;
+SELECT*FROM EVENTS;
 
 -- INSERT INTO events VALUES (DEFAULT,'Evento 1',DEFAULT,'https://www.youtube.com/watch?v=cD2bQH8-pos&t=424s&ab_channel=Ra%C3%BAlValverde',DEFAULT,'["Objetivo1", "Objetivo2"]','["Beneficio1", "Beneficio2"]','["Tema1","Tema2"]',0,NULL,DEFAULT,DEFAULT,DEFAULT,DEFAULT,'Título del evento','Cuéntame que es de tu vida y trataré de quererte todavía',DEFAULT,DEFAULT,'[{"name":"Obras llevadas al teatro","link":{"name":"Leer aquí","href":"https://www.google.com"}}]','GRAN-TEXTO-GUION-TEXTO-Y-NOVELA-CCADENA-1',DEFAULT,DEFAULT,DEFAULT);
 

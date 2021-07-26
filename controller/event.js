@@ -1,37 +1,40 @@
 const { queryDB } = require('../database/pool');
 
 const getEvents = async (req = Request, res = Response) => {
-  const { limit } = req.query;
+  const { limit, lastDate } = req.query;
   try {
-    const eventsRes = await queryDB('CALL USP_GET_LATEST_EVENTS(?,?)', [limit, null]);
-    const instructorsPromises = eventsRes[0].map(event => queryDB('CALL USP_GET_INSTRUCTORS_BY_EVENT(?)', [event.id]));
+    const eventsRes = await queryDB('CALL USP_GET_LATEST_EVENTS(?,?)', [limit, lastDate]);
+    const instructorsPromises = eventsRes[0].map(event => queryDB('CALL USP_GET_INSTRUCTORS_BY_EVENT(?)', [event.alias]));
     const instructorsResArray = await Promise.all(instructorsPromises);
     instructorsResArray.map((res, i) => eventsRes[0][i].instructors = res[0]);
     res.json(eventsRes[0]);
-  } catch (err) {
-    res.status(500).json({ msg: 'Error de servidor' });
+  } catch (error) {
+    console.log(error);
+    res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
   }
-
-  /*const events = await Event.findAll({
-    //order: [[order, descAux ? "DESC" : "ASC"]],
-    limit: limitAux,
-  });*/
 };
 
 const getEvent = async (req = Request, res = Response) => {
-  /*const { alias } = req.params;
-  const event = await Event.findOne({
-    where: {
-      alias,
-    },
-  });
-  if (event) {
-    res.json(event);
-  } else {
-    res.status(404).json({
-      msg: "No existe evento con ese alias",
-    });
-  }*/
+  const { alias } = req.params;
+  try {
+    const promises = [
+      queryDB('CALL USP_GET_EVENT_BY_ALIAS(?)', [alias]), // Evento
+      queryDB('CALL USP_GET_DATES_BY_EVENT(?)', [alias]), // Fechas del evento
+      queryDB('CALL USP_GET_INSTRUCTORS_BY_EVENT(?)', [alias]) // Instructores del evento
+    ];
+    const results = await Promise.all(promises);
+    const event = results[0][0][0]; // El primero es por la promesa; el segundo, por el resultado con estadísticas; el tercero, los resultados
+    if (event) {
+      event.dates = results[1][0];
+      event.instructors = results[2][0];
+      res.json(event);
+    } else {
+      throw { msg: 'Evento no encontrado', statusCode: 404 };
+    }
+  } catch (error) {
+    console.log(error);
+    res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
+  }
 };
 
 const postEvent = async (req = Request, res = Response) => {

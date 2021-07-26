@@ -1,4 +1,5 @@
 const { Router } = require("express");
+
 const {
   getEvent,
   getEvents,
@@ -6,13 +7,21 @@ const {
   putEvent,
   deleteEvent,
 } = require("../controller/event");
-const { getEventsSchemaQuery, getEventsDefaultsQuery } = require('../validators/eventSchema');
-const validateResourceMW = require('../validators/validateResource');
+
+const {
+  validateField,
+  getEvent: getEventVal,
+  getEvents: getEventsVal
+} = require('../validators');
 
 const router = Router();
 
-router.get("/", validateResourceMW('query', getEventsSchemaQuery, getEventsDefaultsQuery), getEvents); // Validates req.query
-router.get("/:alias", getEvent);
+router.get("/", [
+  validateField('query', getEventsVal)
+], getEvents);
+router.get("/:alias", [
+  validateField('params', getEventVal)
+], getEvent);
 router.post("/", postEvent);
 router.put("/:id", putEvent);
 router.delete("/:id", deleteEvent);

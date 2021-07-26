@@ -1,9 +1,8 @@
-const validateResourceMW = (resourceName, schema, getDefaults) => async (req, res, next) => {
+const validateField = (resourceName, { schema, defValues }) => async (req, res, next) => {
     try {
         const resource = req[resourceName];
-        // throws an error if not valid
         await schema.validate(resource);
-        req[resourceName] = getDefaults(resource);
+        req[resourceName] = defValues(resource);
         next();
     } catch (e) {
         console.error(e);
@@ -11,4 +10,4 @@ const validateResourceMW = (resourceName, schema, getDefaults) => async (req, re
     }
 };
 
-module.exports = validateResourceMW;
+module.exports = validateField;

@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const userRoutes = require("../routes/user");
 const eventRoutes = require("../routes/event");
+const inscriptionRoutes = require("../routes/inscription");
 const { testConnectionDB } = require('../database/pool');
 
 class Server {
@@ -10,7 +11,8 @@ class Server {
         this.port = process.env.PORT;
         this.apiPaths = {
             user: '/api/users',
-            events: '/api/events'
+            event: '/api/events',
+            inscription: '/api/inscriptions'
         };
 
         // Conexión
@@ -36,7 +38,8 @@ class Server {
 
     routes() {
         this.app.use(this.apiPaths.user, userRoutes);
-        this.app.use(this.apiPaths.events, eventRoutes);
+        this.app.use(this.apiPaths.event, eventRoutes);
+        this.app.use(this.apiPaths.inscription, inscriptionRoutes);
     }
 
     async connectDB() {
