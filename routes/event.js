@@ -1,19 +1,6 @@
 const { Router } = require("express");
-
-const {
-  getEvent,
-  getEvents,
-  postEvent,
-  putEvent,
-  deleteEvent,
-} = require("../controller/event");
-
-const {
-  validateField,
-  getEvent: getEventVal,
-  getEvents: getEventsVal
-} = require('../validators');
-
+const { getEvent, getEvents, postEvent, putEvent, deleteEvent } = require("../controller/event");
+const { validateField, getEvent: getEventVal, getEvents: getEventsVal } = require('../validators');
 const router = Router();
 
 router.get("/", [

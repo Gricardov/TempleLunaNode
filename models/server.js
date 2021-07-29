@@ -3,6 +3,9 @@ const cors = require('cors');
 const userRoutes = require("../routes/user");
 const eventRoutes = require("../routes/event");
 const inscriptionRoutes = require("../routes/inscription");
+const subscriptionRoutes = require("../routes/subscription");
+const statisticRoutes = require("../routes/statistic");
+const orderRoutes = require("../routes/order");
 const { testConnectionDB } = require('../database/pool');
 
 class Server {
@@ -12,7 +15,10 @@ class Server {
         this.apiPaths = {
             user: '/api/users',
             event: '/api/events',
-            inscription: '/api/inscriptions'
+            inscription: '/api/inscriptions',
+            subscription: '/api/subscriptions',
+            statistic: '/api/statistics',
+            order: '/api/orders'
         };
 
         // Conexión
@@ -40,6 +46,9 @@ class Server {
         this.app.use(this.apiPaths.user, userRoutes);
         this.app.use(this.apiPaths.event, eventRoutes);
         this.app.use(this.apiPaths.inscription, inscriptionRoutes);
+        this.app.use(this.apiPaths.subscription, subscriptionRoutes);
+        this.app.use(this.apiPaths.statistic, statisticRoutes);
+        this.app.use(this.apiPaths.order, orderRoutes);
     }
 
     async connectDB() {
