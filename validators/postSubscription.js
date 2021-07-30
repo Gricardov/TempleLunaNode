@@ -2,8 +2,8 @@ const yup = require('yup');
 const { isNullOrUndefined } = require('../utils/functions');
 
 const schema = yup.object({
-    userId: yup.number().min(1).max(10).nullable(),
-    email: yup.string().trim().email('Ingresa un correo válido').min(5).max(100).when('userId', {
+    userId: yup.number().min(1).max(100000000).nullable(),
+    email: yup.string().trim().email('Ingresa un correo válido').min(5).max(200).when('userId', {
         is: null,
         then: yup.string().required('El email es requerido'),
     }).nullable(),

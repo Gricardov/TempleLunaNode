@@ -14,6 +14,3 @@ router.put("/:id", putEvent);
 router.delete("/:id", deleteEvent);
 
 module.exports = router;
-
-
-

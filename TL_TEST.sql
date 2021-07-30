@@ -82,11 +82,15 @@ CREATE TABLE USERS (
   numFollowers INT NOT NULL DEFAULT 0, -- BY TRIGGER
   numHearts INT NOT NULL DEFAULT 0, -- BY TRIGGER
   urlProfileImg VARCHAR(500) NULL DEFAULT NULL,  
-  occupation VARCHAR(200) NULL DEFAULT NULL,
-  about VARCHAR(1000) NULL DEFAULT NULL,
+  availability VARCHAR(500) NULL DEFAULT NULL,
+  occupation VARCHAR(500) NULL DEFAULT NULL,
+  about VARCHAR(1000) NULL DEFAULT NULL,  
   networks JSON NOT NULL DEFAULT '[]',
   roleId VARCHAR(50) NOT NULL DEFAULT 'BASIC',
   active BOOLEAN NOT NULL DEFAULT 1,
+  nativeCreated BOOLEAN NOT NULL DEFAULT 1,
+  fbCreated BOOLEAN NOT NULL DEFAULT 0,
+  googleCreated BOOLEAN NOT NULL DEFAULT 0,
   createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -148,7 +152,7 @@ CREATE TABLE INSTRUCTORS_BY_EVENT (
   appId VARCHAR(50) NULL,
   email VARCHAR(200) NULL,
   urlProfileImg VARCHAR(500) NULL DEFAULT NULL,
-  occupation VARCHAR(200) NULL,
+  occupation VARCHAR(500) NULL,
   about VARCHAR(1000) NULL,
   networks JSON NULL DEFAULT '[]',
   extraData JSON NULL DEFAULT '{}',
@@ -596,10 +600,14 @@ INSERT INTO USERS VALUES
 DEFAULT,
 DEFAULT,
 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Flindo.jpg?alt=media&token=177bb113-efb9-4e15-9291-743a525a2420',
+'Disponible de lunes a viernes',
 DEFAULT,
 DEFAULT,
 '["https://www.facebook.com/", "https://www.instagram.com/"]',
 'BASIC',
+DEFAULT,
+DEFAULT,
+DEFAULT,
 DEFAULT,
 DEFAULT,
 DEFAULT);
@@ -619,10 +627,14 @@ INSERT INTO USERS VALUES
 DEFAULT,
 DEFAULT,
 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fsayrih.jpg?alt=media&token=6a770c21-f3c9-475b-ae03-8423f1876c45',
+'Disponible todos los días',
 DEFAULT,
 DEFAULT,
 '["https://www.facebook.com/", "https://www.instagram.com/"]',
 'BASIC',
+DEFAULT,
+DEFAULT,
+DEFAULT,
 DEFAULT,
 DEFAULT,
 DEFAULT);
@@ -872,11 +884,12 @@ BEGIN
 	INSERT INTO ORDERS VALUES (DEFAULT, P_CLIENT_USER_ID, P_CLIENT_EMAIL, P_CLIENT_NAMES, P_CLIENT_AGE, P_CLIENT_PHONE, P_CLIENT_APP, P_WORKER_ID, NULL, P_SERVICE_ID, P_SUBSERVICE_ID, 'DISPONIBLE', NULL, NULL, P_TITLE_WORK, P_LINK_WORK, P_PSEUDONYM, P_SYNOPSIS, P_DETAILS, P_INTENTION, P_MAIN_PHRASE, P_CRITIQUE_TOPICS, NULL, P_NOTIFY, IMG_URL_DATA, P_PRIORITY, P_EXTRA_DATA, P_PUBLIC_RESULT, NULL, DEFAULT, DEFAULT, DEFAULT, P_PUBLIC, DEFAULT, DEFAULT);    
 END; //
 DELIMITER ;
-select*from orders;
+
 -- Ejemplos
 -- call usp_add_statistics (NULL, 'gricardov@gmail.com','FACEBOOK',NULL,NULL,'VER');
 -- call USP_EXISTS_IN_INSCRIPTION(1, null, 'corazon@gmail.com');
- -- CALL USP_SUBSCRIBE(NULL, 'Mila','gricardov@gmail.com',NULL, TRUE, NULL);
+-- CALL USP_SUBSCRIBE(NULL, 'Mila','gricardov@gmail.com',NULL, TRUE, NULL);
+select*from orders;
 SELECT*FROM ACTIONS_BY_USER_ON_ITEM;
 select*from editorials;
 select*from services;

@@ -3,13 +3,13 @@ const { isNullOrUndefined } = require('../utils/functions');
 
 const schema = yup.object({
     actionId: yup.string().min(1).max(50).required(),
-    userId: yup.number().min(1).max(10).nullable(),
-    email: yup.string().trim().email('Ingresa un correo válido').min(5).max(100).when('userId', {
+    userId: yup.number().min(1).max(100000000).nullable(),
+    email: yup.string().trim().email('Ingresa un correo válido').min(5).max(200).when('userId', {
         is: null,
         then: yup.string().required('El email es requerido'),
     }).nullable(),
-    orderId: yup.number().min(1).max(10).nullable(),
-    magazineId: yup.number().min(1).max(10).nullable(),
+    orderId: yup.number().min(1).max(100000000).nullable(),
+    magazineId: yup.number().min(1).max(100000000).nullable(),
     socialNetworkName: yup.string().trim().min(1).max(50).nullable()
 });
 
