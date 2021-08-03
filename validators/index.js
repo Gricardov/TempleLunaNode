@@ -6,6 +6,7 @@ const postSubscription = require('./postSubscription');
 const postStatistic = require('./postStatistic');
 const postOrder = require('./postOrder');
 const getIsEnrolled = require('./getIsEnrolled');
+const getMembersByEditorialService = require('./getMembersByEditorialService');
 
 module.exports = {
     validateField,
@@ -15,5 +16,6 @@ module.exports = {
     postSubscription,
     postStatistic,
     postOrder,
-    getIsEnrolled
+    getIsEnrolled,
+    getMembersByEditorialService
 }

@@ -82,7 +82,6 @@ CREATE TABLE USERS (
   numFollowers INT NOT NULL DEFAULT 0, -- BY TRIGGER
   numHearts INT NOT NULL DEFAULT 0, -- BY TRIGGER
   urlProfileImg VARCHAR(500) NULL DEFAULT NULL,  
-  availability VARCHAR(500) NULL DEFAULT NULL,
   occupation VARCHAR(500) NULL DEFAULT NULL,
   about VARCHAR(1000) NULL DEFAULT NULL,  
   networks JSON NOT NULL DEFAULT '[]',
@@ -261,14 +260,25 @@ CREATE TABLE SERVICES_BY_EDITORIAL (
 );
 
 ALTER TABLE SERVICES_BY_EDITORIAL
+ADD CONSTRAINT SERVICES_BY_EDITORIAL_UNIQUE_SERVICE_SUBSERVICE UNIQUE (serviceId, subServiceId),
 ADD FOREIGN KEY (editorialId) REFERENCES EDITORIALS(id),
 ADD FOREIGN KEY (serviceId) REFERENCES SERVICES(id),
 ADD FOREIGN KEY (subServiceId) REFERENCES SUBSERVICES(id);
+
+-- Roles de los miembros de una editorial (Ejemplo: Admin, colaborador)
+CREATE TABLE EDITORIAL_MEMBER_ROLES (
+	id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(50) NOT NULL
+);
 
 -- Miembros de una editorial (Quién pertenece a qué editorial)
 CREATE TABLE EDITORIAL_MEMBERS (
   userId INT(10) ZEROFILL UNSIGNED NOT NULL,
   editorialId INT(10) ZEROFILL UNSIGNED NOT NULL,
+  roleId VARCHAR(50) NOT NULL,
+  availability VARCHAR(200) NULL,
+  extraData JSON NULL,
+  active BOOLEAN NOT NULL DEFAULT 1,
   createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -276,36 +286,21 @@ CREATE TABLE EDITORIAL_MEMBERS (
 ALTER TABLE EDITORIAL_MEMBERS
 ADD PRIMARY KEY (userId, editorialId),
 ADD FOREIGN KEY (userId) REFERENCES USERS(id),
+ADD FOREIGN KEY (roleId) REFERENCES EDITORIAL_MEMBER_ROLES(id),
 ADD FOREIGN KEY (editorialId) REFERENCES EDITORIALS(id);
 
--- Roles de los miembros de una editorial (Ejemplo: Fundador, diseñador, crítico)
-CREATE TABLE EDITORIAL_MEMBER_ROLES (
-	id VARCHAR(50) PRIMARY KEY,
-    name VARCHAR(50) NOT NULL
+-- Los servicios que cada miembro (X miembro puede hacer Diseño; otro, Críticas)
+CREATE TABLE EDITORIAL_MEMBER_SERVICES (
+    userId INT(10) ZEROFILL UNSIGNED NOT NULL,
+    editorialId INT(10) ZEROFILL UNSIGNED NOT NULL,
+	  serviceId VARCHAR(50) NOT NULL,
+    subServiceId VARCHAR(50) NULL,
+    description VARCHAR(50) NOT NULL, -- Ejm: Diseñador(a), Crítico(a), etc
+    active BOOLEAN NOT NULL DEFAULT 1
 );
 
--- Roles por miembros de una editorial (Un miembro de editorial puede ser fundador, diseñador, crítico, escuchador, etc)
-CREATE TABLE ROLES_BY_EDITORIAL_MEMBERS (
-	userId INT(10) ZEROFILL UNSIGNED NOT NULL,
-	editorialId INT(10) ZEROFILL UNSIGNED NOT NULL,
-    roleId VARCHAR(50) NOT NULL
-);
-
-ALTER TABLE ROLES_BY_EDITORIAL_MEMBERS
-ADD PRIMARY KEY (userId, editorialId, roleId),
-ADD FOREIGN KEY (userId) REFERENCES USERS(id),
-ADD FOREIGN KEY (editorialId) REFERENCES EDITORIALS(id),
-ADD FOREIGN KEY (roleId) REFERENCES EDITORIAL_MEMBER_ROLES(id);
-
--- Permisos que tiene cada rol dentro de una editorial. (Ejemplo: El diseñador de una editorial solo puede atender los servicios de diseño; el crítico, solo puede atender los servicios de críticas)
-CREATE TABLE EDITORIAL_MEMBER_ROLES_SERVICES (
-	roleId VARCHAR(50) PRIMARY KEY,
-	serviceId VARCHAR(50) NOT NULL,
-    subServiceId VARCHAR(50) NULL
-);
-
-ALTER TABLE EDITORIAL_MEMBER_ROLES_SERVICES
-ADD FOREIGN KEY (roleId) REFERENCES EDITORIAL_MEMBER_ROLES(id),
+ALTER TABLE EDITORIAL_MEMBER_SERVICES
+ADD FOREIGN KEY (userId, editorialId) REFERENCES EDITORIAL_MEMBERS(userId, editorialId),
 ADD FOREIGN KEY (serviceId) REFERENCES SERVICES(id),
 ADD FOREIGN KEY (subServiceId) REFERENCES SUBSERVICES(id);
 
@@ -498,11 +493,12 @@ INSERT INTO SUBSERVICES VALUES
 
 INSERT INTO EDITORIAL_MEMBER_ROLES VALUES
 ('ADMIN','Administrador'),
-('CRITICO','Crítico'),
+('COLAB','Colaborador(a) de editorial');
+/*('CRITICO','Crítico'),
 ('DISEÑADOR','Diseñador'),
 ('CORRECTOR','Corrector'),
 ('ESCUCHADOR','Escuchador'),
-('PRODUCTOR-BTRAILER','Productor de booktrailer');
+('PRODUCTOR-BTRAILER','Productor de booktrailer');*/
 
 INSERT INTO ORDER_STATUS VALUES
 ('DISPONIBLE','Disponible'),
@@ -600,7 +596,6 @@ INSERT INTO USERS VALUES
 DEFAULT,
 DEFAULT,
 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Flindo.jpg?alt=media&token=177bb113-efb9-4e15-9291-743a525a2420',
-'Disponible de lunes a viernes',
 DEFAULT,
 DEFAULT,
 '["https://www.facebook.com/", "https://www.instagram.com/"]',
@@ -627,7 +622,32 @@ INSERT INTO USERS VALUES
 DEFAULT,
 DEFAULT,
 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fsayrih.jpg?alt=media&token=6a770c21-f3c9-475b-ae03-8423f1876c45',
-'Disponible todos los días',
+DEFAULT,
+DEFAULT,
+'["https://www.facebook.com/", "https://www.instagram.com/"]',
+'BASIC',
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT);
+
+INSERT INTO USERS VALUES
+(DEFAULT,
+'maricucha@gmail.com',
+1,
+'contactomaricucha@gmail.com',
+'Mari',
+'Cucha',
+'1995-03-03',
+'+569999999',
+'WSP',
+'La maricucha',
+'marucha',
+DEFAULT,
+DEFAULT,
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fsayrih.jpg?alt=media&token=6a770c21-f3c9-475b-ae03-8423f1876c45',
 DEFAULT,
 DEFAULT,
 '["https://www.facebook.com/", "https://www.instagram.com/"]',
@@ -656,6 +676,211 @@ INSERT INTO INSCRIPTIONS VALUES
 INSERT INTO INSTRUCTORS_BY_EVENT VALUES
 (DEFAULT, 2, 1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'Soy escritor y poeta amateur',NULL,NULL,NULL,DEFAULT,DEFAULT),
 (DEFAULT,1,NULL,'Cosme','Fulanito',NOW(),'+519999999','TLG','cosme@gmail.com', 'https://i.ytimg.com/vi/xnoummdS3DA/maxresdefault.jpg','Escritor y poeta','Lo siento nene vas a morir. Me quitaste lo que más quería y volverá conmigo, volverá algún día.','["https://www.facebook.com"]',NULL,DEFAULT,DEFAULT);
+
+-- Editoriales
+INSERT INTO EDITORIALS VALUES
+(1,
+'Editorial Temple Luna',
+'Somos Temple Luna, la editorial de los artistas',
+'templeluna',
+'+5212721588788',
+'WSP',
+'contacto@templeluna.app',
+DEFAULT,
+DEFAULT,
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/editorial%2FGrupo%20195.svg?alt=media&token=782e36a5-a88b-4a52-aa9e-5d13e22ed396',
+'#1A1A1A',
+'["https://www.facebook.com/templeluna", "https://www.instagram.com/templelunaeditorial"]',
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT
+);
+
+-- Servicios por editorial
+INSERT INTO SERVICES_BY_EDITORIAL VALUES
+(DEFAULT,
+1,
+'CRITICA',
+NULL,
+DEFAULT,
+'Servicio de críticas',
+'Descripción del servicio',
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+0,
+0,
+DEFAULT,
+NULL,
+DEFAULT,
+DEFAULT
+);
+
+INSERT INTO SERVICES_BY_EDITORIAL VALUES
+(DEFAULT,
+1,
+'DISENO',
+NULL,
+DEFAULT,
+'Servicio de diseño',
+'Descripción del servicio',
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+0,
+0,
+DEFAULT,
+NULL,
+DEFAULT,
+DEFAULT
+);
+
+INSERT INTO SERVICES_BY_EDITORIAL VALUES
+(DEFAULT,
+1,
+'DISENO',
+'BAN',
+DEFAULT,
+'Servicio de diseño',
+'Descripción del servicio',
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+0,
+0,
+DEFAULT,
+NULL,
+DEFAULT,
+DEFAULT
+);
+
+INSERT INTO SERVICES_BY_EDITORIAL VALUES
+(DEFAULT,
+1,
+'DISENO',
+'POR',
+DEFAULT,
+'Servicio de diseño',
+'Descripción del servicio',
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+0,
+0,
+DEFAULT,
+NULL,
+DEFAULT,
+DEFAULT
+);
+
+INSERT INTO SERVICES_BY_EDITORIAL VALUES
+(DEFAULT,
+1,
+'ESCUCHA',
+NULL,
+DEFAULT,
+'Servicio de escucha',
+'Descripción del servicio',
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+0,
+0,
+DEFAULT,
+NULL,
+DEFAULT,
+DEFAULT
+);
+
+-- Miembros de una editorial
+INSERT INTO EDITORIAL_MEMBERS VALUES
+(2,
+1, -- Temple Luna
+'ADMIN',
+'Disponible sábados y domingos',
+DEFAULT,
+DEFAULT, -- activo
+DEFAULT,
+DEFAULT
+);
+
+INSERT INTO EDITORIAL_MEMBERS VALUES
+(3,
+1, -- Temple Luna
+'COLAB',
+'Disponible solo sábados',
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT
+);
+
+-- Servicios por miembros de editorial
+INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
+(2,
+1,
+'CRITICA',
+NULL,
+'Crítico(a)',
+DEFAULT
+);
+
+INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
+(2,
+1,
+'DISENO',
+NULL,
+'Diseñador(a)',
+DEFAULT
+);
+
+INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
+(2,
+1,
+'DISENO',
+'BAN',
+'Diseñador(a) de banners',
+DEFAULT
+);
+
+INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
+(2,
+1,
+'ESCUCHA',
+NULL,
+'Escuchador(a) aficionada',
+DEFAULT
+);
+
+INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
+(3,
+1,
+'ESCUCHA',
+NULL,
+'Escuchador(a)',
+DEFAULT
+);
 
 -- Servicios por usuario
 INSERT INTO SERVICES_BY_USER VALUES
@@ -723,26 +948,6 @@ NULL,
 DEFAULT,
 DEFAULT
 );
-select*from editorials;
--- Editoriales
-INSERT INTO EDITORIALS VALUES
-(1,
-'Editorial Temple Luna',
-'Somos Temple Luna, la editorial de los artistas',
-'templeluna',
-'+5212721588788',
-'WSP',
-'contacto@templeluna.app',
-DEFAULT,
-DEFAULT,
-'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/editorial%2FGrupo%20195.svg?alt=media&token=782e36a5-a88b-4a52-aa9e-5d13e22ed396',
-'#1A1A1A',
-'["https://www.facebook.com/templeluna", "https://www.instagram.com/templelunaeditorial"]',
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT
-);
 
 -- Procedimientos
 
@@ -762,11 +967,27 @@ BEGIN
 END;
 END IF;
 
-SELECT E.id, E.name, E.urlBg, E.price, E.currency, E.platform, E.title, E.about, E.timezoneText, E.alias, ED.from, ED.until, ED.weekly
-FROM EVENTS E
-JOIN EVENT_DATES ED
-ON E.id = ED.eventId
-WHERE ED.from < V_LAST_DATE AND ED.active = 1 AND E.active = 1
+SELECT 
+    E.id,
+    E.name,
+    E.urlBg,
+    E.price,
+    E.currency,
+    E.platform,
+    E.title,
+    E.about,
+    E.timezoneText,
+    E.alias,
+    ED.from,
+    ED.until,
+    ED.weekly
+FROM
+    EVENTS E
+        JOIN
+    EVENT_DATES ED ON E.id = ED.eventId
+WHERE
+    ED.from < V_LAST_DATE AND ED.active = 1
+        AND E.active = 1
 GROUP BY E.id
 ORDER BY ED.from DESC
 LIMIT P_LIMIT;
@@ -885,10 +1106,30 @@ BEGIN
 END; //
 DELIMITER ;
 
+-- Para obtener a las personas que dan X servicio de Z editorial
+DROP PROCEDURE IF EXISTS USP_GET_MEMBERS_BY_EDITORIAL_SERVICE;
+DELIMITER //
+CREATE PROCEDURE USP_GET_MEMBERS_BY_EDITORIAL_SERVICE (P_EDITORIAL_ID INT, P_SERVICE_ID VARCHAR(50))
+BEGIN
+SELECT U.fName, U.lName, U.urlProfileImg, EMS.userId, EMS.description, EM.availability FROM EDITORIAL_MEMBER_SERVICES EMS
+JOIN EDITORIAL_MEMBERS EM
+ON EM.userId = EMS.userId
+AND EM.editorialId = EMS.editorialId
+JOIN USERS U
+ON U.id = EMS.userId
+WHERE EMS.editorialId = P_EDITORIAL_ID
+AND EMS.serviceId = P_SERVICE_ID
+GROUP BY EMS.userId; -- Para que este campo sea único, porque hay campos como serviceId que tienen subServices null y not null, y ahí se pueden repetir los resultados
+END; //
+DELIMITER ;
+
 -- Ejemplos
+-- CALL USP_GET_MEMBERS_BY_EDITORIAL_SERVICE (1,'DISENO')
 -- call usp_add_statistics (NULL, 'gricardov@gmail.com','FACEBOOK',NULL,NULL,'VER');
 -- call USP_EXISTS_IN_INSCRIPTION(1, null, 'corazon@gmail.com');
 -- CALL USP_SUBSCRIBE(NULL, 'Mila','gricardov@gmail.com',NULL, TRUE, NULL);
+
+SELECT*FROM EDITORIAL_MEMBER_SERVICES;
 select*from orders;
 SELECT*FROM ACTIONS_BY_USER_ON_ITEM;
 select*from editorials;
