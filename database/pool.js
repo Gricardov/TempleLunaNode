@@ -52,7 +52,7 @@ const queryDB = (sql, args) => {
         // When done with the connection, release it.
         connection.release();
         // Handle error after the release.
-        if (error) {
+        if (err) {
           return reject(err);
         }
         return resolve(results, fields);
