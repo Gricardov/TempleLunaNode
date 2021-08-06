@@ -30,7 +30,7 @@ const schema = yup.object({
         createdAt: yup.string().min(1).max(500).strict().required(),
         observation: yup.string().min(1).max(500).strict()
     })).nullable(),
-    notify: yup.string().trim().min(1).max(10).nullable()
+    notify: yup.boolean().nullable()
 });
 
 const defValues = (data) => {
@@ -43,7 +43,7 @@ const defValues = (data) => {
         app: isNullOrUndefined(data.app) ? null : data.app.trim(),
         email: isNullOrUndefined(data.email) ? null : data.email.trim(),
         urlImgData: isNullOrUndefined(data.urlImgData) ? null : JSON.stringify(data.urlImgData),
-        notify: isNullOrUndefined(data.notify) ? null : data.notify.trim() == 'si' ? true : false
+        notify: isNullOrUndefined(data.notify) ? null : Boolean(data.notify)
     }
 }
 
