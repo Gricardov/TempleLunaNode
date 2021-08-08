@@ -6,11 +6,15 @@ const router = Router();
 router.get("/", [
   validateField('query', getEventsVal)
 ], getEvents);
+
 router.get("/:alias", [
   validateField('params', getEventVal)
 ], getEvent);
+
 router.post("/", postEvent);
+
 router.put("/:id", putEvent);
+
 router.delete("/:id", deleteEvent);
 
 module.exports = router;

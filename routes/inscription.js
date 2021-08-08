@@ -7,7 +7,9 @@ router.post("/", [
   validateField('body', postInscriptionVal),
   postInscriptionVal.isEnrolled
 ], postInscription);
+
 router.get('/isEnrolled/', [
   validateField('query', getIsEnrolledVal),
 ], isEnrolled);
+
 module.exports = router;

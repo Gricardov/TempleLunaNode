@@ -11,7 +11,6 @@ const getMembersByEditorialService = async (req, res) => {
     }
 };
 
-
 module.exports = {
     getMembersByEditorialService
 }

@@ -7,7 +7,9 @@ const {
     subscriptionRoutes,
     statisticRoutes,
     orderRoutes,
-    editorialRoutes
+    editorialRoutes,
+    magazineRoutes,
+    commentRoutes
 } = require("../routes");
 const { testConnectionDB } = require('../database/pool');
 
@@ -22,7 +24,9 @@ class Server {
             subscription: '/api/subscriptions',
             statistic: '/api/statistics',
             order: '/api/orders',
-            editorial: '/api/editorials'
+            editorial: '/api/editorials',
+            magazine: '/api/magazines',
+            comment: '/api/comments'
         };
 
         // Conexión
@@ -54,6 +58,8 @@ class Server {
         this.app.use(this.apiPaths.statistic, statisticRoutes);
         this.app.use(this.apiPaths.order, orderRoutes);
         this.app.use(this.apiPaths.editorial, editorialRoutes);
+        this.app.use(this.apiPaths.magazine, magazineRoutes);
+        this.app.use(this.apiPaths.comment,commentRoutes);
     }
 
     async connectDB() {

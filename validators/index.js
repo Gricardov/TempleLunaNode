@@ -7,6 +7,9 @@ const postStatistic = require('./postStatistic');
 const postOrder = require('./postOrder');
 const getIsEnrolled = require('./getIsEnrolled');
 const getMembersByEditorialService = require('./getMembersByEditorialService');
+const getMagazines = require('./getMagazines');
+const getMagazine = require('./getMagazine');
+const getComments = require('./getComments');
 
 module.exports = {
     validateField,
@@ -17,5 +20,8 @@ module.exports = {
     postStatistic,
     postOrder,
     getIsEnrolled,
-    getMembersByEditorialService
+    getMembersByEditorialService,
+    getMagazines,
+    getMagazine,
+    getComments
 }

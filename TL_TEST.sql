@@ -366,11 +366,16 @@ CREATE TABLE MAGAZINES (
   url VARCHAR(500) NOT NULL,
   numPag INT NOT NULL,
   edition INT NOT NULL,
+  month INT NOT NULL,
   year INT NOT NULL,
   numHearts INT NOT NULL DEFAULT 0, -- BY TRIGGER
   numComments INT NOT NULL DEFAULT 0, -- BY TRIGGER
   numViews INT NOT NULL DEFAULT 0, -- BY TRIGGER
-  alias VARCHAR(200) NOT NULL
+  numDownloads INT NOT NULL DEFAULT 0, -- BY TRIGGER
+  alias VARCHAR(200) NOT NULL,
+  active BOOLEAN NOT NULL DEFAULT 1,
+  createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP  
 );
 
 ALTER TABLE MAGAZINES
@@ -532,7 +537,9 @@ INSERT INTO ACTIONS_ON_ITEM VALUES
 ('VER','Visualizar'),
 ('GUSTAR','Dar like'),
 ('COMPARTIR','Compartir'),
-('DESCARGAR','Descargar');
+('DESCARGAR','Descargar'),
+('SUSCRIBIR','Suscribir'),
+('COMENTAR','Comentar'); -- No se usa, ya tiene su tabla
 
 -- Inserciones no maestras
 
@@ -562,9 +569,9 @@ NULL,
 'https://chat.whatsapp.com/FW4fmEli2WsATci5RYU2nI',
 DEFAULT,
 DEFAULT,
-DEFAULT);
+DEFAULT
+),
 
-INSERT INTO EVENTS VALUES
 (DEFAULT,
 'Aprende a crear tu historial desde cero',
 'https://images.pexels.com/photos/6383219/pexels-photo-6383219.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500',
@@ -622,9 +629,9 @@ DEFAULT,
 DEFAULT,
 DEFAULT,
 DEFAULT,
-DEFAULT);
+DEFAULT
+),
 
-INSERT INTO USERS VALUES
 (DEFAULT,
 'pilyy@gmail.com',
 1,
@@ -648,9 +655,9 @@ DEFAULT,
 DEFAULT,
 DEFAULT,
 DEFAULT,
-DEFAULT);
+DEFAULT
+),
 
-INSERT INTO USERS VALUES
 (DEFAULT,
 'maricucha@gmail.com',
 1,
@@ -736,9 +743,8 @@ DEFAULT,
 NULL,
 DEFAULT,
 DEFAULT
-);
+),
 
-INSERT INTO SERVICES_BY_EDITORIAL VALUES
 (DEFAULT,
 1,
 'DISENO',
@@ -759,9 +765,8 @@ DEFAULT,
 NULL,
 DEFAULT,
 DEFAULT
-);
+),
 
-INSERT INTO SERVICES_BY_EDITORIAL VALUES
 (DEFAULT,
 1,
 'DISENO',
@@ -782,9 +787,8 @@ DEFAULT,
 NULL,
 DEFAULT,
 DEFAULT
-);
+),
 
-INSERT INTO SERVICES_BY_EDITORIAL VALUES
 (DEFAULT,
 1,
 'DISENO',
@@ -805,9 +809,8 @@ DEFAULT,
 NULL,
 DEFAULT,
 DEFAULT
-);
+),
 
-INSERT INTO SERVICES_BY_EDITORIAL VALUES
 (DEFAULT,
 1,
 'ESCUCHA',
@@ -840,9 +843,8 @@ DEFAULT,
 DEFAULT, -- activo
 DEFAULT,
 DEFAULT
-);
+),
 
-INSERT INTO EDITORIAL_MEMBERS VALUES
 (3,
 1, -- Temple Luna
 'COLAB',
@@ -861,36 +863,32 @@ INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
 NULL,
 'Crítico(a)',
 DEFAULT
-);
+),
 
-INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
 (2,
 1,
 'DISENO',
 NULL,
 'Diseñador(a)',
 DEFAULT
-);
+),
 
-INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
 (2,
 1,
 'DISENO',
 'BAN',
 'Diseñador(a) de banners',
 DEFAULT
-);
+),
 
-INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
 (2,
 1,
 'ESCUCHA',
 NULL,
 'Escuchador(a) aficionada',
 DEFAULT
-);
+),
 
-INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
 (3,
 1,
 'ESCUCHA',
@@ -920,9 +918,8 @@ DEFAULT,
 NULL,
 DEFAULT,
 DEFAULT
-);
+),
 
-INSERT INTO SERVICES_BY_USER VALUES
 (DEFAULT,
 0000000002,
 'DISENO',
@@ -942,9 +939,8 @@ DEFAULT,
 NULL,
 DEFAULT,
 DEFAULT
-);
+),
 
-INSERT INTO SERVICES_BY_USER VALUES
 (DEFAULT,
 0000000002,
 'DISENO',
@@ -964,6 +960,206 @@ DEFAULT,
 NULL,
 DEFAULT,
 DEFAULT
+);
+
+-- Revistas
+INSERT INTO MAGAZINES VALUES 
+(DEFAULT,
+'Individualismo en pandemia',
+'https://assets.entrepreneur.com/content/3x4/600/1624551191-ent21-julyaug-cover.jpg?width=400',
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2Famor-en-tiempos-de-pandemia-vol-1_compressed.pdf?alt=media&token=e588c669-4edd-4d24-865b-3e55512e1b59',
+18,
+1,
+2,
+2020,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+'INDIVIDUALISMO-EN-PANDEMIA-2020-1-123456789',
+DEFAULT, -- activo
+DEFAULT,
+DEFAULT
+),
+
+(DEFAULT,
+'Hablando piedras',
+'https://m.media-amazon.com/images/I/51FhT+gJCLL._AC_SY445_.jpg',
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2Famor-en-tiempos-de-pandemia-vol-1_compressed.pdf?alt=media&token=e588c669-4edd-4d24-865b-3e55512e1b59',
+15,
+1,
+3,
+2020,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+'HABLANDO-PIEDRAS-2020-1-123456789',
+DEFAULT, -- activo
+DEFAULT,
+DEFAULT
+),
+
+(DEFAULT,
+'Amor en tiempos de pandemia',
+'https://images-na.ssl-images-amazon.com/images/I/91-NnXIFTTL.jpg',
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2Fsilabo-angular.pdf?alt=media&token=ef600a92-58cd-4949-9d33-ef2b33853d07',
+20,
+1,
+7,
+2021,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+'AMOR-EN-TIEMPOS-DE-PANDEMIA-2021-1-123456789',
+DEFAULT, -- activo
+DEFAULT,
+DEFAULT
+),
+
+(DEFAULT,
+'Burrocracias: Cuando la mitad del país es bruta',
+'https://cdn.www.gob.pe/uploads/document/file/1780193/standard_Elecciones-Generales-800x450.jpg.jpg',
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2Famor-en-tiempos-de-pandemia-vol-1_compressed.pdf?alt=media&token=e588c669-4edd-4d24-865b-3e55512e1b59',
+22,
+1,
+8,
+2021,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+'BURROCRACIAS-CUANDO-LA-MITAD-DEL-PAIS-ES-BRUTA-2021-1-123456789',
+DEFAULT, -- activo
+DEFAULT,
+DEFAULT
+),
+
+(DEFAULT,
+'Identificaciones disidentes',
+'https://www.paho.org/sites/default/files/styles/flexslider_full/public/2020-02/coronavirus-creativeneko-shutterstock-com.jpg?h=111de37a&itok=azilfE4h',
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2Famor-en-tiempos-de-pandemia-vol-1_compressed.pdf?alt=media&token=e588c669-4edd-4d24-865b-3e55512e1b59',
+22,
+1,
+9,
+2021,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+'IDENTIFICACIONES-DISIDENTES-2021-1-123456789',
+DEFAULT, -- activo
+DEFAULT,
+DEFAULT
+),
+
+(DEFAULT,
+'El mundo de cabeza',
+'https://i2.wp.com/ecuadortoday.media/wp-content/uploads/2020/03/Captura-de-Pantalla-2020-03-14-a-las-13.03.36.jpg?fit=524%2C346&ssl=1',
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2Famor-en-tiempos-de-pandemia-vol-1_compressed.pdf?alt=media&token=e588c669-4edd-4d24-865b-3e55512e1b59',
+5,
+1,
+10,
+2021,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+'EL-MUNDO-DE-CABEZA-2021-1-123456789',
+DEFAULT, -- activo
+DEFAULT,
+DEFAULT
+);
+
+-- Comentarios para la revista
+INSERT INTO COMMENTS VALUES
+(DEFAULT,
+1,
+NULL,
+3,
+'Este es mi primer comentario de prueba',
+NULL,
+'APROBADO',
+'2021-08-07T16:06:54.000Z',
+'2021-08-07T16:06:54.000Z'
+),
+
+(DEFAULT,
+2,
+NULL,
+3,
+'Excelente revista, yo la amo',
+NULL,
+'APROBADO',
+'2021-08-07T16:07:54.000Z',
+'2021-08-07T16:07:54.000Z'
+),
+
+(DEFAULT,
+2,
+NULL,
+3,
+'Esta es la mejor muestra de que cuando se quiere se puede',
+NULL,
+'APROBADO',
+'2021-08-07T16:08:54.000Z',
+'2021-08-07T16:08:54.000Z'
+),
+
+(DEFAULT,
+3,
+NULL,
+3,
+'Este es mi primer comentario de prueba',
+NULL,
+'APROBADO',
+'2021-08-07T16:09:54.000Z',
+'2021-08-07T16:09:54.000Z'
+),
+
+(DEFAULT,
+3,
+NULL,
+3,
+'Si me ayudan, yo promociono su revista en instagram',
+NULL,
+'APROBADO',
+'2021-08-07T16:10:54.000Z',
+'2021-08-07T16:10:54.000Z'
+),
+
+(DEFAULT,
+1,
+NULL,
+3,
+'Cómo puedo suscrirme?',
+NULL,
+'APROBADO',
+'2021-08-07T16:11:54.000Z',
+'2021-08-07T16:11:54.000Z'
+),
+
+(DEFAULT,
+1,
+NULL,
+3,
+'Son geniales',
+NULL,
+'APROBADO',
+'2021-08-07T16:12:54.000Z',
+'2021-08-07T16:12:54.000Z'
+),
+
+(DEFAULT,
+1,
+NULL,
+3,
+'Giovani, eres my crush',
+NULL,
+'APROBADO',
+'2021-08-07T16:13:54.000Z',
+'2021-08-07T16:13:54.000Z'
 );
 
 -- Procedimientos
@@ -1024,9 +1220,9 @@ END; //
 DELIMITER ;
 
 -- Obtiene las fechas de los eventos
-DROP PROCEDURE IF EXISTS USP_GET_DATES_BY_EVENT;
+DROP PROCEDURE IF EXISTS USP_GET_DATES_BY_EVENT_ALIAS;
 DELIMITER //
-CREATE PROCEDURE USP_GET_DATES_BY_EVENT (P_ALIAS VARCHAR(200))
+CREATE PROCEDURE USP_GET_DATES_BY_EVENT_ALIAS (P_ALIAS VARCHAR(200))
 BEGIN
 SELECT ED.from, ED.until, ED.weekly
 FROM EVENT_DATES ED
@@ -1037,9 +1233,9 @@ END; //
 DELIMITER ;
 
 -- Obtiene los instructores de los eventos
-DROP PROCEDURE IF EXISTS USP_GET_INSTRUCTORS_BY_EVENT;
+DROP PROCEDURE IF EXISTS USP_GET_INSTRUCTORS_BY_EVENT_ALIAS;
 DELIMITER //
-CREATE PROCEDURE USP_GET_INSTRUCTORS_BY_EVENT (P_ALIAS VARCHAR(200))
+CREATE PROCEDURE USP_GET_INSTRUCTORS_BY_EVENT_ALIAS (P_ALIAS VARCHAR(200))
 BEGIN
 SELECT -- Si userId es nulo, significa que los datos están en la tabla actual. Caso contrario, debo consultarlo desde la tabla USERS
 IBE.userId,
@@ -1140,13 +1336,64 @@ GROUP BY EMS.userId; -- Para que este campo sea único, porque hay campos como s
 END; //
 DELIMITER ;
 
+-- Para obtener las revistas por año
+DROP PROCEDURE IF EXISTS USP_GET_MAGAZINES_BY_YEAR;
+DELIMITER //
+CREATE PROCEDURE USP_GET_MAGAZINES_BY_YEAR (P_YEAR INT)
+BEGIN
+	SELECT id, title, urlPortrait, url, numPag, edition, year, numHearts, numComments, numViews, numDownloads, alias FROM MAGAZINES WHERE active = 1 AND year = P_YEAR ORDER BY createdAt DESC;
+END; //
+DELIMITER ;
+
+-- Para obtener una revista por alias
+DROP PROCEDURE IF EXISTS USP_GET_MAGAZINE_BY_ALIAS;
+DELIMITER //
+CREATE PROCEDURE USP_GET_MAGAZINE_BY_ALIAS (P_ALIAS VARCHAR(200))
+BEGIN
+	SELECT id, title, urlPortrait, url, numPag, edition, year, numHearts, numComments, numViews, numDownloads, alias FROM MAGAZINES WHERE active = 1 AND alias = P_ALIAS;
+END; //
+DELIMITER ;
+
+-- Para obtener comentarios de una revista, según su alias. Dado que se obtienen los más actuales primero, el parámetro P_LAST_TIMESTAMP debe obtener los más antiguos que le siguen
+DROP PROCEDURE IF EXISTS USP_GET_OLDER_COMMENTS_BY_MAGAZINE_ALIAS;
+DELIMITER //
+CREATE PROCEDURE USP_GET_OLDER_COMMENTS_BY_MAGAZINE_ALIAS (P_ALIAS VARCHAR(200), P_LIMIT INT, P_LAST_TIMESTAMP TIMESTAMP)
+BEGIN
+DECLARE V_LAST_TIMESTAMP TIMESTAMP;
+	IF (P_LAST_TIMESTAMP IS NULL) THEN
+		BEGIN
+			SET V_LAST_TIMESTAMP = TIMESTAMPADD(HOUR, 1, (SELECT MAX(C.createdAt) FROM COMMENTS C));
+		END;
+	ELSE
+		BEGIN
+			SET V_LAST_TIMESTAMP = P_LAST_TIMESTAMP;    
+		END;
+END IF;
+
+SELECT C.id, C.userId, CONCAT(U.fName, ' ', U.lName) as names, U.urlProfileImg as urlImg, C.content, C.createdAt FROM COMMENTS C
+JOIN MAGAZINES M
+ON C.magazineId = M.id
+JOIN USERS U
+ON U.id = C.userId
+WHERE C.statusId = 'APROBADO' AND M.alias = P_ALIAS AND C.createdAt < V_LAST_TIMESTAMP
+ORDER BY C.createdAt DESC
+LIMIT P_LIMIT;
+END; //
+DELIMITER ;
+
 -- Ejemplos
+-- CALL USP_GET_COMMENTS_BY_MAGAZINE_ALIAS('AMOR-EN-TIEMPOS-DE-PANDEMIA-2021-1-123456789',1,NULL);
+-- CALL USP_GET_MAGAZINE_BY_ALIAS('AMOR-EN-TIEMPOS-DE-PANDEMIA-2021-1-123456789');
+-- CALL USP_GET_MAGAZINES_BY_YEAR(2020);
 -- CALL USP_CREATE_ORDER (NULL, NULL, 'Mila', 54, '987654321', 'WSP', 2, 1, 'ESCUCHA', NULL, NULL, NULL, NULL, NULL, '', NULL, NULL, NULL, NULL, 'NORMAL', '{"modality":"LMD"}', NULL);
 -- CALL USP_GET_MEMBERS_BY_EDITORIAL_SERVICE (1,'DISENO')
 -- call usp_add_statistics (NULL, 'gricardov@gmail.com','FACEBOOK',NULL,NULL,'VER');
 -- call USP_EXISTS_IN_INSCRIPTION(1, null, 'corazon@gmail.com');
 -- CALL USP_SUBSCRIBE(NULL, 'Mila','gricardov@gmail.com',NULL, TRUE, NULL);
+-- UPDATE MAGAZINES SET numComments = 23, numHearts = 12 where id = 2;
+-- select * from comments where createdAt > '2021-08-07T16:05:56.000Z';
 
+SELECT*FROM COMMENTS;
 SELECT*FROM EDITORIAL_MEMBER_SERVICES;
 select*from actions_on_item;
 SELECT*FROM ACTIONS_BY_USER_ON_ITEM;
@@ -1160,6 +1407,7 @@ SELECT*FROM USERS;
 SELECT*FROM INSCRIPTIONS;
 SELECT*FROM ORDERS;
 select*from subscribers;
+SELECT*FROM MAGAZINES;
 SELECT*FROM EVENTS;
 -- INSERT INTO events VALUES (DEFAULT,'Evento 1',DEFAULT,'https://www.youtube.com/watch?v=cD2bQH8-pos&t=424s&ab_channel=Ra%C3%BAlValverde',DEFAULT,'["Objetivo1", "Objetivo2"]','["Beneficio1", "Beneficio2"]','["Tema1","Tema2"]',0,NULL,DEFAULT,DEFAULT,DEFAULT,DEFAULT,'Título del evento','Cuéntame que es de tu vida y trataré de quererte todavía',DEFAULT,DEFAULT,'[{"name":"Obras llevadas al teatro","link":{"name":"Leer aquí","href":"https://www.google.com"}}]','GRAN-TEXTO-GUION-TEXTO-Y-NOVELA-CCADENA-1',DEFAULT,DEFAULT,DEFAULT);
 
