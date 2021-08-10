@@ -1,6 +1,6 @@
 const { queryDB } = require('../database/pool');
 
-const getEvents = async (req = Request, res = Response) => {
+const getEvents = async (req = Request, res = Response) => {  
   const { limit, lastDate } = req.query;
   try {
     const eventsRes = await queryDB('CALL USP_GET_LATEST_EVENTS(?,?)', [limit, lastDate]);

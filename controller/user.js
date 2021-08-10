@@ -16,6 +16,7 @@ const getUser = async (req, res) => {
 };
 
 const postUser = async (req, res) => {
+  res.json({ ok: 'ok post user' });
   /*const { body } = req;
   try {
     const existeEmail = await User.findOne({

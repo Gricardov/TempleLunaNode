@@ -74,7 +74,7 @@ CREATE TABLE USERS (
   contactEmail VARCHAR(200) NULL,
   fName VARCHAR(200) NOT NULL,
   lName VARCHAR(200) NOT NULL,
-  birthday DATETIME NOT NULL,  
+  birthday DATETIME NULL,  
   phone VARCHAR(50) NULL,
   appId VARCHAR(50) NOT NULL,
   pseudonym VARCHAR(200) NULL,
@@ -363,7 +363,8 @@ CREATE TABLE MAGAZINES (
   id INT(10) ZEROFILL UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   title VARCHAR(500) NOT NULL,
   urlPortrait VARCHAR(500) NOT NULL,
-  url VARCHAR(500) NOT NULL,
+  displayUrl VARCHAR(500) NOT NULL, -- Este link contiene el documento optimizado para renderizar en el navegador sin descargarlo
+  url VARCHAR(500) NOT NULL, -- Este link contiene el documento original para ser descargado
   numPag INT NOT NULL,
   edition INT NOT NULL,
   month INT NOT NULL,
@@ -495,7 +496,6 @@ INSERT INTO CONTACT_APPS VALUES
 ('OAPP','Otra app');
 
 INSERT INTO USER_ROLES VALUES
-('FOUNDER','Fundador'), -- Solo para el creador
 ('ADMIN','Administrador'), -- Para los que tienen privilegios de hacer cambios en la plataforma
 ('MOD','Moderador'), -- Para los que aprueban contenidos
 ('COLAB','Colaborador'), -- Para los que dan servicios
@@ -606,6 +606,32 @@ INSERT INTO EVENT_DATES VALUES
 
 -- Usuarios
 INSERT INTO USERS VALUES
+(DEFAULT,
+'gricardov@gmail.com',
+1,
+'gricardov@templeluna.app',
+'Giovanni',
+'Ricardo',
+'1995-04-20',
+'+51999999999',
+'WSP',
+'Corazón de melón',
+'corazondemelon',
+DEFAULT,
+DEFAULT,
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Flindo.jpg?alt=media&token=177bb113-efb9-4e15-9291-743a525a2420',
+DEFAULT,
+DEFAULT,
+'["https://www.facebook.com/", "https://www.instagram.com/"]',
+'ADMIN',
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT
+),
+
 (DEFAULT,
 'corazon@gmail.com',
 1,
@@ -967,6 +993,7 @@ INSERT INTO MAGAZINES VALUES
 (DEFAULT,
 'Individualismo en pandemia',
 'https://assets.entrepreneur.com/content/3x4/600/1624551191-ent21-julyaug-cover.jpg?width=400',
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2FTL1JPG.pdf?alt=media&token=940b3eb9-7187-4d5d-bb6d-525b45282c7b',
 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2Famor-en-tiempos-de-pandemia-vol-1_compressed.pdf?alt=media&token=e588c669-4edd-4d24-865b-3e55512e1b59',
 18,
 1,
@@ -985,6 +1012,7 @@ DEFAULT
 (DEFAULT,
 'Hablando piedras',
 'https://m.media-amazon.com/images/I/51FhT+gJCLL._AC_SY445_.jpg',
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2FTL1JPG.pdf?alt=media&token=940b3eb9-7187-4d5d-bb6d-525b45282c7b',
 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2Famor-en-tiempos-de-pandemia-vol-1_compressed.pdf?alt=media&token=e588c669-4edd-4d24-865b-3e55512e1b59',
 15,
 1,
@@ -1003,6 +1031,7 @@ DEFAULT
 (DEFAULT,
 'Amor en tiempos de pandemia',
 'https://images-na.ssl-images-amazon.com/images/I/91-NnXIFTTL.jpg',
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2FTL1JPG.pdf?alt=media&token=940b3eb9-7187-4d5d-bb6d-525b45282c7b',
 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2Fsilabo-angular.pdf?alt=media&token=ef600a92-58cd-4949-9d33-ef2b33853d07',
 20,
 1,
@@ -1021,6 +1050,7 @@ DEFAULT
 (DEFAULT,
 'Burrocracias: Cuando la mitad del país es bruta',
 'https://cdn.www.gob.pe/uploads/document/file/1780193/standard_Elecciones-Generales-800x450.jpg.jpg',
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2FTL1JPG.pdf?alt=media&token=940b3eb9-7187-4d5d-bb6d-525b45282c7b',
 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2Famor-en-tiempos-de-pandemia-vol-1_compressed.pdf?alt=media&token=e588c669-4edd-4d24-865b-3e55512e1b59',
 22,
 1,
@@ -1039,6 +1069,7 @@ DEFAULT
 (DEFAULT,
 'Identificaciones disidentes',
 'https://www.paho.org/sites/default/files/styles/flexslider_full/public/2020-02/coronavirus-creativeneko-shutterstock-com.jpg?h=111de37a&itok=azilfE4h',
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2FTL1JPG.pdf?alt=media&token=940b3eb9-7187-4d5d-bb6d-525b45282c7b',
 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2Famor-en-tiempos-de-pandemia-vol-1_compressed.pdf?alt=media&token=e588c669-4edd-4d24-865b-3e55512e1b59',
 22,
 1,
@@ -1057,6 +1088,7 @@ DEFAULT
 (DEFAULT,
 'El mundo de cabeza',
 'https://i2.wp.com/ecuadortoday.media/wp-content/uploads/2020/03/Captura-de-Pantalla-2020-03-14-a-las-13.03.36.jpg?fit=524%2C346&ssl=1',
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2FTL1JPG.pdf?alt=media&token=940b3eb9-7187-4d5d-bb6d-525b45282c7b',
 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2Famor-en-tiempos-de-pandemia-vol-1_compressed.pdf?alt=media&token=e588c669-4edd-4d24-865b-3e55512e1b59',
 5,
 1,
@@ -1163,6 +1195,15 @@ NULL,
 );
 
 -- Procedimientos
+
+-- Obtiene la data privada estrictamente necesaria de un usuario si se encuentra activo
+DROP PROCEDURE IF EXISTS USP_GET_PRIVATE_USER_BY_EMAIL;
+DELIMITER //
+CREATE PROCEDURE USP_GET_PRIVATE_USER_BY_EMAIL (P_EMAIL VARCHAR(200))
+BEGIN
+	SELECT id, email, emailVerified, fName, lName, followName, urlProfileImg, roleId FROM USERS WHERE email = P_EMAIL AND active = 1;
+END; //
+DELIMITER ;
 
 -- Obtiene los eventos más cercanos a iniciar
 DROP PROCEDURE IF EXISTS USP_GET_LATEST_EVENTS;
@@ -1341,7 +1382,7 @@ DROP PROCEDURE IF EXISTS USP_GET_MAGAZINES_BY_YEAR;
 DELIMITER //
 CREATE PROCEDURE USP_GET_MAGAZINES_BY_YEAR (P_YEAR INT)
 BEGIN
-	SELECT id, title, urlPortrait, url, numPag, edition, year, numHearts, numComments, numViews, numDownloads, alias FROM MAGAZINES WHERE active = 1 AND year = P_YEAR ORDER BY createdAt DESC;
+	SELECT id, title, urlPortrait, numPag, edition, year, numHearts, numComments, numViews, numDownloads, alias FROM MAGAZINES WHERE active = 1 AND year = P_YEAR ORDER BY createdAt DESC;
 END; //
 DELIMITER ;
 
@@ -1350,7 +1391,7 @@ DROP PROCEDURE IF EXISTS USP_GET_MAGAZINE_BY_ALIAS;
 DELIMITER //
 CREATE PROCEDURE USP_GET_MAGAZINE_BY_ALIAS (P_ALIAS VARCHAR(200))
 BEGIN
-	SELECT id, title, urlPortrait, url, numPag, edition, year, numHearts, numComments, numViews, numDownloads, alias FROM MAGAZINES WHERE active = 1 AND alias = P_ALIAS;
+	SELECT id, title, urlPortrait, displayUrl, url, numPag, edition, year, numHearts, numComments, numViews, numDownloads, alias FROM MAGAZINES WHERE active = 1 AND alias = P_ALIAS;
 END; //
 DELIMITER ;
 
@@ -1388,8 +1429,8 @@ DELIMITER ;
 -- CALL USP_CREATE_ORDER (NULL, NULL, 'Mila', 54, '987654321', 'WSP', 2, 1, 'ESCUCHA', NULL, NULL, NULL, NULL, NULL, '', NULL, NULL, NULL, NULL, 'NORMAL', '{"modality":"LMD"}', NULL);
 -- CALL USP_GET_MEMBERS_BY_EDITORIAL_SERVICE (1,'DISENO')
 -- call usp_add_statistics (NULL, 'gricardov@gmail.com','FACEBOOK',NULL,NULL,'VER');
--- call USP_EXISTS_IN_INSCRIPTION(1, null, 'corazon@gmail.com');
--- CALL USP_SUBSCRIBE(NULL, 'Mila','gricardov@gmail.com',NULL, TRUE, NULL);
+-- call USP_EXISTS_IN_INSCRIPTION(1 null, 'corazon@gmail.com');
+-- CALL USP_SUBSCRIBE(NULL, 'Mila','g,ricardov@gmail.com',NULL, TRUE, NULL);
 -- UPDATE MAGAZINES SET numComments = 23, numHearts = 12 where id = 2;
 -- select * from comments where createdAt > '2021-08-07T16:05:56.000Z';
 

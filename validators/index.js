@@ -10,6 +10,8 @@ const getMembersByEditorialService = require('./getMembersByEditorialService');
 const getMagazines = require('./getMagazines');
 const getMagazine = require('./getMagazine');
 const getComments = require('./getComments');
+const postToken = require('./postToken');
+const validateToken = require('./validateToken');
 
 module.exports = {
     validateField,
@@ -23,5 +25,7 @@ module.exports = {
     getMembersByEditorialService,
     getMagazines,
     getMagazine,
-    getComments
+    getComments,
+    postToken,
+    validateToken
 }

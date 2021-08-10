@@ -1,3 +1,4 @@
+const loginRoutes = require("./login");
 const userRoutes = require("./user");
 const eventRoutes = require("./event");
 const inscriptionRoutes = require("./inscription");
@@ -9,6 +10,7 @@ const magazineRoutes = require("./magazine");
 const commentRoutes = require("./comment");
 
 module.exports = {
+    loginRoutes,
     userRoutes,
     eventRoutes,
     inscriptionRoutes,
