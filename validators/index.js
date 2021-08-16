@@ -12,6 +12,9 @@ const getMagazine = require('./getMagazine');
 const getComments = require('./getComments');
 const postToken = require('./postToken');
 const validateToken = require('./validateToken');
+const login = require('./login');
+const postRegister = require('./postRegister');
+const getIsUserRegistered = require('./getIsUserRegistered');
 
 module.exports = {
     validateField,
@@ -27,5 +30,8 @@ module.exports = {
     getMagazine,
     getComments,
     postToken,
-    validateToken
+    validateToken,
+    login,
+    postRegister,
+    getIsUserRegistered
 }

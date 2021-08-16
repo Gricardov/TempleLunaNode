@@ -5,7 +5,7 @@ const { isNullOrUndefined } = require('../utils/functions');
 const schema = yup.object({
     eventId: yup.number().min(1).max(100000000).required('El id de evento es requerido'),
     userId: yup.number().min(1).max(100000000).nullable(),
-    names: yup.string().trim().min(1).max(200).when('userId', {
+    names: yup.string().trim().min(2).max(200).when('userId', {
         is: null,
         then: yup.string().required('El nombre es requerido'),
     }).nullable(),
@@ -53,13 +53,13 @@ const isEnrolled = async (req, res, next) => {
         const result = await queryDB('CALL USP_EXISTS_IN_INSCRIPTION(?,?,?)', [eventId, userId, email]);
         const exists = result[0][0].exists;
         if (exists) {
-            throw `El usuario ${userId}, ${email} ya se encuentra inscrito al evento ${eventId}`;
+            throw { msg: `El usuario ${userId}, ${email} ya se encuentra inscrito al evento ${eventId}`, statusCode: 412 };
         } else {
             next();
         }
     } catch (error) {
         console.error(error);
-        res.status(400).json({ msg: 'El usuario ya está registrado al evento' });
+        res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
     }
 }
 

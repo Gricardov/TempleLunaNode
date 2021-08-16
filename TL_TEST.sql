@@ -76,7 +76,7 @@ CREATE TABLE USERS (
   lName VARCHAR(200) NOT NULL,
   birthday DATETIME NULL,  
   phone VARCHAR(50) NULL,
-  appId VARCHAR(50) NOT NULL,
+  appId VARCHAR(50) NULL,
   pseudonym VARCHAR(200) NULL,
   followName VARCHAR(200) NOT NULL,
   numFollowers INT NOT NULL DEFAULT 0, -- BY TRIGGER
@@ -87,9 +87,6 @@ CREATE TABLE USERS (
   networks JSON NOT NULL DEFAULT '[]',
   roleId VARCHAR(50) NOT NULL DEFAULT 'BASIC',
   active BOOLEAN NOT NULL DEFAULT 1,
-  nativeCreated BOOLEAN NOT NULL DEFAULT 1,
-  fbCreated BOOLEAN NOT NULL DEFAULT 0,
-  googleCreated BOOLEAN NOT NULL DEFAULT 0,
   createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -626,11 +623,31 @@ DEFAULT,
 'ADMIN',
 DEFAULT,
 DEFAULT,
+DEFAULT
+),
+
+/*(DEFAULT,
+'oct967777777@gmail.com',
+1,
+'Pedro Castillo',
+'Giovanni',
+'Pedro',
+'Castillo',
+'+51999999999',
+'WSP',
+'ElComunista',
+'elcomunista',
 DEFAULT,
+DEFAULT,
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Flindo.jpg?alt=media&token=177bb113-efb9-4e15-9291-743a525a2420',
+DEFAULT,
+DEFAULT,
+'["https://www.facebook.com/", "https://www.instagram.com/"]',
+'ADMIN',
 DEFAULT,
 DEFAULT,
 DEFAULT
-),
+),*/
 
 (DEFAULT,
 'corazon@gmail.com',
@@ -650,9 +667,6 @@ DEFAULT,
 DEFAULT,
 '["https://www.facebook.com/", "https://www.instagram.com/"]',
 'BASIC',
-DEFAULT,
-DEFAULT,
-DEFAULT,
 DEFAULT,
 DEFAULT,
 DEFAULT
@@ -678,9 +692,6 @@ DEFAULT,
 'BASIC',
 DEFAULT,
 DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
 DEFAULT
 ),
 
@@ -704,10 +715,8 @@ DEFAULT,
 'BASIC',
 DEFAULT,
 DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT);
+DEFAULT
+);
 
 /*-- Roles por usuario
 INSERT INTO ROLES_BY_USER VALUES
@@ -1422,6 +1431,26 @@ LIMIT P_LIMIT;
 END; //
 DELIMITER ;
 
+-- Verifica 1) si el usuario existe, y 2) si el usuario está activo o ha sido inhabilitado; ambos por email. Esto sirve para validar el login y enviar mensajes de error dependiendo si el usuario está inhabilitado o si no existe.
+DROP PROCEDURE IF EXISTS USP_GET_USER_STATUS_BY_EMAIL;
+DELIMITER //
+CREATE PROCEDURE USP_GET_USER_STATUS_BY_EMAIL (P_EMAIL VARCHAR(200))
+BEGIN
+SELECT
+	EXISTS ( SELECT id FROM USERS WHERE email = P_EMAIL ) AS 'exists',
+	EXISTS ( SELECT id FROM USERS WHERE email = P_EMAIL AND active = 1 ) AS 'active'; 
+END; //
+DELIMITER ;
+
+-- Registro un usuario
+DROP PROCEDURE IF EXISTS USP_REGISTER_USER;
+DELIMITER //
+CREATE PROCEDURE USP_REGISTER_USER (P_FNAME VARCHAR(200), P_LNAME VARCHAR(200), P_EMAIL VARCHAR(200), P_FOLLOW_NAME VARCHAR(200))
+BEGIN
+	INSERT INTO USERS VALUES (DEFAULT, P_EMAIL, 0, NULL, P_FNAME, P_LNAME, NULL, NULL, NULL, NULL, P_FOLLOW_NAME, DEFAULT, DEFAULT, NULL, NULL, NULL, DEFAULT, 'BASIC', 1, DEFAULT, DEFAULT);
+END; //
+DELIMITER ;
+
 -- Ejemplos
 -- CALL USP_GET_COMMENTS_BY_MAGAZINE_ALIAS('AMOR-EN-TIEMPOS-DE-PANDEMIA-2021-1-123456789',1,NULL);
 -- CALL USP_GET_MAGAZINE_BY_ALIAS('AMOR-EN-TIEMPOS-DE-PANDEMIA-2021-1-123456789');
@@ -1433,7 +1462,9 @@ DELIMITER ;
 -- CALL USP_SUBSCRIBE(NULL, 'Mila','g,ricardov@gmail.com',NULL, TRUE, NULL);
 -- UPDATE MAGAZINES SET numComments = 23, numHearts = 12 where id = 2;
 -- select * from comments where createdAt > '2021-08-07T16:05:56.000Z';
+-- call USP_GET_USER_STATUS_BY_EMAIL('gricardov@gmail.com');
 
+-- update users set active = 0 where email = 'gricardov@gmail.com';
 SELECT*FROM COMMENTS;
 SELECT*FROM EDITORIAL_MEMBER_SERVICES;
 select*from actions_on_item;

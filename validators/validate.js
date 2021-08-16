@@ -1,6 +1,6 @@
 const validateField = (resourceName, { schema, defValues }) => async (req, res, next) => {
     try {
-        const resource = req[resourceName];        
+        const resource = req[resourceName];
         await schema.validate(resource);
         req[resourceName] = defValues(resource);
         next();

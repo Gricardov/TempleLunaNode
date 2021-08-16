@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const {
     loginRoutes,
+    registerRoutes,
     userRoutes,
     eventRoutes,
     inscriptionRoutes,
@@ -22,6 +23,7 @@ class Server {
         this.port = process.env.PORT;
         this.apiPaths = {
             login: '/api/login',
+            register: '/api/register',
             user: '/api/users',
             event: '/api/events',
             inscription: '/api/inscriptions',
@@ -59,6 +61,7 @@ class Server {
 
     routes() {
         this.app.use(this.apiPaths.login, loginRoutes);
+        this.app.use(this.apiPaths.register, registerRoutes);
         this.app.use(this.apiPaths.user, userRoutes);
         this.app.use(this.apiPaths.event, eventRoutes);
         this.app.use(this.apiPaths.inscription, inscriptionRoutes);

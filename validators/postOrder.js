@@ -16,7 +16,7 @@ const schema = yup.object({
         is: null,
         then: yup.string().required('La app es requerida'),
     }).nullable(),
-    names: yup.string().trim().min(1).max(200).when('userId', {
+    names: yup.string().trim().min(2).max(200).when('userId', {
         is: null,
         then: yup.string().required('El nombre es requerido'),
     }).nullable(),
