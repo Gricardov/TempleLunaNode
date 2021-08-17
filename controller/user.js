@@ -1,3 +1,4 @@
+const { queryDB } = require('../database/pool');
 
 const getUsers = async (req, res) => {
   res.json({});
@@ -16,30 +17,19 @@ const getUser = async (req, res) => {
 };
 
 const postUser = async (req, res) => {
-  res.json({ ok: 'ok post user' });
-  /*const { body } = req;
+  const { claims } = req.body; // El middleware validateToken inserta los claims del JWT en el body
   try {
-    const existeEmail = await User.findOne({
-      where: {
-        email: body.email,
-      },
-    });
-
-    if (existeEmail) {
-      return res.status(400).json({
-        msg: "Ya existe un usuario con ese email",
-      });
+    const userRes = await queryDB('CALL USP_GET_PRIVATE_USER_BY_EMAIL(?)', [claims.email]);
+    const user = userRes[0][0];
+    if (user) {
+      res.json(user);
+    } else {
+      throw { msg: 'Usuario inexistente o deshabilitado', statusCode: 404 };
     }
-
-    const user = User.build(body);
-    await user.save();
-    res.json(user);
   } catch (error) {
     console.log(error);
-    res.status(404).json({
-      msg: "Hable con el administrador",
-    });
-  }*/
+    res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
+  }
 };
 
 const putUser = async (req, res) => {

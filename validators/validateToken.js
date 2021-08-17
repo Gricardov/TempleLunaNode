@@ -2,6 +2,7 @@ const admin = require("firebase-admin");
 
 const validateToken = (ignoreUserEnabled) => async (req, res, next) => {
     const idtoken = req.header('idtoken');
+    
     try {
         const claims = await admin.auth().verifyIdToken(idtoken);
 
@@ -11,7 +12,7 @@ const validateToken = (ignoreUserEnabled) => async (req, res, next) => {
                 throw { msg: 'Usuario inhabilitado', statusCode: 403 };
             }
         }
-        // Inserto los claims en el body
+        // Inserto los claims en el body        
         req.body.claims = claims;
         next();
     } catch (error) {
