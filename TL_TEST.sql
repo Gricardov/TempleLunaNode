@@ -870,7 +870,7 @@ DEFAULT
 
 -- Miembros de una editorial
 INSERT INTO EDITORIAL_MEMBERS VALUES
-(2,
+(1,
 1, -- Temple Luna
 'ADMIN',
 'Disponible sábados y domingos',
@@ -892,7 +892,7 @@ DEFAULT
 
 -- Servicios por miembros de editorial
 INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
-(2,
+(1,
 1,
 'CRITICA',
 NULL,
@@ -900,7 +900,7 @@ NULL,
 DEFAULT
 ),
 
-(2,
+(1,
 1,
 'DISENO',
 NULL,
@@ -908,7 +908,7 @@ NULL,
 DEFAULT
 ),
 
-(2,
+(1,
 1,
 'DISENO',
 'BAN',
@@ -916,7 +916,7 @@ DEFAULT
 DEFAULT
 ),
 
-(2,
+(1,
 1,
 'ESCUCHA',
 NULL,
@@ -935,7 +935,7 @@ DEFAULT
 -- Servicios por usuario
 INSERT INTO SERVICES_BY_USER VALUES
 (DEFAULT,
-0000000002,
+2,
 'CRITICA',
 NULL,
 DEFAULT,
@@ -956,7 +956,7 @@ DEFAULT
 ),
 
 (DEFAULT,
-0000000002,
+2,
 'DISENO',
 NULL,
 DEFAULT,
@@ -977,7 +977,7 @@ DEFAULT
 ),
 
 (DEFAULT,
-0000000002,
+2,
 'DISENO',
 'BAN',
 DEFAULT,
@@ -1451,7 +1451,66 @@ BEGIN
 END; //
 DELIMITER ;
 
+-- Obtiene los servicios de una editorial. El segundo parámetro es para incluir o excluir subservicios
+DROP PROCEDURE IF EXISTS USP_GET_EDITORIAL_SERVICES;
+DELIMITER //
+CREATE PROCEDURE USP_GET_EDITORIAL_SERVICES (P_EDITORIAL_ID INT, P_INCLUDE_SUBSERVICES BOOLEAN)
+BEGIN
+	SELECT SBE.serviceId, SBE.subServiceId, S.name, SBE.urlBg
+    FROM SERVICES_BY_EDITORIAL SBE
+    JOIN SERVICES S
+    ON S.id = SBE.serviceId
+    LEFT JOIN SUBSERVICES SS -- Left join porque debo traer todos los servicios, tengan o no un subservicio
+    ON SS.id = SBE.subServiceId
+    WHERE SBE.editorialId = P_EDITORIAL_ID
+    AND (
+		CASE
+			WHEN P_INCLUDE_SUBSERVICES = 0 THEN
+				SBE.subServiceId IS NULL
+			ELSE TRUE
+		END
+        );   
+END; //
+DELIMITER ;
+
+-- Obtiene los servicios que el miembro de una editorial brinda (Ejemplo: X miembro hace críticas y diseños)
+DROP PROCEDURE IF EXISTS USP_GET_EDITORIAL_SERVICES_BY_EDITORIAL_MEMBER;
+DELIMITER //
+CREATE PROCEDURE USP_GET_EDITORIAL_SERVICES_BY_EDITORIAL_MEMBER (P_USER_ID INT, P_EDITORIAL_ID INT, P_INCLUDE_SUBSERVICES BOOLEAN)
+BEGIN
+	SELECT EMS.serviceId, EMS.subServiceId, S.name, SBE.urlBg
+    FROM EDITORIAL_MEMBER_SERVICES EMS
+    JOIN SERVICES S
+    ON S.id = EMS.serviceId
+    LEFT JOIN SUBSERVICES SS -- Left join porque debo traer todos los servicios, tengan o no un subservicio
+    ON SS.id = EMS.subServiceId  
+	JOIN SERVICES_BY_EDITORIAL SBE -- Solo para asegurarnos de que la editorial tiene habilitado ese servicio
+    ON SBE.editorialId = EMS.editorialId AND SBE.serviceId = EMS.serviceId
+    JOIN EDITORIAL_MEMBERS EM-- Solo para asegurarnos de que la editorial tiene a ese miembro registrado
+    ON EMS.userId = EM.userId    
+	WHERE
+		EMS.userId = P_USER_ID
+		AND EMS.editorialId = P_EDITORIAL_ID
+        AND EM.active = 1 -- El miembro de la editorial está activo
+        AND (
+			CASE
+				WHEN P_INCLUDE_SUBSERVICES = 0 THEN
+					EMS.subServiceId IS NULL
+				ELSE TRUE
+			END
+			)
+	GROUP BY EMS.editorialId, EMS.serviceId, EMS.subServiceId;    
+END; //
+DELIMITER ;
+
 -- Ejemplos
+-- CALL USP_GET_EDITORIAL_SERVICES_BY_EDITORIAL_MEMBER (2, 1, 0);
+-- SELECT*FROM EDITORIAL_MEMBERS;
+-- SELECT*FROM EDITORIAL_MEMBER_SERVICES;
+-- SELECT*FROM SERVICES_BY_EDITORIAL;
+-- select*from services;
+-- select*from services_by_editorial;
+-- CALL USP_GET_EDITORIAL_SERVICES(1,1);
 -- CALL USP_GET_COMMENTS_BY_MAGAZINE_ALIAS('AMOR-EN-TIEMPOS-DE-PANDEMIA-2021-1-123456789',1,NULL);
 -- CALL USP_GET_MAGAZINE_BY_ALIAS('AMOR-EN-TIEMPOS-DE-PANDEMIA-2021-1-123456789');
 -- CALL USP_GET_MAGAZINES_BY_YEAR(2020);
@@ -1465,8 +1524,10 @@ DELIMITER ;
 -- call USP_GET_USER_STATUS_BY_EMAIL('gricardov@gmail.com');
 
 -- update users set active = 0 where email = 'gricardov@gmail.com';
+SELECT*FROM EDITORIAL_MEMBER_SERVICES;
 SELECT*FROM COMMENTS;
 SELECT*FROM EDITORIAL_MEMBER_SERVICES;
+select*from services_by_editorial;
 select*from actions_on_item;
 SELECT*FROM ACTIONS_BY_USER_ON_ITEM;
 select*from editorials;

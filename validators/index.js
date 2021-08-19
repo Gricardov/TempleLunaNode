@@ -15,6 +15,8 @@ const validateToken = require('./validateToken');
 const login = require('./login');
 const postRegister = require('./postRegister');
 const getIsUserRegistered = require('./getIsUserRegistered');
+const getServicesByEditorial = require('./getServicesByEditorial');
+const getServicesByEditorialMember = require('./getServicesByEditorialMember');
 
 module.exports = {
     validateField,
@@ -33,5 +35,7 @@ module.exports = {
     validateToken,
     login,
     postRegister,
-    getIsUserRegistered
+    getIsUserRegistered,
+    getServicesByEditorial,
+    getServicesByEditorialMember
 }

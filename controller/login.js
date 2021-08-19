@@ -11,6 +11,7 @@ const postLogin = async (req, res) => {
     if (user) {
       // Le habilito el token y devuelvo su data. Caso contrario, no le servirá su token
       await admin.auth().setCustomUserClaims(claims.sub, {
+        userId: Number(user.id),
         enabled: true
       });
       res.json(user);

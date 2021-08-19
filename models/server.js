@@ -11,7 +11,7 @@ const {
     orderRoutes,
     editorialRoutes,
     magazineRoutes,
-    commentRoutes
+    commentRoutes,
 } = require("../routes");
 const admin = require("firebase-admin");
 const serviceAccount = require("../firebase-admin-key.json");
@@ -32,7 +32,8 @@ class Server {
             order: '/api/orders',
             editorial: '/api/editorials',
             magazine: '/api/magazines',
-            comment: '/api/comments'
+            comment: '/api/comments',
+            service:'/api/services'
         };
 
         // Firebase
@@ -70,7 +71,7 @@ class Server {
         this.app.use(this.apiPaths.order, orderRoutes);
         this.app.use(this.apiPaths.editorial, editorialRoutes);
         this.app.use(this.apiPaths.magazine, magazineRoutes);
-        this.app.use(this.apiPaths.comment, commentRoutes);        
+        this.app.use(this.apiPaths.comment, commentRoutes);   
     }
 
     async firebase() {
