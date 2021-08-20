@@ -4,7 +4,7 @@ const { isNullOrUndefined } = require('../utils/functions');
 
 const schema = yup.object({
     magazineAlias: yup.string().trim().min(1).max(200).required(),
-    limit: yup.number().min(1).max(50),
+    limit: yup.number().min(1).max(10),
     lastDate: yup.string().trim().min(1).max(50).test('momentValid', 'No es una fecha válida', date => !date || moment(date).isValid()) // Recordar que este campo es timestamp, por lo cuál no es necesario especificar un formato.
 });
 

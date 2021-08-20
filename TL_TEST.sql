@@ -1503,7 +1503,76 @@ BEGIN
 END; //
 DELIMITER ;
 
+-- Obtiene los pedidos por editorial, estado (disponible, tomado, listo), servicio (crítica, diseño, etc), subservicio (nullable), usuario (nullable, esto si ha sido tomado por él), por última fecha (nullable, para el scroll infinito) y si es público o no
+DROP PROCEDURE IF EXISTS USP_GET_ORDERS;
+DELIMITER //
+CREATE PROCEDURE USP_GET_ORDERS (P_EDITORIAL_ID INT, P_STATUS_ID VARCHAR(50), P_SERVICE_ID VARCHAR(50), P_SUBSERVICE_ID VARCHAR(50), P_WORKER_USER_ID INT, P_LAST_TIMESTAMP TIMESTAMP, P_PUBLIC BOOLEAN, P_LIMIT INT)
+BEGIN
+DECLARE V_LAST_TIMESTAMP TIMESTAMP;
+	IF (P_LAST_TIMESTAMP IS NULL) THEN
+		BEGIN
+			SET V_LAST_TIMESTAMP = TIMESTAMPADD(HOUR, 1, (SELECT MAX(O.createdAt) FROM ORDERS O));
+		END;
+	ELSE
+		BEGIN
+			SET V_LAST_TIMESTAMP = P_LAST_TIMESTAMP;    
+		END;
+END IF;
+
+SELECT
+O.id,
+O.clientUserId, -- Si clientUserId es nulo, significa que los datos están en la tabla actual. Caso contrario, debo consultarlo desde la tabla USERS. TODO: Cambiar el email por contactEmail del usuario
+CASE WHEN O.clientUserId IS NULL THEN O.clientEmail ELSE (SELECT email FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientEmail,
+CASE WHEN O.clientUserId IS NULL THEN O.clientNames ELSE (SELECT CONCAT(fName, " ", lName) FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientNames,
+CASE WHEN O.clientUserId IS NULL THEN O.clientPhone ELSE (SELECT phone FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientPhone,
+CASE WHEN O.clientUserId IS NULL THEN O.clientAppId ELSE (SELECT appId FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientAppId,
+O.workerUserId,
+O.serviceId,
+O.subServiceId,
+O.statusId,
+O.titleWork,
+O.linkWork,
+O.pseudonym,
+O.synopsis,
+O.details,
+O.intention,
+O.mainPhrase,
+O.imgUrlData,
+O.priority,
+O.extraData,
+O.resultUrl,
+O.numHearts,
+O.numComments,
+O.numViews,
+O.createdAt
+FROM ORDERS O
+WHERE O.editorialId = P_EDITORIAL_ID
+AND O.statusId = P_STATUS_ID
+AND O.serviceId = P_SERVICE_ID
+AND O.subServiceId <=> P_SUBSERVICE_ID -- Uso ese operador, porque puede usarse para comparar NULL sin poner ...IS NULL
+AND O.createdAt < V_LAST_TIMESTAMP
+AND (
+	CASE
+		WHEN P_WORKER_USER_ID IS NULL THEN
+			TRUE
+		ELSE O.workerUserId = P_WORKER_USER_ID -- Esto sirve para saber quien lo tomó. Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+	END
+	)
+AND (
+	CASE
+		WHEN P_PUBLIC IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+			TRUE
+		ELSE O.public = P_PUBLIC
+	END
+	)
+ORDER BY O.createdAt DESC
+LIMIT P_LIMIT;
+END; //
+DELIMITER ;
+
 -- Ejemplos
+-- CALL USP_GET_ORDERS (1, 'DISPONIBLE','ESCUCHA',NULL,1,NULL,NULL,5);
+-- SELECT*FROM ORDERS WHERE subServiceId <=> null;
 -- CALL USP_GET_EDITORIAL_SERVICES_BY_EDITORIAL_MEMBER (2, 1, 0);
 -- SELECT*FROM EDITORIAL_MEMBERS;
 -- SELECT*FROM EDITORIAL_MEMBER_SERVICES;
@@ -1539,6 +1608,7 @@ select*from event_dates;
 SELECT*FROM USERS;
 SELECT*FROM INSCRIPTIONS;
 SELECT*FROM ORDERS;
+select*from order_status;
 select*from subscribers;
 SELECT*FROM MAGAZINES;
 SELECT*FROM EVENTS;

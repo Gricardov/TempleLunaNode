@@ -8,7 +8,7 @@ router.post("/", [
   postInscriptionVal.isEnrolled
 ], postInscription);
 
-router.get('/isEnrolled/', [
+router.get('/isEnrolled', [
   validateField('query', getIsEnrolledVal),
 ], isEnrolled);
 
