@@ -48,7 +48,7 @@ const queryDB = (sql, args) => {
         return reject(err)
       }
       // Use the connection
-      connection.query(sql, args, function (error, results, fields) {
+      connection.query(sql, args, function (err, results, fields) {
         // When done with the connection, release it.
         connection.release();
         // Handle error after the release.

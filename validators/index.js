@@ -6,6 +6,7 @@ const postSubscription = require('./postSubscription');
 const postStatistic = require('./postStatistic');
 const postOrder = require('./postOrder');
 const getOrders = require('./getOrders');
+const getOrdersTotal = require('./getOrdersTotals');
 const getIsEnrolled = require('./getIsEnrolled');
 const getMembersByEditorialService = require('./getMembersByEditorialService');
 const getMagazines = require('./getMagazines');
@@ -28,6 +29,7 @@ module.exports = {
     postStatistic,
     postOrder,
     getOrders,
+    getOrdersTotal,
     getIsEnrolled,
     getMembersByEditorialService,
     getMagazines,

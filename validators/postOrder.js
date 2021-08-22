@@ -38,12 +38,11 @@ const schema = yup.object({
     pseudonym: yup.string().trim().max(200).nullable(),
     publicLink: yup.boolean().nullable(),
     extraData: yup.mixed().nullable(),
-    //critiqueTopics: yup.array().of(yup.string().min(1).max(50).strict().required()).nullable(),
     email: yup.string().trim().email('Ingresa un correo válido').min(5).max(200).nullable(),
     synopsis: yup.string().trim().min(1).max(500).nullable(),
-    //priority: yup.string().trim().min(1).max(50).nullable(),
     priority: yup.string().trim().min(1).max(50).when('serviceId', (serviceId, schema) => serviceId != 'ESCUCHA' ? schema.test('isNullOrUndefined', 'Este servicio no permite elegir una prioridad', val => isNullOrUndefined(val)) : schema).nullable(), // Solo los servicios habilitados pueden especificar una prioridad. Por ejemplo, servicio de ESCUCHA
-    workerUserId: yup.number().min(1).max(100000000).when('serviceId', (serviceId, schema) => serviceId != 'ESCUCHA' ? schema.test('isNullOrUndefined', 'Este servicio no permite elegir un id de colaborador', val => isNullOrUndefined(val)) : schema).nullable() // Verifico que solo los servicios habilitados acepten valores de workerUserId
+    workerUserId: yup.number().min(1).max(100000000).when('serviceId', (serviceId, schema) => serviceId != 'ESCUCHA' ? schema.test('isNullOrUndefined', 'Este servicio no permite elegir un id de colaborador', val => isNullOrUndefined(val)) : schema).nullable(), // Verifico que solo los servicios habilitados acepten valores de workerUserId
+    requestedWorkerUserId: yup.number().min(1).max(100000000).nullable()
 });
 
 const defValues = (data) => {
@@ -69,7 +68,8 @@ const defValues = (data) => {
         email: isNullOrUndefined(data.email) ? null : data.email.trim(),
         synopsis: isNullOrUndefined(data.synopsis) ? null : data.synopsis.trim(),
         priority: isNullOrUndefined(data.priority) ? null : data.priority.trim(),
-        workerUserId: isNullOrUndefined(data.workerUserId) ? null : Number(data.workerUserId)
+        workerUserId: isNullOrUndefined(data.workerUserId) ? null : Number(data.workerUserId),
+        requestedWorkerUserId: isNullOrUndefined(data.requestedWorkerUserId) ? null : Number(data.requestedWorkerUserId)
     }
 }
 

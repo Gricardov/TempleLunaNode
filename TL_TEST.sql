@@ -316,8 +316,8 @@ CREATE TABLE ORDERS (
   clientAge TINYINT NULL,
   clientPhone VARCHAR(50) NULL,
   clientAppId VARCHAR(50) NULL,  
-  workerUserId INT(10) ZEROFILL UNSIGNED NULL,  -- Adquiere valor cuando se hace una petición directa al usuario o cuando lo toma desde su editorial. En este último caso, el campo editorialId también adquiere el id de la editorial.
-  editorialId INT(10) ZEROFILL UNSIGNED NULL,-- Solo adquiere un valor cuando se hace la petición a una editorial
+  workerUserId INT(10) ZEROFILL UNSIGNED NULL, -- Adquiere valor cuando se hace una petición directa al usuario o cuando lo toma desde su editorial. En este último caso, el campo editorialId también adquiere el id de la editorial
+  editorialId INT(10) ZEROFILL UNSIGNED NULL, -- Solo adquiere un valor cuando se hace la petición a una editorial
   serviceId VARCHAR(50) NOT NULL,
   subServiceId VARCHAR(50) NULL,
   statusId VARCHAR(50) NOT NULL DEFAULT 'DISPONIBLE',
@@ -523,7 +523,8 @@ INSERT INTO ORDER_STATUS VALUES
 ('DISPONIBLE','Disponible'),
 ('TOMADO','Tomado'),
 ('ANULADO','Anulado'),
-('HECHO','Hecho');
+('HECHO','Hecho'),
+('SOLICITADO','Solicitado'); -- Esto se refiere a un pedido (tabla ORDERS) donde se puede elegir quien quieres que lo atienda (workerUserId adquiere un valor)
 
 INSERT INTO COMMENT_STATUS VALUES
 ('REVISION','En revisión'),
@@ -1363,9 +1364,9 @@ DELIMITER ;
 -- Para insertar un pedido. La creación no requiere todos los campos de la tabla
 DROP PROCEDURE IF EXISTS USP_CREATE_ORDER;
 DELIMITER //
-CREATE PROCEDURE USP_CREATE_ORDER (P_CLIENT_USER_ID INT(10), P_CLIENT_EMAIL VARCHAR(200), P_CLIENT_NAMES VARCHAR(200), P_CLIENT_AGE TINYINT, P_CLIENT_PHONE VARCHAR(50), P_CLIENT_APP VARCHAR(50), P_WORKER_ID INT(10), P_EDITORIAL_ID INT(10), P_SERVICE_ID VARCHAR(50), P_SUBSERVICE_ID VARCHAR(50), P_TITLE_WORK VARCHAR(200), P_LINK_WORK VARCHAR(500), P_PSEUDONYM VARCHAR(200), P_SYNOPSIS VARCHAR(500), P_DETAILS VARCHAR(500), P_INTENTION VARCHAR(500), P_MAIN_PHRASE VARCHAR(200), P_NOTIFY BOOLEAN, P_IMG_URL_DATA JSON, P_PRIORITY VARCHAR(50), P_EXTRA_DATA JSON, P_PUBLIC_RESULT BOOLEAN)
+CREATE PROCEDURE USP_CREATE_ORDER (P_CLIENT_USER_ID INT(10), P_CLIENT_EMAIL VARCHAR(200), P_CLIENT_NAMES VARCHAR(200), P_CLIENT_AGE TINYINT, P_CLIENT_PHONE VARCHAR(50), P_CLIENT_APP VARCHAR(50), P_WORKER_ID INT(10),  P_EDITORIAL_ID INT(10), P_SERVICE_ID VARCHAR(50), P_SUBSERVICE_ID VARCHAR(50), P_STATUS_ID VARCHAR(50), P_TITLE_WORK VARCHAR(200), P_LINK_WORK VARCHAR(500), P_PSEUDONYM VARCHAR(200), P_SYNOPSIS VARCHAR(500), P_DETAILS VARCHAR(500), P_INTENTION VARCHAR(500), P_MAIN_PHRASE VARCHAR(200), P_NOTIFY BOOLEAN, P_IMG_URL_DATA JSON, P_PRIORITY VARCHAR(50), P_EXTRA_DATA JSON, P_PUBLIC_RESULT BOOLEAN)
 BEGIN
-	INSERT INTO ORDERS VALUES (DEFAULT, P_CLIENT_USER_ID, P_CLIENT_EMAIL, P_CLIENT_NAMES, P_CLIENT_AGE, P_CLIENT_PHONE, P_CLIENT_APP, P_WORKER_ID, P_EDITORIAL_ID, P_SERVICE_ID, P_SUBSERVICE_ID, DEFAULT, NULL, NULL, P_TITLE_WORK, P_LINK_WORK, P_PSEUDONYM, P_SYNOPSIS, P_DETAILS, P_INTENTION, P_MAIN_PHRASE, NULL, P_NOTIFY, P_IMG_URL_DATA, P_PRIORITY, P_EXTRA_DATA, P_PUBLIC_RESULT, NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);    
+	INSERT INTO ORDERS VALUES (DEFAULT, P_CLIENT_USER_ID, P_CLIENT_EMAIL, P_CLIENT_NAMES, P_CLIENT_AGE, P_CLIENT_PHONE, P_CLIENT_APP, P_WORKER_ID, P_EDITORIAL_ID, P_SERVICE_ID, P_SUBSERVICE_ID, P_STATUS_ID, NULL, NULL, P_TITLE_WORK, P_LINK_WORK, P_PSEUDONYM, P_SYNOPSIS, P_DETAILS, P_INTENTION, P_MAIN_PHRASE, NULL, P_NOTIFY, P_IMG_URL_DATA, P_PRIORITY, P_EXTRA_DATA, P_PUBLIC_RESULT, NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);    
 END; //
 DELIMITER ;
 
@@ -1462,7 +1463,7 @@ BEGIN
     ON S.id = SBE.serviceId
     LEFT JOIN SUBSERVICES SS -- Left join porque debo traer todos los servicios, tengan o no un subservicio
     ON SS.id = SBE.subServiceId
-    WHERE SBE.editorialId = P_EDITORIAL_ID
+    WHERE SBE.editorialId <=> P_EDITORIAL_ID
     AND (
 		CASE
 			WHEN P_INCLUDE_SUBSERVICES = 0 THEN
@@ -1478,19 +1479,19 @@ DROP PROCEDURE IF EXISTS USP_GET_EDITORIAL_SERVICES_BY_EDITORIAL_MEMBER;
 DELIMITER //
 CREATE PROCEDURE USP_GET_EDITORIAL_SERVICES_BY_EDITORIAL_MEMBER (P_USER_ID INT, P_EDITORIAL_ID INT, P_INCLUDE_SUBSERVICES BOOLEAN)
 BEGIN
-	SELECT EMS.serviceId, EMS.subServiceId, S.name, SBE.urlBg
+	SELECT EMS.serviceId, EMS.subServiceId, S.name as 'serviceName', S.name as 'subserviceName', SBE.urlBg
     FROM EDITORIAL_MEMBER_SERVICES EMS
     JOIN SERVICES S
     ON S.id = EMS.serviceId
     LEFT JOIN SUBSERVICES SS -- Left join porque debo traer todos los servicios, tengan o no un subservicio
-    ON SS.id = EMS.subServiceId  
+    ON SS.id = EMS.subServiceId
 	JOIN SERVICES_BY_EDITORIAL SBE -- Solo para asegurarnos de que la editorial tiene habilitado ese servicio
     ON SBE.editorialId = EMS.editorialId AND SBE.serviceId = EMS.serviceId
-    JOIN EDITORIAL_MEMBERS EM-- Solo para asegurarnos de que la editorial tiene a ese miembro registrado
+    JOIN EDITORIAL_MEMBERS EM -- Solo para asegurarnos de que la editorial tiene a ese miembro registrado
     ON EMS.userId = EM.userId    
 	WHERE
 		EMS.userId = P_USER_ID
-		AND EMS.editorialId = P_EDITORIAL_ID
+		AND EMS.editorialId <=> P_EDITORIAL_ID
         AND EM.active = 1 -- El miembro de la editorial está activo
         AND (
 			CASE
@@ -1546,16 +1547,20 @@ O.numComments,
 O.numViews,
 O.createdAt
 FROM ORDERS O
-WHERE O.editorialId = P_EDITORIAL_ID
+JOIN SERVICES_BY_EDITORIAL SBE -- Solo para asegurarnos de que la editorial tiene habilitado ese servicio
+ON SBE.editorialId = O.editorialId AND SBE.serviceId = O.serviceId
+JOIN EDITORIAL_MEMBERS EM -- Solo para asegurarnos de que la editorial tiene a ese miembro registrado
+ON EM.userId = P_WORKER_USER_ID
+WHERE O.editorialId <=> P_EDITORIAL_ID
 AND O.statusId = P_STATUS_ID
 AND O.serviceId = P_SERVICE_ID
 AND O.subServiceId <=> P_SUBSERVICE_ID -- Uso ese operador, porque puede usarse para comparar NULL sin poner ...IS NULL
 AND O.createdAt < V_LAST_TIMESTAMP
 AND (
 	CASE
-		WHEN P_WORKER_USER_ID IS NULL THEN
+		WHEN O.statusId = 'DISPONIBLE' THEN -- Por regla de negocio, si el estado de un pedido es DISPONIBLE, es porque aún no tiene un workerUserId asignado. Por lo tanto, no se debe validar en ese caso
 			TRUE
-		ELSE O.workerUserId = P_WORKER_USER_ID -- Esto sirve para saber quien lo tomó. Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+		ELSE O.workerUserId = P_WORKER_USER_ID
 	END
 	)
 AND (
@@ -1565,13 +1570,33 @@ AND (
 		ELSE O.public = P_PUBLIC
 	END
 	)
+GROUP BY O.id -- Que los ids no se repitan
 ORDER BY O.createdAt DESC
 LIMIT P_LIMIT;
 END; //
 DELIMITER ;
 
+-- Obtiene los totales de cada estado de los pedidos por workerUserId. Ejemplo: X usuario, para críticas tiene (DISPONIBLE: 3, TOMADO: 2, HECHO: 5)
+DROP PROCEDURE IF EXISTS USP_GET_ORDER_STATUS_TOTALS;
+DELIMITER //
+CREATE PROCEDURE USP_GET_ORDER_STATUS_TOTALS (P_EDITORIAL_ID INT, P_SERVICE_ID VARCHAR(50), P_SUBSERVICE_ID VARCHAR(50), P_WORKER_USER_ID INT)
+BEGIN
+SELECT
+	(SELECT COUNT(id) FROM ORDERS WHERE statusId = 'DISPONIBLE' AND editorialId <=> P_EDITORIAL_ID AND serviceId = P_SERVICE_ID AND subserviceId <=> P_SUBSERVICE_ID) AS 'DISPONIBLE',
+	(SELECT COUNT(id) FROM ORDERS WHERE statusId = 'ANULADO' AND editorialId <=> P_EDITORIAL_ID AND serviceId = P_SERVICE_ID AND subserviceId <=> P_SUBSERVICE_ID AND workerUserId <=> P_WORKER_USER_ID) AS 'ANULADO',
+    (SELECT COUNT(id) FROM ORDERS WHERE statusId = 'HECHO' AND editorialId <=> P_EDITORIAL_ID AND serviceId = P_SERVICE_ID AND subserviceId <=> P_SUBSERVICE_ID AND workerUserId <=> P_WORKER_USER_ID) AS 'HECHO',
+    (SELECT COUNT(id) FROM ORDERS WHERE statusId = 'SOLICITADO' AND editorialId <=> P_EDITORIAL_ID AND serviceId = P_SERVICE_ID AND subserviceId <=> P_SUBSERVICE_ID AND workerUserId <=> P_WORKER_USER_ID) AS 'SOLICITADO',
+    (SELECT COUNT(id) FROM ORDERS WHERE statusId = 'TOMADO' AND editorialId <=> P_EDITORIAL_ID AND serviceId = P_SERVICE_ID AND subserviceId <=> P_SUBSERVICE_ID AND workerUserId <=> P_WORKER_USER_ID) AS 'TOMADO';
+END; //
+DELIMITER ;
+
+/*SELECT*FROM ORDERS;
+SELECT*FROM ORDER_STATUS;*/
 -- Ejemplos
--- CALL USP_GET_ORDERS (1, 'DISPONIBLE','ESCUCHA',NULL,1,NULL,NULL,5);
+-- CALL USP_GET_ORDER_STATUS_TOTALS(1,'ESCUCHA',NULL,1)
+-- select*from orders where serviceid='CRITICA'
+-- CALL USP_GET_ORDERS (1,'DISPONIBLE','CRITICA',NULL,1,NULL,NULL,5);
+-- CALL USP_GET_ORDERS (1, 'DISPONIBLE', 'ESCUCHA', NULL, 1, NULL, NULL, 5);
 -- SELECT*FROM ORDERS WHERE subServiceId <=> null;
 -- CALL USP_GET_EDITORIAL_SERVICES_BY_EDITORIAL_MEMBER (2, 1, 0);
 -- SELECT*FROM EDITORIAL_MEMBERS;

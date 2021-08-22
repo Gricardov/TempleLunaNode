@@ -2,7 +2,6 @@ const admin = require("firebase-admin");
 
 const validateToken = (ignoreUserEnabled) => async (req, res, next) => {
     const idtoken = req.header('idtoken');
-    
     try {
         const claims = await admin.auth().verifyIdToken(idtoken);
 
