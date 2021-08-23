@@ -3,6 +3,7 @@ const { queryDB } = require('../database/pool');
 const getOrders = async (req, res) => {
 
   const { editorialId, statusId, serviceId, subserviceId, lastDate, limit, claims } = req.body;
+  
   try {
     // El workerUserId está en de los claims del JWT
     // Cuando el estado es DISPONIBLE, aún no tiene asignado un workerUserId. Esa validación es hace en el procedimiento

@@ -183,7 +183,7 @@ CREATE TABLE SERVICES_BY_USER (
   id INT(10) ZEROFILL UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   userId INT(10) ZEROFILL UNSIGNED NOT NULL,
   serviceId VARCHAR(50) NOT NULL,
-  subServiceId VARCHAR(50) NULL,
+  subserviceId VARCHAR(50) NULL,
   urlBg VARCHAR(500) NULL DEFAULT 'https://images.pexels.com/photos/4240602/pexels-photo-4240602.jpeg?',
   title VARCHAR(500) NULL,
   about VARCHAR(500) NULL,
@@ -204,7 +204,7 @@ CREATE TABLE SERVICES_BY_USER (
 ALTER TABLE SERVICES_BY_USER
 ADD FOREIGN KEY (userId) REFERENCES USERS(id),
 ADD FOREIGN KEY (serviceId) REFERENCES SERVICES(id),
-ADD FOREIGN KEY (subServiceId) REFERENCES SUBSERVICES(id);
+ADD FOREIGN KEY (subserviceId) REFERENCES SUBSERVICES(id);
 
 -- Editoriales
 CREATE TABLE EDITORIALS (
@@ -237,7 +237,7 @@ CREATE TABLE SERVICES_BY_EDITORIAL (
   id INT(10) ZEROFILL UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   editorialId INT(10) ZEROFILL UNSIGNED NOT NULL,
   serviceId VARCHAR(50) NOT NULL,
-  subServiceId VARCHAR(50) NULL,
+  subserviceId VARCHAR(50) NULL,
   urlBg VARCHAR(500) NULL DEFAULT 'https://images.pexels.com/photos/4240602/pexels-photo-4240602.jpeg?',
   title VARCHAR(500) NOT NULL,
   about VARCHAR(500) NOT NULL,
@@ -257,10 +257,10 @@ CREATE TABLE SERVICES_BY_EDITORIAL (
 );
 
 ALTER TABLE SERVICES_BY_EDITORIAL
-ADD CONSTRAINT SERVICES_BY_EDITORIAL_UNIQUE_SERVICE_SUBSERVICE UNIQUE (serviceId, subServiceId),
+ADD CONSTRAINT SERVICES_BY_EDITORIAL_UNIQUE_SERVICE_SUBSERVICE UNIQUE (serviceId, subserviceId),
 ADD FOREIGN KEY (editorialId) REFERENCES EDITORIALS(id),
 ADD FOREIGN KEY (serviceId) REFERENCES SERVICES(id),
-ADD FOREIGN KEY (subServiceId) REFERENCES SUBSERVICES(id);
+ADD FOREIGN KEY (subserviceId) REFERENCES SUBSERVICES(id);
 
 -- Roles de los miembros de una editorial (Ejemplo: Admin, colaborador)
 CREATE TABLE EDITORIAL_MEMBER_ROLES (
@@ -290,8 +290,8 @@ ADD FOREIGN KEY (editorialId) REFERENCES EDITORIALS(id);
 CREATE TABLE EDITORIAL_MEMBER_SERVICES (
     userId INT(10) ZEROFILL UNSIGNED NOT NULL,
     editorialId INT(10) ZEROFILL UNSIGNED NOT NULL,
-	  serviceId VARCHAR(50) NOT NULL,
-    subServiceId VARCHAR(50) NULL,
+	serviceId VARCHAR(50) NOT NULL,
+    subserviceId VARCHAR(50) NULL,
     description VARCHAR(50) NOT NULL, -- Ejm: Diseñador(a), Crítico(a), etc
     active BOOLEAN NOT NULL DEFAULT 1
 );
@@ -299,7 +299,7 @@ CREATE TABLE EDITORIAL_MEMBER_SERVICES (
 ALTER TABLE EDITORIAL_MEMBER_SERVICES
 ADD FOREIGN KEY (userId, editorialId) REFERENCES EDITORIAL_MEMBERS(userId, editorialId),
 ADD FOREIGN KEY (serviceId) REFERENCES SERVICES(id),
-ADD FOREIGN KEY (subServiceId) REFERENCES SUBSERVICES(id);
+ADD FOREIGN KEY (subserviceId) REFERENCES SUBSERVICES(id);
 
 -- Estados de un pedido (Ejemplo: DISPONIBLE, TOMADO, ANULADO, HECHO)
 CREATE TABLE ORDER_STATUS (
@@ -319,7 +319,7 @@ CREATE TABLE ORDERS (
   workerUserId INT(10) ZEROFILL UNSIGNED NULL, -- Adquiere valor cuando se hace una petición directa al usuario o cuando lo toma desde su editorial. En este último caso, el campo editorialId también adquiere el id de la editorial
   editorialId INT(10) ZEROFILL UNSIGNED NULL, -- Solo adquiere un valor cuando se hace la petición a una editorial
   serviceId VARCHAR(50) NOT NULL,
-  subServiceId VARCHAR(50) NULL,
+  subserviceId VARCHAR(50) NULL,
   statusId VARCHAR(50) NOT NULL DEFAULT 'DISPONIBLE',
   price DOUBLE NULL DEFAULT 0,
   currency VARCHAR(50) NULL DEFAULT 'USD',
@@ -352,7 +352,7 @@ ALTER TABLE ORDERS
   ADD FOREIGN KEY (workerUserId) REFERENCES USERS(id),
   ADD FOREIGN KEY (editorialId) REFERENCES EDITORIALS(id),
   ADD FOREIGN KEY (serviceId) REFERENCES SERVICES(id),
-  ADD FOREIGN KEY (subServiceId) REFERENCES SUBSERVICES(id),
+  ADD FOREIGN KEY (subserviceId) REFERENCES SUBSERVICES(id),
   ADD FOREIGN KEY (statusId) REFERENCES ORDER_STATUS(id);
 
 -- Revista
@@ -1457,17 +1457,17 @@ DROP PROCEDURE IF EXISTS USP_GET_EDITORIAL_SERVICES;
 DELIMITER //
 CREATE PROCEDURE USP_GET_EDITORIAL_SERVICES (P_EDITORIAL_ID INT, P_INCLUDE_SUBSERVICES BOOLEAN)
 BEGIN
-	SELECT SBE.serviceId, SBE.subServiceId, S.name, SBE.urlBg
+	SELECT SBE.serviceId, SBE.subserviceId, S.name, SBE.urlBg
     FROM SERVICES_BY_EDITORIAL SBE
     JOIN SERVICES S
     ON S.id = SBE.serviceId
     LEFT JOIN SUBSERVICES SS -- Left join porque debo traer todos los servicios, tengan o no un subservicio
-    ON SS.id = SBE.subServiceId
+    ON SS.id = SBE.subserviceId
     WHERE SBE.editorialId <=> P_EDITORIAL_ID
     AND (
 		CASE
 			WHEN P_INCLUDE_SUBSERVICES = 0 THEN
-				SBE.subServiceId IS NULL
+				SBE.subserviceId IS NULL
 			ELSE TRUE
 		END
         );   
@@ -1479,12 +1479,12 @@ DROP PROCEDURE IF EXISTS USP_GET_EDITORIAL_SERVICES_BY_EDITORIAL_MEMBER;
 DELIMITER //
 CREATE PROCEDURE USP_GET_EDITORIAL_SERVICES_BY_EDITORIAL_MEMBER (P_USER_ID INT, P_EDITORIAL_ID INT, P_INCLUDE_SUBSERVICES BOOLEAN)
 BEGIN
-	SELECT EMS.serviceId, EMS.subServiceId, S.name as 'serviceName', S.name as 'subserviceName', SBE.urlBg
+	SELECT EMS.serviceId, EMS.subserviceId, S.name as 'serviceName', S.name as 'subserviceName', SBE.urlBg
     FROM EDITORIAL_MEMBER_SERVICES EMS
     JOIN SERVICES S
     ON S.id = EMS.serviceId
     LEFT JOIN SUBSERVICES SS -- Left join porque debo traer todos los servicios, tengan o no un subservicio
-    ON SS.id = EMS.subServiceId
+    ON SS.id = EMS.subserviceId
 	JOIN SERVICES_BY_EDITORIAL SBE -- Solo para asegurarnos de que la editorial tiene habilitado ese servicio
     ON SBE.editorialId = EMS.editorialId AND SBE.serviceId = EMS.serviceId
     JOIN EDITORIAL_MEMBERS EM -- Solo para asegurarnos de que la editorial tiene a ese miembro registrado
@@ -1496,11 +1496,11 @@ BEGIN
         AND (
 			CASE
 				WHEN P_INCLUDE_SUBSERVICES = 0 THEN
-					EMS.subServiceId IS NULL
+					EMS.subserviceId IS NULL
 				ELSE TRUE
 			END
 			)
-	GROUP BY EMS.editorialId, EMS.serviceId, EMS.subServiceId;    
+	GROUP BY EMS.editorialId, EMS.serviceId, EMS.subserviceId;    
 END; //
 DELIMITER ;
 
@@ -1529,7 +1529,7 @@ CASE WHEN O.clientUserId IS NULL THEN O.clientPhone ELSE (SELECT phone FROM USER
 CASE WHEN O.clientUserId IS NULL THEN O.clientAppId ELSE (SELECT appId FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientAppId,
 O.workerUserId,
 O.serviceId,
-O.subServiceId,
+O.subserviceId,
 O.statusId,
 O.titleWork,
 O.linkWork,
@@ -1553,14 +1553,13 @@ JOIN EDITORIAL_MEMBERS EM -- Solo para asegurarnos de que la editorial tiene a e
 ON EM.userId = P_WORKER_USER_ID
 WHERE O.editorialId <=> P_EDITORIAL_ID
 AND O.statusId = P_STATUS_ID
-AND O.serviceId = P_SERVICE_ID
-AND O.subServiceId <=> P_SUBSERVICE_ID -- Uso ese operador, porque puede usarse para comparar NULL sin poner ...IS NULL
 AND O.createdAt < V_LAST_TIMESTAMP
+AND O.serviceId = P_SERVICE_ID
 AND (
 	CASE
-		WHEN O.statusId = 'DISPONIBLE' THEN -- Por regla de negocio, si el estado de un pedido es DISPONIBLE, es porque aún no tiene un workerUserId asignado. Por lo tanto, no se debe validar en ese caso
+		WHEN P_SUBSERVICE_ID IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
 			TRUE
-		ELSE O.workerUserId = P_WORKER_USER_ID
+		ELSE O.subserviceId <=> P_SUBSERVICE_ID
 	END
 	)
 AND (
@@ -1568,6 +1567,13 @@ AND (
 		WHEN P_PUBLIC IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
 			TRUE
 		ELSE O.public = P_PUBLIC
+	END
+	)
+AND (
+	CASE
+		WHEN O.statusId = 'DISPONIBLE' THEN -- Por regla de negocio, si el estado de un pedido es DISPONIBLE, es porque aún no tiene un workerUserId asignado. Por lo tanto, no se debe validar en ese caso
+			TRUE
+		ELSE O.workerUserId = P_WORKER_USER_ID
 	END
 	)
 GROUP BY O.id -- Que los ids no se repitan
@@ -1593,11 +1599,12 @@ DELIMITER ;
 /*SELECT*FROM ORDERS;
 SELECT*FROM ORDER_STATUS;*/
 -- Ejemplos
+-- CALL USP_ORDERS (1,'DISPONIBLE','DISENO',NULL,1,NULL,NULL,5);
 -- CALL USP_GET_ORDER_STATUS_TOTALS(1,'ESCUCHA',NULL,1)
 -- select*from orders where serviceid='CRITICA'
 -- CALL USP_GET_ORDERS (1,'DISPONIBLE','CRITICA',NULL,1,NULL,NULL,5);
 -- CALL USP_GET_ORDERS (1, 'DISPONIBLE', 'ESCUCHA', NULL, 1, NULL, NULL, 5);
--- SELECT*FROM ORDERS WHERE subServiceId <=> null;
+-- SELECT*FROM ORDERS WHERE subserviceId <=> null;
 -- CALL USP_GET_EDITORIAL_SERVICES_BY_EDITORIAL_MEMBER (2, 1, 0);
 -- SELECT*FROM EDITORIAL_MEMBERS;
 -- SELECT*FROM EDITORIAL_MEMBER_SERVICES;
