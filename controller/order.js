@@ -18,12 +18,12 @@ const getOrders = async (req, res) => {
 
 const getOrdersTotal = async (req, res) => {
 
-  const { editorialId, serviceId, subserviceId, claims } = req.body;
+  const { editorialId, serviceId, claims } = req.body;
   try {
     // El workerUserId está en de los claims del JWT
     // Cuando el estado es DISPONIBLE, aún no tiene asignado un workerUserId. Esa validación es hace en el procedimiento
     const workerUserId = claims.userId;
-    const orderRes = await queryDB('CALL USP_GET_ORDER_STATUS_TOTALS(?,?,?,?)', [editorialId, serviceId, subserviceId, workerUserId]);
+    const orderRes = await queryDB('CALL USP_GET_ORDER_STATUS_TOTALS(?,?,?)', [editorialId, serviceId, workerUserId]);
     res.json(orderRes[0][0]);
   } catch (error) {
     console.log(error)
