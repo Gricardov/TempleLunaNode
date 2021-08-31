@@ -10,7 +10,7 @@ const schema = yup.object({
 const defValues = (data) => {
     return {
         limit: isNullOrUndefined(data.limit) ? 5 : Number(data.limit),
-        lastDate: isNullOrUndefined(data.lastDate) ? null : data.lastDate.trim().split('_')[0] + ' ' + data.lastDate.split('_')[1] // El servidor siempre va a recibir en formato UTC. Hora y fecha están separados por un guión bajo.
+        lastDate: isNullOrUndefined(data.lastDate) ? null : data.lastDate.trim().split('_')[0] + ' ' + data.lastDate.trim().split('_')[1] // El servidor siempre va a recibir en formato UTC. Hora y fecha están separados por un guión bajo.
     }
 }
 

@@ -1,6 +1,10 @@
 -- SET SQL_SAFE_UPDATES=0;
 
 -- DROP DATABASE TL_TEST;
+
+SET GLOBAL time_zone = '+00:00';
+SET time_zone='+00:00';
+
 CREATE DATABASE IF NOT EXISTS TL_TEST;
 
 USE TL_TEST;
@@ -37,9 +41,9 @@ CREATE TABLE IF NOT EXISTS EVENTS (
   extraData JSON NULL DEFAULT '[]',
   alias VARCHAR(200) NOT NULL,
   whatsappGroup VARCHAR(500) NULL DEFAULT '',
-  active BOOLEAN NOT NULL DEFAULT 1,
+  active BOOLEAN NOT NULL DEFAULT 1,  
   createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP  
+  updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP 
 );
 
 ALTER TABLE EVENTS
@@ -317,6 +321,8 @@ CREATE TABLE ORDERS (
   clientPhone VARCHAR(50) NULL,
   clientAppId VARCHAR(50) NULL,  
   workerUserId INT(10) ZEROFILL UNSIGNED NULL, -- Adquiere valor cuando se hace una petición directa al usuario o cuando lo toma desde su editorial. En este último caso, el campo editorialId también adquiere el id de la editorial
+  takenAt DATETIME NULL,
+  expiresAt DATETIME NULL,
   prevWorkerUserId INT(10) ZEROFILL UNSIGNED NULL, -- El id de la persona que tomó el pedido inmediatamente anterior
   editorialId INT(10) ZEROFILL UNSIGNED NULL, -- Solo adquiere un valor cuando se hace la petición a una editorial
   serviceId VARCHAR(50) NOT NULL,
@@ -1367,7 +1373,7 @@ DROP PROCEDURE IF EXISTS USP_CREATE_ORDER;
 DELIMITER //
 CREATE PROCEDURE USP_CREATE_ORDER (P_CLIENT_USER_ID INT(10), P_CLIENT_EMAIL VARCHAR(200), P_CLIENT_NAMES VARCHAR(200), P_CLIENT_AGE TINYINT, P_CLIENT_PHONE VARCHAR(50), P_CLIENT_APP VARCHAR(50), P_WORKER_ID INT(10),  P_EDITORIAL_ID INT(10), P_SERVICE_ID VARCHAR(50), P_SUBSERVICE_ID VARCHAR(50), P_STATUS_ID VARCHAR(50), P_TITLE_WORK VARCHAR(200), P_LINK_WORK VARCHAR(500), P_PSEUDONYM VARCHAR(200), P_SYNOPSIS VARCHAR(500), P_DETAILS VARCHAR(500), P_INTENTION VARCHAR(500), P_MAIN_PHRASE VARCHAR(200), P_NOTIFY BOOLEAN, P_IMG_URL_DATA JSON, P_PRIORITY VARCHAR(50), P_EXTRA_DATA JSON, P_PUBLIC_RESULT BOOLEAN)
 BEGIN
-	INSERT INTO ORDERS VALUES (DEFAULT, P_CLIENT_USER_ID, P_CLIENT_EMAIL, P_CLIENT_NAMES, P_CLIENT_AGE, P_CLIENT_PHONE, P_CLIENT_APP, P_WORKER_ID, NULL, P_EDITORIAL_ID, P_SERVICE_ID, P_SUBSERVICE_ID, P_STATUS_ID, NULL, NULL, P_TITLE_WORK, P_LINK_WORK, P_PSEUDONYM, P_SYNOPSIS, P_DETAILS, P_INTENTION, P_MAIN_PHRASE, NULL, P_NOTIFY, P_IMG_URL_DATA, P_PRIORITY, P_EXTRA_DATA, P_PUBLIC_RESULT, NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);    
+	INSERT INTO ORDERS VALUES (DEFAULT, P_CLIENT_USER_ID, P_CLIENT_EMAIL, P_CLIENT_NAMES, P_CLIENT_AGE, P_CLIENT_PHONE, P_CLIENT_APP, P_WORKER_ID, NULL, NULL, NULL, P_EDITORIAL_ID, P_SERVICE_ID, P_SUBSERVICE_ID, P_STATUS_ID, NULL, NULL, P_TITLE_WORK, P_LINK_WORK, P_PSEUDONYM, P_SYNOPSIS, P_DETAILS, P_INTENTION, P_MAIN_PHRASE, NULL, P_NOTIFY, P_IMG_URL_DATA, P_PRIORITY, P_EXTRA_DATA, P_PUBLIC_RESULT, NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);    
 END; //
 DELIMITER ;
 
@@ -1522,31 +1528,33 @@ DECLARE V_LAST_TIMESTAMP TIMESTAMP;
 END IF;
 
 SELECT
-O.id,
-O.clientUserId, -- Si clientUserId es nulo, significa que los datos están en la tabla actual. Caso contrario, debo consultarlo desde la tabla USERS. TODO: Cambiar el email por contactEmail del usuario
-CASE WHEN O.clientUserId IS NULL THEN O.clientEmail ELSE (SELECT email FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientEmail,
-CASE WHEN O.clientUserId IS NULL THEN O.clientNames ELSE (SELECT CONCAT(fName, " ", lName) FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientNames,
-CASE WHEN O.clientUserId IS NULL THEN O.clientPhone ELSE (SELECT phone FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientPhone,
-CASE WHEN O.clientUserId IS NULL THEN O.clientAppId ELSE (SELECT appId FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientAppId,
-O.workerUserId,
-O.serviceId,
-O.subserviceId,
-O.statusId,
-O.titleWork,
-O.linkWork,
-O.pseudonym,
-O.synopsis,
-O.details,
-O.intention,
-O.mainPhrase,
-O.imgUrlData,
-O.priority,
-O.extraData,
-O.resultUrl,
-O.numHearts,
-O.numComments,
-O.numViews,
-O.createdAt
+	O.id,
+	O.clientUserId, -- Si clientUserId es nulo, significa que los datos están en la tabla actual. Caso contrario, debo consultarlo desde la tabla USERS. TODO: Cambiar el email por contactEmail del usuario
+	CASE WHEN O.clientUserId IS NULL THEN O.clientEmail ELSE (SELECT email FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientEmail,
+	CASE WHEN O.clientUserId IS NULL THEN O.clientNames ELSE (SELECT CONCAT(fName, " ", lName) FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientNames,
+	CASE WHEN O.clientUserId IS NULL THEN O.clientPhone ELSE (SELECT phone FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientPhone,
+	CASE WHEN O.clientUserId IS NULL THEN O.clientAppId ELSE (SELECT appId FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientAppId,
+	O.workerUserId,
+	O.serviceId,
+	O.subserviceId,
+	O.statusId,
+	O.titleWork,
+	O.linkWork,
+	O.pseudonym,
+	O.synopsis,
+	O.details,
+	O.intention,
+	O.mainPhrase,
+	O.imgUrlData,
+	O.priority,
+	O.extraData,
+	O.resultUrl,
+	O.numHearts,
+	O.numComments,
+	O.numViews,
+    O.takenAt,
+    O.expiresAt,
+	O.createdAt
 FROM ORDERS O
 JOIN SERVICES_BY_EDITORIAL SBE -- Solo para asegurarnos de que la editorial tiene habilitado ese servicio
 ON SBE.editorialId = O.editorialId AND SBE.serviceId = O.serviceId
@@ -1597,12 +1605,71 @@ SELECT
 END; //
 DELIMITER ;
 
+-- Toma un pedido (TODO: Agregar más validaciones para verificar que ese usuario pertenece a la editorial, está activo y ofrece ese servicio)
+DROP PROCEDURE IF EXISTS USP_TAKE_ORDER;
+DELIMITER //
+CREATE PROCEDURE USP_TAKE_ORDER (P_ORDER_ID INT, P_USER_ID INT, P_TAKEN_AT DATETIME, P_EXP_DAYS INT)
+BEGIN
+	DECLARE V_EXPIRES_AT DATETIME;
+    SET V_EXPIRES_AT = DATE_ADD(P_TAKEN_AT, INTERVAL P_EXP_DAYS DAY);
+	UPDATE ORDERS SET workerUserId = P_USER_ID, statusId = 'TOMADO', takenAt = P_TAKEN_AT, expiresAt = V_EXPIRES_AT WHERE id = P_ORDER_ID AND (statusId = 'DISPONIBLE' OR statusId = 'SOLICITADO');
+END; //
+DELIMITER ;
 
-/*
+-- Devuelve un pedido. Valida si el userId pasado como parámetro corresponde con el mismo que lo ha tomado. Además, devuelve al statusId original pasado como parámetro
+DROP PROCEDURE IF EXISTS USP_RETURN_ORDER;
+DELIMITER //
+CREATE PROCEDURE USP_RETURN_ORDER (P_ORDER_ID INT, P_ORIGINAL_STATUS_ID VARCHAR(50), P_USER_ID INT)
+BEGIN
+	UPDATE ORDERS SET workerUserId = NULL, statusId = P_ORIGINAL_STATUS_ID, prevWorkerUserId = workerUserId WHERE id = P_ORDER_ID AND statusId = 'TOMADO' AND workerUserId = P_USER_ID;
+END; //
+DELIMITER ;
+
+-- Obtiene un pedido
+DROP PROCEDURE IF EXISTS USP_GET_ORDER;
+DELIMITER //
+CREATE PROCEDURE USP_GET_ORDER (P_ORDER_ID INT)
+BEGIN
+SELECT
+	O.id,
+	O.clientUserId, -- Si clientUserId es nulo, significa que los datos están en la tabla actual. Caso contrario, debo consultarlo desde la tabla USERS. TODO: Cambiar el email por contactEmail del usuario
+	CASE WHEN O.clientUserId IS NULL THEN O.clientEmail ELSE (SELECT email FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientEmail,
+	CASE WHEN O.clientUserId IS NULL THEN O.clientNames ELSE (SELECT CONCAT(fName, " ", lName) FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientNames,
+	CASE WHEN O.clientUserId IS NULL THEN O.clientPhone ELSE (SELECT phone FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientPhone,
+	CASE WHEN O.clientUserId IS NULL THEN O.clientAppId ELSE (SELECT appId FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientAppId,
+	O.workerUserId,
+	O.serviceId,
+	O.subserviceId,
+	O.statusId,
+	O.titleWork,
+	O.linkWork,
+	O.pseudonym,
+	O.synopsis,
+	O.details,
+	O.intention,
+	O.mainPhrase,
+	O.imgUrlData,
+	O.priority,
+	O.extraData,
+	O.resultUrl,
+	O.numHearts,
+	O.numComments,
+	O.numViews,
+    O.takenAt,
+    O.expiresAt,
+	O.createdAt
+FROM ORDERS O
+WHERE id = P_ORDER_ID;
+END; //
+DELIMITER ;
+
+
 -- SELECT*FROM ORDERS WHERE statusId = 'DISPONIBLE' AND EDITORIALID = 1 AND SERVICEID = 'DISENO' AND SUBSERVICEID IS NULL
+-- UPDATE ORDERS SET workerUserID = null, statusId = 'DISPONIBLE' WHERE id = 1;
 -- call USP_GET_ORDER_STATUS_TOTALS (1, 'DISENO', 1);
-SELECT*FROM ORDERS;
-SELECT*FROM ORDER_STATUS;*/
+-- SELECT*FROM ORDERS;
+-- SELECT*FROM ORDER_STATUS;
+-- select*from event_dates;
 -- Ejemplos
 -- CALL USP_ORDERS (1,'DISPONIBLE','DISENO',NULL,1,NULL,NULL,5);
 -- CALL USP_GET_ORDER_STATUS_TOTALS(1,'ESCUCHA',NULL,1)
@@ -1620,7 +1687,7 @@ SELECT*FROM ORDER_STATUS;*/
 -- CALL USP_GET_COMMENTS_BY_MAGAZINE_ALIAS('AMOR-EN-TIEMPOS-DE-PANDEMIA-2021-1-123456789',1,NULL);
 -- CALL USP_GET_MAGAZINE_BY_ALIAS('AMOR-EN-TIEMPOS-DE-PANDEMIA-2021-1-123456789');
 -- CALL USP_GET_MAGAZINES_BY_YEAR(2020);
--- CALL USP_CREATE_ORDER (NULL, NULL, 'Mila', 54, '987654321', 'WSP', 2, 1, 'ESCUCHA', NULL, NULL, NULL, NULL, NULL, '', NULL, NULL, NULL, NULL, 'NORMAL', '{"modality":"LMD"}', NULL);
+-- CALL USP_CREATE_ORDER (NULL, NULL, 'Mila', 54, '987654321', 'WSP', 2, NULL, 1, 'CRITICA', NULL, NULL, NULL, NULL, NULL, '', NULL, NULL, NULL, NULL, 'NORMAL', '{"modality":"LMD"}', NULL);
 -- CALL USP_GET_MEMBERS_BY_EDITORIAL_SERVICE (1,'DISENO')
 -- call usp_add_statistics (NULL, 'gricardov@gmail.com','FACEBOOK',NULL,NULL,'VER');
 -- call USP_EXISTS_IN_INSCRIPTION(1 null, 'corazon@gmail.com');
@@ -1628,7 +1695,7 @@ SELECT*FROM ORDER_STATUS;*/
 -- UPDATE MAGAZINES SET numComments = 23, numHearts = 12 where id = 2;
 -- select * from comments where createdAt > '2021-08-07T16:05:56.000Z';
 -- call USP_GET_USER_STATUS_BY_EMAIL('gricardov@gmail.com');
-
+-- update orders set takenAt = '2021-09-02 05:31:02' expiresAt = '2021-09-05 05:31:02' where id = 1;
 -- update users set active = 0 where email = 'gricardov@gmail.com';
 SELECT*FROM EDITORIAL_MEMBER_SERVICES;
 SELECT*FROM COMMENTS;

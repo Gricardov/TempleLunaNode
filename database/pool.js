@@ -8,19 +8,16 @@ const env = process.env.NODE_ENV ? process.env.NODE_ENV.trim() : 'development';
 const { username, password, database, host } = config[env];
 
 const pool = mysql.createPool({
-  host: host,
+  host,
   user: username,
-  password: password,
-  database: database,
-  timezone: 'UTC',
-  dateStrings: [
-    'DATE',
-    'DATETIME'
-  ],
+  password,
+  database,
+  timezone: '+00:00',
+  dateStrings: ['DATE', 'DATETIME'],
   typeCast: (field, next) => { // Para hacer el parseo a JSON automáticamente
     if (field.type.includes('BLOB')) { // && field.length == 4294967295
-      let value = field.string();
       try {
+        let value = field.string();
         return JSON.parse(value);
       } catch (e) {
         return value;
