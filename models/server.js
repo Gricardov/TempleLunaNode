@@ -33,7 +33,7 @@ class Server {
             editorial: '/api/editorials',
             magazine: '/api/magazines',
             comment: '/api/comments',
-            service:'/api/services'
+            service: '/api/services'
         };
 
         // Firebase
@@ -71,7 +71,7 @@ class Server {
         this.app.use(this.apiPaths.order, orderRoutes);
         this.app.use(this.apiPaths.editorial, editorialRoutes);
         this.app.use(this.apiPaths.magazine, magazineRoutes);
-        this.app.use(this.apiPaths.comment, commentRoutes);   
+        this.app.use(this.apiPaths.comment, commentRoutes);
     }
 
     async firebase() {

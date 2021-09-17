@@ -1536,6 +1536,11 @@ SELECT
 	CASE WHEN O.clientUserId IS NULL THEN O.clientPhone ELSE (SELECT phone FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientPhone,
 	CASE WHEN O.clientUserId IS NULL THEN O.clientAppId ELSE (SELECT appId FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientAppId,
 	O.workerUserId,
+	U.fName as 'workerFName',
+    U.lName as 'workerLName',
+    U.networks as 'workerNetworks',
+    U.contactEmail as 'workerContactEmail',
+    U.urlProfileImg as 'workerUrlProfileImg',
 	O.serviceId,
 	O.subserviceId,
 	O.statusId,
@@ -1562,6 +1567,8 @@ JOIN SERVICES_BY_EDITORIAL SBE -- Solo para asegurarnos de que la editorial tien
 ON SBE.editorialId = O.editorialId AND SBE.serviceId = O.serviceId
 JOIN EDITORIAL_MEMBERS EM -- Solo para asegurarnos de que la editorial tiene a ese miembro registrado
 ON EM.userId = P_WORKER_USER_ID
+LEFT JOIN `USERS` U -- Para que traiga todo, así los campos sean NULL
+ON U.id = O.workerUserId
 WHERE O.editorialId <=> P_EDITORIAL_ID
 AND O.statusId = P_STATUS_ID
 AND O.createdAt < V_LAST_TIMESTAMP
@@ -1627,6 +1634,15 @@ BEGIN
 END; //
 DELIMITER ;
 
+-- Entrega el resultado de un pedido, solo si está en estado TOMADO y ha sido tomado por el mismo usuario del parámetro
+/*DROP PROCEDURE IF EXISTS USP_DEVELOP_ORDER;
+DELIMITER //
+CREATE PROCEDURE USP_DEVELOP_ORDER (P_ORDER_ID INT, P_USER_ID INT)
+BEGIN
+	UPDATE ORDERS SET workerUserId = NULL, statusId = P_ORIGINAL_STATUS_ID, prevWorkerUserId = workerUserId WHERE id = P_ORDER_ID AND statusId = 'TOMADO' AND workerUserId = P_USER_ID;
+END; //
+DELIMITER ;*/
+
 -- Obtiene un pedido
 DROP PROCEDURE IF EXISTS USP_GET_ORDER;
 DELIMITER //
@@ -1640,6 +1656,11 @@ SELECT
 	CASE WHEN O.clientUserId IS NULL THEN O.clientPhone ELSE (SELECT phone FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientPhone,
 	CASE WHEN O.clientUserId IS NULL THEN O.clientAppId ELSE (SELECT appId FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientAppId,
 	O.workerUserId,
+    U.fName as 'workerFName',
+    U.lName as 'workerLName',
+    U.networks as 'workerNetworks',
+    U.contactEmail as 'workerContactEmail',
+    U.urlProfileImg as 'workerUrlProfileImg',
 	O.serviceId,
 	O.subserviceId,
 	O.statusId,
@@ -1662,10 +1683,22 @@ SELECT
     O.expiresAt,
 	O.createdAt
 FROM ORDERS O
-WHERE id = P_ORDER_ID;
+LEFT JOIN `USERS` U
+ON U.id = O.workerUserId
+WHERE O.id = P_ORDER_ID;
 END; //
 DELIMITER ;
 
+-- Establece un pedido como HECHO
+DROP PROCEDURE IF EXISTS USP_SET_ORDER_DONE;
+DELIMITER //
+CREATE PROCEDURE USP_SET_ORDER_DONE (P_ORDER_ID INT, P_RESULT_URL VARCHAR(500))
+BEGIN
+	UPDATE ORDERS SET statusId = 'HECHO', resultUrl = P_RESULT_URL WHERE statusId = 'TOMADO' AND id = P_ORDER_ID;
+END; //
+DELIMITER ;
+
+-- select*from users;
 -- SELECT*FROM ORDERS WHERE statusId = 'DISPONIBLE' AND EDITORIALID = 1 AND SERVICEID = 'DISENO' AND SUBSERVICEID IS NULL
 -- UPDATE ORDERS SET workerUserID = null, statusId = 'DISPONIBLE' WHERE id = 1;
 -- call USP_GET_ORDER_STATUS_TOTALS (1, 'DISENO', 1);

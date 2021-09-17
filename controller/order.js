@@ -1,5 +1,9 @@
 const { queryDB } = require('../database/pool');
+const { generateRequestTemplate } = require('../utils/template-generator');
+const stream = require('stream');
 const moment = require('moment');
+const { v4: uuidv4 } = require('uuid');
+const { uploadResultRequest } = require('../utils/functions');
 
 const expirationDays = 7;
 
@@ -25,7 +29,12 @@ const getOrder = async (req, res) => {
 
   try {
     const orderRes = await queryDB('CALL USP_GET_ORDER(?)', [orderId]);
-    res.json(orderRes[0][0]);
+    const order = orderRes[0][0];
+    if (order) {
+      res.json(order);
+    } else {
+      throw { msg: 'Pedido no encontrado', statusCode: 404 };
+    }
   } catch (error) {
     console.log(error)
     res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
@@ -71,6 +80,54 @@ const postOrder = async (req, res) => {
   }
 };
 
+const developOrder = async (req, res) => {
+
+  const { id, urlImg, INTENCION, ENGANCHE, ORTOGRAFIA, CONSEJO, claims } = req.body;
+
+  try {
+    // Primero, obtengo el pedido para saber como procesarlo
+    const orderRes = await queryDB('CALL USP_GET_ORDER(?)', [id]);
+    const order = orderRes[0][0];
+
+    // Verifico si es el mismo usuario quien lo va a pasar como HECHO
+    if (order.workerUserId == claims.userId) {
+      let url;
+      let fileBuffer;
+
+      switch (order.serviceId) {
+        case 'CRITICA':
+          fileBuffer = await generateRequestTemplate(order.serviceId, { fName: order.workerFName, lName: order.workerLName, contactEmail: order.workerContactEmail, networks: order.workerNetworks }, order.id, order.titleWork, INTENCION, ENGANCHE, ORTOGRAFIA, CONSEJO);
+          url = await uploadResultRequest(fileBuffer, 'solicitud-critica', uuidv4());
+          await queryDB('CALL USP_SET_ORDER_DONE(?,?)', [order.id, url]);
+          break;
+        case 'DISENO':
+          url = urlImg;
+          await queryDB('CALL USP_SET_ORDER_DONE(?,?)', [order.id, urlImg]);
+          break;
+        case 'ESCUCHA':
+          await queryDB('CALL USP_SET_ORDER_DONE(?,?)', [order.id, null]);
+          break;
+      }
+      res.json({ url });
+    } else {
+      throw { msg: 'El usuario que va a procesar el pedido no es el mismo de quien lo tomó', statusCode: 401 };
+    }
+  } catch (error) {
+    console.log(error)
+    res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
+  }
+
+  try {
+    /*const orderRes = await queryDB('CALL USP_DEVELOP_ORDER(?,?,?,?,?,?,?)', [id, claims.userId, urlImg]);
+    if (orderRes.affectedRows) {
+      res.json({ ok: 'ok' });
+    } else {
+      throw { msg: 'Error de inserción. Intente nuevamente', statusCode: 500 };
+    }*/
+  } catch (error) {
+
+  }
+};
 const takeOrder = async (req, res) => {
 
   const { orderId, claims } = req.body;
@@ -78,6 +135,7 @@ const takeOrder = async (req, res) => {
   try {
     const takenAt = moment.utc().format('YYYY-MM-DD HH:mm:ss');
     const orderRes = await queryDB('CALL USP_TAKE_ORDER(?,?,?,?)', [orderId, claims.userId, takenAt, expirationDays]);
+
     if (orderRes.affectedRows) {
       // Obtengo el pedido actualizado
       const newOrderRes = await queryDB('CALL USP_GET_ORDER(?)', [orderId]);
@@ -130,6 +188,7 @@ module.exports = {
   getOrders,
   getOrder,
   postOrder,
+  developOrder,
   takeOrder,
   getOrdersTotal,
   returnOrder
