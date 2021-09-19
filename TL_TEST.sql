@@ -85,6 +85,7 @@ CREATE TABLE USERS (
   followName VARCHAR(200) NOT NULL,
   numFollowers INT NOT NULL DEFAULT 0, -- BY TRIGGER
   numHearts INT NOT NULL DEFAULT 0, -- BY TRIGGER
+  numComments INT NOT NULL DEFAULT 0, -- BY TRIGGER
   urlProfileImg VARCHAR(500) NULL DEFAULT NULL,  
   occupation VARCHAR(500) NULL DEFAULT NULL,
   about VARCHAR(1000) NULL DEFAULT NULL,  
@@ -201,6 +202,7 @@ CREATE TABLE SERVICES_BY_USER (
   maxPrice DOUBLE NOT NULL DEFAULT 0,
   currency VARCHAR(50) NULL DEFAULT 'USD',
   extraData JSON NULL DEFAULT '[]',
+  active BOOLEAN NOT NULL DEFAULT 1,
   createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP  
 );
@@ -458,7 +460,7 @@ ALTER TABLE ACTIONS_BY_USER_ON_ITEM
 
 -- Los tigres
 
--- Esto se activa en cada inserción a la tabla INSCRIPTIONS y revisa si el usuario quiere ser notificado para la revista
+-- Esto se activa en cada inserción a la tabla INSCRIPTIONS y revisa si el usuario quiere ser notificado para la revista (Registra en la tabla SUBSCRIBERS)
 DELIMITER //
 CREATE TRIGGER UTR_CHECK_NOTIFY_SUBSCRIBER_FOR_INSCRIPTION
 AFTER INSERT
@@ -474,7 +476,7 @@ BEGIN
 END; //
 DELIMITER ;
 
--- Esto se activa en cada inserción a la tabla ORDERS y revisa si el usuario quiere ser notificado para la revista
+-- Esto se activa en cada inserción a la tabla ORDERS y revisa si el usuario quiere ser notificado para la revista (Registra en la tabla SUBSCRIBERS)
 DELIMITER //
 CREATE TRIGGER UTR_CHECK_NOTIFY_SUBSCRIBER_FOR_ORDER
 AFTER INSERT
@@ -625,38 +627,16 @@ INSERT INTO USERS VALUES
 'corazondemelon',
 DEFAULT,
 DEFAULT,
+DEFAULT,
 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Flindo.jpg?alt=media&token=177bb113-efb9-4e15-9291-743a525a2420',
 DEFAULT,
 DEFAULT,
-'["https://www.facebook.com/", "https://www.instagram.com/"]',
+'["https://www.facebook.com/", "https://www.instagram.com/", "https://www.wattpad.com/story/262132830?utm_medium=link&utm_source=android&utm_content=story_info"]',
 'ADMIN',
 DEFAULT,
 DEFAULT,
 DEFAULT
 ),
-
-/*(DEFAULT,
-'oct967777777@gmail.com',
-1,
-'Pedro Castillo',
-'Giovanni',
-'Pedro',
-'Castillo',
-'+51999999999',
-'WSP',
-'ElComunista',
-'elcomunista',
-DEFAULT,
-DEFAULT,
-'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Flindo.jpg?alt=media&token=177bb113-efb9-4e15-9291-743a525a2420',
-DEFAULT,
-DEFAULT,
-'["https://www.facebook.com/", "https://www.instagram.com/"]',
-'ADMIN',
-DEFAULT,
-DEFAULT,
-DEFAULT
-),*/
 
 (DEFAULT,
 'corazon@gmail.com',
@@ -669,6 +649,7 @@ DEFAULT
 'WSP',
 'Alyoh Mascarita',
 'alyohmascarita',
+DEFAULT,
 DEFAULT,
 DEFAULT,
 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Flindo.jpg?alt=media&token=177bb113-efb9-4e15-9291-743a525a2420',
@@ -694,6 +675,7 @@ DEFAULT
 'pilyyhernandez',
 DEFAULT,
 DEFAULT,
+DEFAULT,
 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fsayrih.jpg?alt=media&token=6a770c21-f3c9-475b-ae03-8423f1876c45',
 DEFAULT,
 DEFAULT,
@@ -715,6 +697,7 @@ DEFAULT
 'WSP',
 'La maricucha',
 'marucha',
+DEFAULT,
 DEFAULT,
 DEFAULT,
 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fsayrih.jpg?alt=media&token=6a770c21-f3c9-475b-ae03-8423f1876c45',
@@ -960,6 +943,7 @@ DEFAULT,
 0,
 DEFAULT,
 NULL,
+DEFAULT, -- activo
 DEFAULT,
 DEFAULT
 ),
@@ -981,6 +965,7 @@ DEFAULT,
 0,
 DEFAULT,
 NULL,
+DEFAULT, -- activo
 DEFAULT,
 DEFAULT
 ),
@@ -1002,6 +987,7 @@ DEFAULT,
 0,
 DEFAULT,
 NULL,
+DEFAULT, -- activo
 DEFAULT,
 DEFAULT
 );
@@ -1220,6 +1206,24 @@ DELIMITER //
 CREATE PROCEDURE USP_GET_PRIVATE_USER_BY_EMAIL (P_EMAIL VARCHAR(200))
 BEGIN
 	SELECT id, email, emailVerified, fName, lName, followName, urlProfileImg, roleId FROM USERS WHERE email = P_EMAIL AND active = 1;
+END; //
+DELIMITER ;
+
+-- Obtiene la data privada de un perfil
+DROP PROCEDURE IF EXISTS USP_GET_PRIVATE_PROFILE_BY_ID;
+DELIMITER //
+CREATE PROCEDURE USP_GET_PRIVATE_PROFILE_BY_ID (P_USER_ID INT)
+BEGIN
+	SELECT id, email, emailVerified, contactEmail, fName, lName, birthday, phone, appId, pseudonym, followName, numFollowers, numComments, numHearts, urlProfileImg, occupation, about, networks, roleId, createdAt FROM USERS WHERE id = P_USER_ID AND active = 1;
+END; //
+DELIMITER ;
+
+-- Obtiene la data pública de un perfil
+DROP PROCEDURE IF EXISTS USP_GET_PUBLIC_PROFILE_BY_ID;
+DELIMITER //
+CREATE PROCEDURE USP_GET_PUBLIC_PROFILE_BY_ID (P_USER_ID INT)
+BEGIN
+	SELECT id, contactEmail, fName, lName, followName, numFollowers, numComments, numHearts, urlProfileImg, about, networks, createdAt FROM USERS WHERE id = P_USER_ID AND active = 1;
 END; //
 DELIMITER ;
 
@@ -1456,7 +1460,7 @@ DROP PROCEDURE IF EXISTS USP_REGISTER_USER;
 DELIMITER //
 CREATE PROCEDURE USP_REGISTER_USER (P_FNAME VARCHAR(200), P_LNAME VARCHAR(200), P_EMAIL VARCHAR(200), P_FOLLOW_NAME VARCHAR(200))
 BEGIN
-	INSERT INTO USERS VALUES (DEFAULT, P_EMAIL, 0, NULL, P_FNAME, P_LNAME, NULL, NULL, NULL, NULL, P_FOLLOW_NAME, DEFAULT, DEFAULT, NULL, NULL, NULL, DEFAULT, 'BASIC', 1, DEFAULT, DEFAULT);
+	INSERT INTO USERS VALUES (DEFAULT, P_EMAIL, 0, NULL, P_FNAME, P_LNAME, NULL, NULL, NULL, NULL, P_FOLLOW_NAME, DEFAULT, DEFAULT, DEFAULT, NULL, NULL, NULL, DEFAULT, 'BASIC', 1, DEFAULT, DEFAULT);
 END; //
 DELIMITER ;
 
@@ -1509,6 +1513,46 @@ BEGIN
 			END
 			)
 	GROUP BY EMS.editorialId, EMS.serviceId, EMS.subserviceId;    
+END; //
+DELIMITER ;
+
+-- Obtiene TODOS los servicios que un usuario brinda, ya sea dentro de una editorial o por si mismo
+DROP PROCEDURE IF EXISTS USP_GET_ALL_SERVICES_BY_USER;
+DELIMITER //
+CREATE PROCEDURE USP_GET_ALL_SERVICES_BY_USER (P_USER_ID INT, P_INCLUDE_SUBSERVICES BOOLEAN)
+BEGIN
+	SELECT EMS.serviceId, EMS.subserviceId, S.name as 'serviceName', S.name as 'subserviceName' -- Representa los servicios que un miembro ofrece dentro de una editorial
+    FROM EDITORIAL_MEMBER_SERVICES EMS
+    JOIN SERVICES S
+    ON S.id = EMS.serviceId
+    LEFT JOIN SUBSERVICES SS -- Left join porque debo traer todos los servicios, tengan o no un subservicio
+    ON SS.id = EMS.subserviceId
+	WHERE
+		EMS.userId = P_USER_ID
+        AND (
+			CASE
+				WHEN P_INCLUDE_SUBSERVICES = 0 THEN
+					EMS.subserviceId IS NULL
+				ELSE TRUE
+			END
+			)
+	GROUP BY EMS.editorialId, EMS.serviceId, EMS.subserviceId
+    UNION -- Uno con los resultados de esta tabla, que representa los servicios por usuario (no requieren editorial)
+    SELECT SBY.serviceId, SBY.subserviceId, S.name as 'serviceName', S.name as 'subserviceName'
+    FROM SERVICES_BY_USER SBY
+    JOIN SERVICES S
+    ON S.id = SBY.serviceId
+    LEFT JOIN SUBSERVICES SS -- Left join porque debo traer todos los servicios, tengan o no un subservicio
+    ON SS.id = SBY.subserviceId
+    WHERE
+		SBY.userId = P_USER_ID
+        AND (
+			CASE
+				WHEN P_INCLUDE_SUBSERVICES = 0 THEN
+					SBY.subserviceId IS NULL
+				ELSE TRUE
+			END
+			);	
 END; //
 DELIMITER ;
 

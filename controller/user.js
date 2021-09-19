@@ -16,6 +16,59 @@ const getUser = async (req, res) => {
   }*/
 };
 
+const getUserProfileWithToken = async (req, res) => {
+  const { claims } = req.body;
+  const { userId } = req.params;
+  try {
+
+    let profileStatement = 'CALL USP_GET_PUBLIC_PROFILE_BY_ID(?)';
+
+    // Si el perfil solicitado tiene como dueño al solicitante, que obtenga su perfil PRIVADO. Caso contrario, perfil PÚBLICO
+    if (claims.userId == userId) {
+      profileStatement = 'CALL USP_GET_PRIVATE_PROFILE_BY_ID(?)';
+    }
+
+    const [profileRes, servicesRes] = await Promise.all([
+      queryDB(profileStatement, [userId]),
+      queryDB('CALL USP_GET_ALL_SERVICES_BY_USER(?,?)', [userId, false])
+    ]);
+
+    const profile = profileRes[0][0];
+    const services = servicesRes[0];
+
+    if (profile) {
+      res.json({ profile, services });
+    } else {
+      throw { msg: 'Perfil inexistente o deshabilitado', statusCode: 404 };
+    }
+  } catch (error) {
+    console.log(error);
+    res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
+  }
+}
+
+const getUserProfileWithoutToken = async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const [profileRes, servicesRes] = await Promise.all([
+      queryDB('CALL USP_GET_PUBLIC_PROFILE_BY_ID(?)', [userId]),
+      queryDB('CALL USP_GET_ALL_SERVICES_BY_USER(?,?)', [userId, false])
+    ]);
+
+    const profile = profileRes[0][0];
+    const services = servicesRes[0];
+
+    if (profile) {
+      res.json({ profile, services });
+    } else {
+      throw { msg: 'Perfil inexistente o deshabilitado', statusCode: 404 };
+    }
+  } catch (error) {
+    console.log(error);
+    res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
+  }
+}
+
 const postUser = async (req, res) => {
   const { claims } = req.body; // El middleware validateToken inserta los claims del JWT en el body
   try {
@@ -73,6 +126,8 @@ const deleteUser = async (req, res) => {
 
 module.exports = {
   getUser,
+  getUserProfileWithToken,
+  getUserProfileWithoutToken,
   getUsers,
   putUser,
   postUser,

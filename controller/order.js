@@ -7,23 +7,55 @@ const { uploadResultRequest } = require('../utils/functions');
 
 const expirationDays = 7;
 
-const getOrders = async (req, res) => {
+const getOrdersWithToken = async (req, res) => {
 
   const { editorialId, statusId, serviceId, subserviceId, lastDate, limit, claims } = req.body;
 
   try {
     // El workerUserId está en de los claims del JWT
-    // Cuando el estado es DISPONIBLE, aún no tiene asignado un workerUserId. Esa validación es hace en el procedimiento
+    // Cuando el estado es DISPONIBLE, aún no tiene asignado un workerUserId. Esa validación se hace en el procedimiento
     const workerUserId = claims.userId;
-    const orderRes = await queryDB('CALL USP_GET_ORDERS(?,?,?,?,?,?,?,?)', [editorialId, statusId, serviceId, subserviceId, workerUserId, lastDate, null, limit]);
-    res.json(orderRes[0]);
+
+    const [orderRes, totalsRes] = await Promise.all([
+      queryDB('CALL USP_GET_ORDERS(?,?,?,?,?,?,?,?)', [editorialId, statusId, serviceId, subserviceId, workerUserId, lastDate, null, limit]),
+      queryDB('CALL USP_GET_ORDER_STATUS_TOTALS(?,?,?)', [editorialId, serviceId, workerUserId])
+    ]);
+
+    const orders = orderRes[0];
+    const totals = totalsRes[0][0];
+
+    res.json({ orders, totals });
   } catch (error) {
     console.log(error)
     res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
   }
 }
 
-const getOrder = async (req, res) => {
+const getOrdersWithoutToken = async (req, res) => {
+
+  /*const { editorialId, statusId, serviceId, subserviceId, lastDate, limit, claims } = req.body;
+
+  try {
+    // El workerUserId está en de los claims del JWT
+    // Cuando el estado es DISPONIBLE, aún no tiene asignado un workerUserId. Esa validación se hace en el procedimiento
+    const workerUserId = claims.userId;
+
+    const [orderRes, totalsRes] = await Promise.all([
+      queryDB('CALL USP_GET_ORDERS(?,?,?,?,?,?,?,?)', [editorialId, statusId, serviceId, subserviceId, workerUserId, lastDate, null, limit]),
+      queryDB('CALL USP_GET_ORDER_STATUS_TOTALS(?,?,?)', [editorialId, serviceId, workerUserId])
+    ]);
+
+    const orders = orderRes[0];
+    const totals = totalsRes[0][0];
+
+    res.json({ orders, totals });
+  } catch (error) {
+    console.log(error)
+    res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
+  }*/
+}
+
+const getOrderWithToken = async (req, res) => {
 
   const { orderId } = req.body;
 
@@ -46,10 +78,10 @@ const getOrdersTotal = async (req, res) => {
   const { editorialId, serviceId, claims } = req.body;
   try {
     // El workerUserId está en de los claims del JWT
-    // Cuando el estado es DISPONIBLE, aún no tiene asignado un workerUserId. Esa validación es hace en el procedimiento
+    // Cuando el estado es DISPONIBLE, aún no tiene asignado un workerUserId. Esa validación se hace en el procedimiento
     const workerUserId = claims.userId;
-    const orderRes = await queryDB('CALL USP_GET_ORDER_STATUS_TOTALS(?,?,?)', [editorialId, serviceId, workerUserId]);
-    res.json(orderRes[0][0]);
+    const totalsRes = await queryDB('CALL USP_GET_ORDER_STATUS_TOTALS(?,?,?)', [editorialId, serviceId, workerUserId]);
+    res.json(totalsRes[0][0]);
   } catch (error) {
     console.log(error)
     res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
@@ -128,6 +160,7 @@ const developOrder = async (req, res) => {
 
   }
 };
+
 const takeOrder = async (req, res) => {
 
   const { orderId, claims } = req.body;
@@ -185,8 +218,9 @@ const returnOrder = async (req, res) => {
 };
 
 module.exports = {
-  getOrders,
-  getOrder,
+  getOrdersWithToken,
+  getOrdersWithoutToken,
+  getOrderWithToken,
   postOrder,
   developOrder,
   takeOrder,

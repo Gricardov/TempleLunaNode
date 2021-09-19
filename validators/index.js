@@ -18,6 +18,7 @@ const getComments = require('./getComments');
 const postToken = require('./postToken');
 const validateToken = require('./validateToken');
 const login = require('./login');
+const getUserProfile = require('./getUserProfile');
 const postRegister = require('./postRegister');
 const getIsUserRegistered = require('./getIsUserRegistered');
 const getServicesByEditorial = require('./getServicesByEditorial');
@@ -44,6 +45,7 @@ module.exports = {
     postToken,
     validateToken,
     login,
+    getUserProfile,
     postRegister,
     getIsUserRegistered,
     getServicesByEditorial,

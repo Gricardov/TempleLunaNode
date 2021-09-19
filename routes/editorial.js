@@ -16,7 +16,7 @@ router.get("/:editorialId/services/:serviceId/members", [ // Por ejemplo, para s
 ], getMembersByEditorialService);
 
 router.get("/:editorialId/members/me/services", [ // Va "me" porque ese campo se extrae del JWT
-  validateField('headers', postTokenVal), // Comprueba si el token existe y tiene el formato correcto
+  //validateField('headers', postTokenVal), // Comprueba si el token existe y tiene el formato correcto
   validateToken(), // Verifica si el token es válido
   validateField('params', getServicesByEditorialMemberVal)
 ], getServicesByEditorialMember);
