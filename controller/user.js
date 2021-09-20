@@ -34,9 +34,17 @@ const getUserProfileWithToken = async (req, res) => {
     ]);
 
     const profile = profileRes[0][0];
-    const services = servicesRes[0];
 
     if (profile) {
+
+      let services = servicesRes[0];
+
+      // Obtengo las estadísticas por cada uno de los servicios de los pedidos
+      const totalsRes = await Promise.all(services.map(service => queryDB('CALL USP_GET_ORDER_STATUS_PUBLIC_TOTALS_BY_WORKER_USER_ID(?,?)', [service.serviceId, userId])));
+
+      // Agrego las estadísticas a cada servicio
+      services = totalsRes.map((total, index) => ({ total: total[0][0].HECHO, ...services[index] }));
+
       res.json({ profile, services });
     } else {
       throw { msg: 'Perfil inexistente o deshabilitado', statusCode: 404 };
@@ -56,9 +64,17 @@ const getUserProfileWithoutToken = async (req, res) => {
     ]);
 
     const profile = profileRes[0][0];
-    const services = servicesRes[0];
 
     if (profile) {
+
+      let services = servicesRes[0];
+
+      // Obtengo las estadísticas por cada uno de los servicios de los pedidos
+      const totalsRes = await Promise.all(services.map(service => queryDB('CALL USP_GET_ORDER_STATUS_PUBLIC_TOTALS_BY_WORKER_USER_ID(?,?)', [service.serviceId, userId])));
+
+      // Agrego las estadísticas a cada servicio
+      services = totalsRes.map((total, index) => ({ total: total[0][0].HECHO, ...services[index] }));
+
       res.json({ profile, services });
     } else {
       throw { msg: 'Perfil inexistente o deshabilitado', statusCode: 404 };

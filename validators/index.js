@@ -6,7 +6,8 @@ const postSubscription = require('./postSubscription');
 const postStatistic = require('./postStatistic');
 const postOrder = require('./postOrder');
 const developOrder = require('./developOrder');
-const getOrders = require('./getOrders');
+const getOrdersByEditorial = require('./getOrdersByEditorial');
+const getOrdersByUser = require('./getOrdersByUser');
 const getOrder = require('./getOrder');
 const takeReturnOrder = require('./takeReturnOrder');
 const getOrdersTotal = require('./getOrdersTotals');
@@ -33,7 +34,8 @@ module.exports = {
     postStatistic,
     postOrder,
     developOrder,
-    getOrders,
+    getOrdersByEditorial,
+    getOrdersByUser,
     getOrder,
     takeReturnOrder,
     getOrdersTotal,

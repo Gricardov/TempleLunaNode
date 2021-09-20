@@ -7,18 +7,16 @@ const { uploadResultRequest } = require('../utils/functions');
 
 const expirationDays = 7;
 
-const getOrdersWithToken = async (req, res) => {
+const getOrdersByEditorialWithToken = async (req, res) => {
 
   const { editorialId, statusId, serviceId, subserviceId, lastDate, limit, claims } = req.body;
 
   try {
-    // El workerUserId está en de los claims del JWT
-    // Cuando el estado es DISPONIBLE, aún no tiene asignado un workerUserId. Esa validación se hace en el procedimiento
     const workerUserId = claims.userId;
 
     const [orderRes, totalsRes] = await Promise.all([
-      queryDB('CALL USP_GET_ORDERS(?,?,?,?,?,?,?,?)', [editorialId, statusId, serviceId, subserviceId, workerUserId, lastDate, null, limit]),
-      queryDB('CALL USP_GET_ORDER_STATUS_TOTALS(?,?,?)', [editorialId, serviceId, workerUserId])
+      queryDB('CALL USP_GET_PRIVATE_ORDERS_BY_EDITORIAL_ID(?,?,?,?,?,?,?,?)', [editorialId, statusId, serviceId, subserviceId, workerUserId, lastDate, null, limit]),
+      queryDB('CALL USP_GET_ORDER_STATUS_PRIVATE_TOTALS_BY_EDITORIAL_ID(?,?,?)', [editorialId, serviceId, workerUserId])
     ]);
 
     const orders = orderRes[0];
@@ -31,28 +29,43 @@ const getOrdersWithToken = async (req, res) => {
   }
 }
 
-const getOrdersWithoutToken = async (req, res) => {
-
-  /*const { editorialId, statusId, serviceId, subserviceId, lastDate, limit, claims } = req.body;
+const getOrdersWithToken = async (req, res) => {
+  const { userId: workerUserId, serviceId, subserviceId, lastDate, limit, claims } = req.body;
 
   try {
-    // El workerUserId está en de los claims del JWT
-    // Cuando el estado es DISPONIBLE, aún no tiene asignado un workerUserId. Esa validación se hace en el procedimiento
-    const workerUserId = claims.userId;
 
-    const [orderRes, totalsRes] = await Promise.all([
-      queryDB('CALL USP_GET_ORDERS(?,?,?,?,?,?,?,?)', [editorialId, statusId, serviceId, subserviceId, workerUserId, lastDate, null, limit]),
-      queryDB('CALL USP_GET_ORDER_STATUS_TOTALS(?,?,?)', [editorialId, serviceId, workerUserId])
-    ]);
+    let profileStatement = 'CALL USP_GET_ALL_PUBLIC_ORDERS_BY_WORKER_USER_ID(?,?,?,?,?)';
 
-    const orders = orderRes[0];
-    const totals = totalsRes[0][0];
+    // Si el perfil solicitado tiene como dueño al solicitante, que obtenga su perfil PRIVADO. Caso contrario, perfil PÚBLICO
+    if (claims.userId == workerUserId) {
+      profileStatement = 'CALL USP_GET_ALL_PRIVATE_ORDERS_BY_WORKER_USER_ID(?,?,?,?,?)';
+    }
 
-    res.json({ orders, totals });
+    const ordersRes = await queryDB(profileStatement, [serviceId, subserviceId, workerUserId, lastDate, limit]);
+    
+    const orders = ordersRes[0];
+
+    res.json(orders);
   } catch (error) {
     console.log(error)
     res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
-  }*/
+  }
+}
+
+const getOrdersWithoutToken = async (req, res) => {
+
+  const { userId: workerUserId, serviceId, subserviceId, lastDate, limit } = req.body;
+
+  try {
+    const ordersRes = await queryDB('CALL USP_GET_ALL_PUBLIC_ORDERS_BY_WORKER_USER_ID(?,?,?,?,?)', [serviceId, subserviceId, workerUserId, lastDate, limit]);
+
+    const orders = ordersRes[0];
+
+    res.json(orders);
+  } catch (error) {
+    console.log(error)
+    res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
+  }
 }
 
 const getOrderWithToken = async (req, res) => {
@@ -60,7 +73,7 @@ const getOrderWithToken = async (req, res) => {
   const { orderId } = req.body;
 
   try {
-    const orderRes = await queryDB('CALL USP_GET_ORDER(?)', [orderId]);
+    const orderRes = await queryDB('CALL USP_GET_PRIVATE_ORDER(?)', [orderId]);
     const order = orderRes[0][0];
     if (order) {
       res.json(order);
@@ -73,14 +86,14 @@ const getOrderWithToken = async (req, res) => {
   }
 }
 
-const getOrdersTotal = async (req, res) => {
+const getOrdersTotals = async (req, res) => {
 
   const { editorialId, serviceId, claims } = req.body;
   try {
     // El workerUserId está en de los claims del JWT
     // Cuando el estado es DISPONIBLE, aún no tiene asignado un workerUserId. Esa validación se hace en el procedimiento
     const workerUserId = claims.userId;
-    const totalsRes = await queryDB('CALL USP_GET_ORDER_STATUS_TOTALS(?,?,?)', [editorialId, serviceId, workerUserId]);
+    const totalsRes = await queryDB('CALL USP_GET_ORDER_STATUS_PRIVATE_TOTALS(?,?,?)', [editorialId, serviceId, workerUserId]);
     res.json(totalsRes[0][0]);
   } catch (error) {
     console.log(error)
@@ -118,7 +131,7 @@ const developOrder = async (req, res) => {
 
   try {
     // Primero, obtengo el pedido para saber como procesarlo
-    const orderRes = await queryDB('CALL USP_GET_ORDER(?)', [id]);
+    const orderRes = await queryDB('CALL USP_GET_PRIVATE_ORDER(?)', [id]);
     const order = orderRes[0][0];
 
     // Verifico si es el mismo usuario quien lo va a pasar como HECHO
@@ -148,17 +161,6 @@ const developOrder = async (req, res) => {
     console.log(error)
     res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
   }
-
-  try {
-    /*const orderRes = await queryDB('CALL USP_DEVELOP_ORDER(?,?,?,?,?,?,?)', [id, claims.userId, urlImg]);
-    if (orderRes.affectedRows) {
-      res.json({ ok: 'ok' });
-    } else {
-      throw { msg: 'Error de inserción. Intente nuevamente', statusCode: 500 };
-    }*/
-  } catch (error) {
-
-  }
 };
 
 const takeOrder = async (req, res) => {
@@ -171,7 +173,7 @@ const takeOrder = async (req, res) => {
 
     if (orderRes.affectedRows) {
       // Obtengo el pedido actualizado
-      const newOrderRes = await queryDB('CALL USP_GET_ORDER(?)', [orderId]);
+      const newOrderRes = await queryDB('CALL USP_GET_PRIVATE_ORDER(?)', [orderId]);
       res.json({ ok: 'ok', updatedOrder: newOrderRes[0][0] });
     } else {
       throw { msg: 'Ocurrió un error al tomar el pedido', statusCode: 500 };
@@ -182,6 +184,7 @@ const takeOrder = async (req, res) => {
   }
 };
 
+// TODO: Esto se puede simplificar para que la verifiación del quien la tomó se realiza en esta mismo función
 const returnOrder = async (req, res) => {
 
   const { orderId, claims } = req.body;
@@ -190,7 +193,7 @@ const returnOrder = async (req, res) => {
   let originalStatus = 'DISPONIBLE';
 
   try {
-    const oldOrderRes = await queryDB('CALL USP_GET_ORDER(?)', [orderId]);
+    const oldOrderRes = await queryDB('CALL USP_GET_PRIVATE_ORDER(?)', [orderId]);
     const oldOrder = oldOrderRes[0][0];
 
     if (!oldOrder) {
@@ -206,7 +209,7 @@ const returnOrder = async (req, res) => {
     const orderRes = await queryDB('CALL USP_RETURN_ORDER(?,?,?)', [orderId, originalStatus, claims.userId]);
     if (orderRes.affectedRows) {
       // Obtengo el pedido actualizado
-      const newOrderRes = await queryDB('CALL USP_GET_ORDER(?)', [orderId]);
+      const newOrderRes = await queryDB('CALL USP_GET_PRIVATE_ORDER(?)', [orderId]);
       res.json({ ok: 'ok', updatedOrder: newOrderRes[0][0] });
     } else {
       throw { msg: 'Ocurrió un error al devolver el pedido. Intenta nuevamente', statusCode: 500 };
@@ -218,12 +221,13 @@ const returnOrder = async (req, res) => {
 };
 
 module.exports = {
+  getOrdersByEditorialWithToken,
   getOrdersWithToken,
   getOrdersWithoutToken,
   getOrderWithToken,
   postOrder,
   developOrder,
   takeOrder,
-  getOrdersTotal,
+  getOrdersTotals,
   returnOrder
 }

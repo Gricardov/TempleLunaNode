@@ -1,9 +1,10 @@
 const { Router } = require("express");
 const {
+  getOrdersByEditorialWithToken,
   getOrdersWithToken,
   getOrdersWithoutToken,
   getOrderWithToken,
-  getOrdersTotal,
+  getOrdersTotals,
   postOrder,
   takeOrder,
   returnOrder,
@@ -12,7 +13,8 @@ const {
 
 const {
   postOrder: postOrderVal,
-  getOrders: getOrdersVal,
+  getOrdersByEditorial: getOrdersByEditorialVal,
+  getOrdersByUser: getOrdersByUserVal,
   getOrder: getOrderVal,
   getOrdersTotal: getOrdersTotalVal,
   takeReturnOrder: takeReturnOrderVal,
@@ -24,49 +26,55 @@ const {
 
 const router = Router();
 
-// Obtiene un pedido según id. Requiere token. Puede devolver un pedido PÚBLICO o PRIVADO
+// Obtiene un pedido PRIVADO según id. Sirve para que un trabajdor pueda ver todos los detalles de un pedido y requiere token
 router.post("/getOne", [
-  validateField('headers', postTokenVal), // Comprueba si el token existe y tiene el formato correcto
   validateToken(), // Verifica si el token es válido
   validateField('body', getOrderVal),
 ], getOrderWithToken);
 
-// Obtiene pedidos según filtros. Requiere token. Puede devolver pedidos PÚBLICOS o PRIVADOS
+// Agregar getOneWithoutToken
+
+// Obtiene pedidos PRIVADOS según una editorial y demás filtros. Sirve para el dashboard de pedidos y requiere token
 router.post("/filter", [
-  validateField('headers', postTokenVal), // Comprueba si el token existe y tiene el formato correcto
   validateToken(), // Verifica si el token es válido
-  validateField('body', getOrdersVal),
+  validateField('body', getOrdersByEditorialVal),
+], getOrdersByEditorialWithToken);
+
+// Agregar /filterWithoutToken
+
+// Obtiene pedidos PRIVADOS o PÚBLICOS dependiendo del solicitante. Se usa para ver los pedidos de un perfil. Requiere token.
+router.post("/all", [
+  validateToken(), // Verifica si el token es válido
+  validateField('body', getOrdersByUserVal),
 ], getOrdersWithToken);
 
-// Obtiene pedidos según filtros. No requiere token. Solo puede devolver pedidos PÚBLICOS
-router.post("/filterWithoutToken", [
-  validateField('body', getOrdersVal),
+// Obtiene pedidos PÚBLICOS según usuario y servicios. Sirve para obtener datos públicos de los pedidos en un perfil ajeno. No requiere token
+router.post("/allWithoutToken", [
+  validateField('body', getOrdersByUserVal),
 ], getOrdersWithoutToken);
 
 // Obtiene los totales de los pedidos
 router.post("/totals", [
-  validateField('headers', postTokenVal), // Comprueba si el token existe y tiene el formato correcto
   validateToken(), // Verifica si el token es válido
   validateField('body', getOrdersTotalVal),
-], getOrdersTotal);
+], getOrdersTotals);
+
+// Agregar /totalsWithoutToken
 
 // Toma un pedido
 router.post("/take", [
-  validateField('headers', postTokenVal), // Comprueba si el token existe y tiene el formato correcto
   validateToken(), // Verifica si el token es válido
   validateField('body', takeReturnOrderVal),
 ], takeOrder);
 
 // Renuncia a un pedido
 router.post("/return", [
-  validateField('headers', postTokenVal), // Comprueba si el token existe y tiene el formato correcto
   validateToken(), // Verifica si el token es válido
   validateField('body', takeReturnOrderVal),
 ], returnOrder);
 
 // Entrega un pedido
 router.post("/develop", [
-  validateField('headers', postTokenVal), // Comprueba si el token existe y tiene el formato correcto
   validateToken(), // Verifica si el token es válido
   validateField('body', developOrderVal),
 ], developOrder);

@@ -1556,10 +1556,10 @@ BEGIN
 END; //
 DELIMITER ;
 
--- Obtiene los pedidos por editorial, estado (disponible, tomado, listo), servicio (crítica, diseño, etc), subservicio (nullable), usuario (nullable, esto si ha sido tomado por él), por última fecha (nullable, para el scroll infinito) y si es público o no
-DROP PROCEDURE IF EXISTS USP_GET_ORDERS;
+-- Obtiene los pedidos PRIVADOS por editorial: Estado (disponible, tomado, listo), servicio (crítica, diseño, etc), subservicio (nullable), usuario (nullable, esto si ha sido tomado por él), por última fecha (nullable, para el scroll infinito) y si es público o no
+DROP PROCEDURE IF EXISTS USP_GET_PRIVATE_ORDERS_BY_EDITORIAL_ID;
 DELIMITER //
-CREATE PROCEDURE USP_GET_ORDERS (P_EDITORIAL_ID INT, P_STATUS_ID VARCHAR(50), P_SERVICE_ID VARCHAR(50), P_SUBSERVICE_ID VARCHAR(50), P_WORKER_USER_ID INT, P_LAST_TIMESTAMP TIMESTAMP, P_PUBLIC BOOLEAN, P_LIMIT INT)
+CREATE PROCEDURE USP_GET_PRIVATE_ORDERS_BY_EDITORIAL_ID (P_EDITORIAL_ID INT, P_STATUS_ID VARCHAR(50), P_SERVICE_ID VARCHAR(50), P_SUBSERVICE_ID VARCHAR(50), P_WORKER_USER_ID INT, P_LAST_TIMESTAMP TIMESTAMP, P_PUBLIC BOOLEAN, P_LIMIT INT)
 BEGIN
 DECLARE V_LAST_TIMESTAMP TIMESTAMP;
 	IF (P_LAST_TIMESTAMP IS NULL) THEN
@@ -1603,6 +1603,8 @@ SELECT
 	O.numComments,
 	O.numViews,
     O.takenAt,
+    O.publicLink,
+    O.public,
     O.version,
     O.expiresAt,
 	O.createdAt
@@ -1644,10 +1646,172 @@ LIMIT P_LIMIT;
 END; //
 DELIMITER ;
 
--- Obtiene los totales de cada estado de los pedidos por workerUserId. Ejemplo: X usuario, para críticas tiene (DISPONIBLE: 3, TOMADO: 2, HECHO: 5)
-DROP PROCEDURE IF EXISTS USP_GET_ORDER_STATUS_TOTALS;
+-- Obtiene todos los datos PÚBLICOS de los pedidos según usuario y servicio. Esto sirve para verlos en un perfil ajeno
+DROP PROCEDURE IF EXISTS USP_GET_ALL_PUBLIC_ORDERS_BY_WORKER_USER_ID;
 DELIMITER //
-CREATE PROCEDURE USP_GET_ORDER_STATUS_TOTALS (P_EDITORIAL_ID INT, P_SERVICE_ID VARCHAR(50), P_WORKER_USER_ID INT)
+CREATE PROCEDURE USP_GET_ALL_PUBLIC_ORDERS_BY_WORKER_USER_ID (P_SERVICE_ID VARCHAR(50), P_SUBSERVICE_ID VARCHAR(50), P_WORKER_USER_ID INT, P_LAST_TIMESTAMP TIMESTAMP, P_LIMIT INT)
+BEGIN
+DECLARE V_LAST_TIMESTAMP TIMESTAMP;
+	IF (P_LAST_TIMESTAMP IS NULL) THEN
+		BEGIN
+			SET V_LAST_TIMESTAMP = TIMESTAMPADD(HOUR, 1, (SELECT MAX(O.createdAt) FROM ORDERS O));
+		END;
+	ELSE
+		BEGIN
+			SET V_LAST_TIMESTAMP = P_LAST_TIMESTAMP;    
+		END;
+END IF;
+
+SELECT
+	O.id,
+	CASE
+		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
+        ELSE O.clientUserId
+	END as clientUserId,
+	O.workerUserId,
+	U.fName as 'workerFName',
+    U.lName as 'workerLName',
+    U.networks as 'workerNetworks',
+    U.contactEmail as 'workerContactEmail',
+    U.urlProfileImg as 'workerUrlProfileImg',
+	O.serviceId,
+	O.subserviceId,
+	O.titleWork,
+    O.editorialId,
+    CASE
+		WHEN O.public != 1 THEN ''  -- Si está privado, no se puede ver públicamente
+        ELSE E.name
+	END as editorialName,
+    CASE
+		WHEN O.public != 1 THEN ''  -- Si está privado, no se puede ver públicamente
+        ELSE E.bgColor
+	END as editorialBgColor,
+    CASE
+		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
+        ELSE O.numHearts
+	END as numHearts,
+    CASE
+		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
+        ELSE O.numComments
+	END as numComments,
+    CASE
+		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
+        ELSE O.numViews
+	END as numViews,
+	CASE
+		WHEN O.public != 1 THEN ''
+		ELSE O.resultUrl
+	END as resultUrl, -- Solo se va a mostrar el link públicamente si el solicitante lo ha elegido así
+    CASE
+		WHEN O.public = 1 AND O.publicLink = 1 THEN O.linkWork
+		ELSE ''
+	END as linkWork, -- Solo se va a mostrar el link públicamente si el solicitante lo ha elegido así
+    O.publicLink,
+    O.public, -- Esto significa que no se puede acceder a ningún dato crítico públicamente, solo al título
+    O.version
+FROM ORDERS O
+LEFT JOIN `USERS` U -- Para que traiga todo, así los campos sean NULL
+ON U.id = O.workerUserId
+LEFT JOIN EDITORIALS E -- Para que traiga todo, así la editorial sea NULL
+ON E.id = O.editorialId
+WHERE O.statusId = 'HECHO'
+AND U.id = P_WORKER_USER_ID
+AND O.createdAt < V_LAST_TIMESTAMP
+AND O.serviceId = P_SERVICE_ID
+AND (
+	CASE
+		WHEN P_SUBSERVICE_ID IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+			TRUE
+		ELSE O.subserviceId <=> P_SUBSERVICE_ID
+	END
+	)
+GROUP BY O.id -- Que los ids no se repitan
+ORDER BY O.createdAt DESC
+LIMIT P_LIMIT;
+END; //
+DELIMITER ;
+select*from orders;
+update orders set public = 0 where id = 3
+-- Obtiene todos los datos PRIVADOS de los pedidos según usuario y servicio. Esto sirve para verlos en el perfil propio
+DROP PROCEDURE IF EXISTS USP_GET_ALL_PRIVATE_ORDERS_BY_WORKER_USER_ID;
+DELIMITER //
+CREATE PROCEDURE USP_GET_ALL_PRIVATE_ORDERS_BY_WORKER_USER_ID (P_SERVICE_ID VARCHAR(50), P_SUBSERVICE_ID VARCHAR(50), P_WORKER_USER_ID INT, P_LAST_TIMESTAMP TIMESTAMP, P_LIMIT INT)
+BEGIN
+DECLARE V_LAST_TIMESTAMP TIMESTAMP;
+	IF (P_LAST_TIMESTAMP IS NULL) THEN
+		BEGIN
+			SET V_LAST_TIMESTAMP = TIMESTAMPADD(HOUR, 1, (SELECT MAX(O.createdAt) FROM ORDERS O));
+		END;
+	ELSE
+		BEGIN
+			SET V_LAST_TIMESTAMP = P_LAST_TIMESTAMP;    
+		END;
+END IF;
+
+SELECT
+	O.id,
+	O.clientUserId, -- Si clientUserId es nulo, significa que los datos están en la tabla actual. Caso contrario, debo consultarlo desde la tabla USERS. TODO: Cambiar el email por contactEmail del usuario
+	CASE WHEN O.clientUserId IS NULL THEN O.clientEmail ELSE (SELECT email FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientEmail,
+	CASE WHEN O.clientUserId IS NULL THEN O.clientNames ELSE (SELECT CONCAT(fName, " ", lName) FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientNames,
+	CASE WHEN O.clientUserId IS NULL THEN O.clientPhone ELSE (SELECT phone FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientPhone,
+	CASE WHEN O.clientUserId IS NULL THEN O.clientAppId ELSE (SELECT appId FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientAppId,
+	O.workerUserId,
+	U.fName as 'workerFName',
+    U.lName as 'workerLName',
+    U.networks as 'workerNetworks',
+    U.contactEmail as 'workerContactEmail',
+    U.urlProfileImg as 'workerUrlProfileImg',
+	O.serviceId,
+	O.subserviceId,
+	O.statusId,
+	O.titleWork,
+	O.linkWork,
+	O.pseudonym,
+	O.synopsis,
+	-- O.details,
+	O.intention,
+	O.mainPhrase,
+	O.imgUrlData,
+	O.priority,
+	O.extraData,
+	O.resultUrl,
+    O.editorialId,
+    E.name as 'editorialName',
+    E.bgColor as 'editorialBgColor',
+	O.numHearts,
+	O.numComments,
+	O.numViews,
+    O.takenAt,
+	O.public,
+    O.version,
+    O.expiresAt,
+	O.createdAt
+FROM ORDERS O
+LEFT JOIN `USERS` U -- Para que traiga todo, así los campos sean NULL
+ON U.id = O.workerUserId
+LEFT JOIN EDITORIALS E -- Para que traiga todo, así la editorial sea NULL
+ON E.id = O.editorialId
+WHERE O.statusId = 'HECHO'
+AND U.id = P_WORKER_USER_ID
+AND O.createdAt < V_LAST_TIMESTAMP
+AND O.serviceId = P_SERVICE_ID
+AND (
+	CASE
+		WHEN P_SUBSERVICE_ID IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+			TRUE
+		ELSE O.subserviceId <=> P_SUBSERVICE_ID
+	END
+	)
+GROUP BY O.id -- Que los ids no se repitan
+ORDER BY O.createdAt DESC
+LIMIT P_LIMIT;
+END; //
+DELIMITER ;
+
+-- Obtiene los totales PRIVADOS de cada estado de los pedidos por editorial y workerUserId. Ejemplo: X usuario, para críticas tiene (DISPONIBLE: 3, TOMADO: 2, HECHO: 5). Se usa en las estadísticas del dashboard
+DROP PROCEDURE IF EXISTS USP_GET_ORDER_STATUS_PRIVATE_TOTALS_BY_EDITORIAL_ID;
+DELIMITER //
+CREATE PROCEDURE USP_GET_ORDER_STATUS_PRIVATE_TOTALS_BY_EDITORIAL_ID (P_EDITORIAL_ID INT, P_SERVICE_ID VARCHAR(50), P_WORKER_USER_ID INT)
 BEGIN
 SELECT
 	(SELECT COUNT(id) FROM ORDERS WHERE statusId = 'DISPONIBLE' AND editorialId <=> P_EDITORIAL_ID AND serviceId = P_SERVICE_ID) AS 'DISPONIBLE',
@@ -1655,6 +1819,16 @@ SELECT
     (SELECT COUNT(id) FROM ORDERS WHERE statusId = 'HECHO' AND editorialId <=> P_EDITORIAL_ID AND serviceId = P_SERVICE_ID AND workerUserId <=> P_WORKER_USER_ID) AS 'HECHO',
     (SELECT COUNT(id) FROM ORDERS WHERE statusId = 'SOLICITADO' AND editorialId <=> P_EDITORIAL_ID AND serviceId = P_SERVICE_ID AND workerUserId <=> P_WORKER_USER_ID) AS 'SOLICITADO',
     (SELECT COUNT(id) FROM ORDERS WHERE statusId = 'TOMADO' AND editorialId <=> P_EDITORIAL_ID AND serviceId = P_SERVICE_ID AND workerUserId <=> P_WORKER_USER_ID) AS 'TOMADO';
+END; //
+DELIMITER ;
+
+-- Obtiene los totales PÚBLICOS de cada estado de los pedidos por usuario. Se usa para las estadísticas de los pedidos en perfil ajeno o propio
+DROP PROCEDURE IF EXISTS USP_GET_ORDER_STATUS_PUBLIC_TOTALS_BY_WORKER_USER_ID;
+DELIMITER //
+CREATE PROCEDURE USP_GET_ORDER_STATUS_PUBLIC_TOTALS_BY_WORKER_USER_ID (P_SERVICE_ID VARCHAR(50), P_WORKER_USER_ID INT)
+BEGIN
+SELECT
+    (SELECT COUNT(id) FROM ORDERS WHERE statusId = 'HECHO' AND serviceId = P_SERVICE_ID AND workerUserId <=> P_WORKER_USER_ID) AS 'HECHO';
 END; //
 DELIMITER ;
 
@@ -1687,10 +1861,10 @@ BEGIN
 END; //
 DELIMITER ;*/
 
--- Obtiene un pedido
-DROP PROCEDURE IF EXISTS USP_GET_ORDER;
+-- Obtiene los datos privados de un pedido. Típicamente, para tomarlo
+DROP PROCEDURE IF EXISTS USP_GET_PRIVATE_ORDER;
 DELIMITER //
-CREATE PROCEDURE USP_GET_ORDER (P_ORDER_ID INT)
+CREATE PROCEDURE USP_GET_PRIVATE_ORDER (P_ORDER_ID INT)
 BEGIN
 SELECT
 	O.id,
