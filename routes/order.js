@@ -4,6 +4,7 @@ const {
   getOrdersWithToken,
   getOrdersWithoutToken,
   getOrderWithToken,
+  getOrderWithoutToken,
   getOrdersTotals,
   postOrder,
   takeOrder,
@@ -26,15 +27,18 @@ const {
 
 const router = Router();
 
-// Obtiene un pedido PRIVADO según id. Sirve para que un trabajdor pueda ver todos los detalles de un pedido y requiere token
+// Obtiene los datos PRIVADOS O PÚBLICOS de un pedido según id. Sirve para que un trabajdor pueda ver todos los detalles de un pedido, ya sea en su perfil o en su dashboard, o un pedido en ajeno. Requiere token
 router.post("/getOne", [
   validateToken(), // Verifica si el token es válido
   validateField('body', getOrderVal),
 ], getOrderWithToken);
 
-// Agregar getOneWithoutToken
+// Obtiene los datos PÚBLICOS de un pedido según id. Sirve para ver la información pública de un pedido en un perfil
+router.post("/getOneWithoutToken", [
+  validateField('body', getOrderVal),
+], getOrderWithoutToken);
 
-// Obtiene pedidos PRIVADOS según una editorial y demás filtros. Sirve para el dashboard de pedidos y requiere token
+// Obtiene los datos PRIVADOS de pedidos según una editorial y demás filtros. Sirve para el dashboard de pedidos y requiere token
 router.post("/filter", [
   validateToken(), // Verifica si el token es válido
   validateField('body', getOrdersByEditorialVal),
@@ -42,18 +46,18 @@ router.post("/filter", [
 
 // Agregar /filterWithoutToken
 
-// Obtiene pedidos PRIVADOS o PÚBLICOS dependiendo del solicitante. Se usa para ver los pedidos de un perfil. Requiere token.
+// Obtiene los datos PRIVADOS o PÚBLICOS de un pedido dependiendo del solicitante. Se usa para ver los pedidos de un perfil. Requiere token.
 router.post("/all", [
   validateToken(), // Verifica si el token es válido
   validateField('body', getOrdersByUserVal),
 ], getOrdersWithToken);
 
-// Obtiene pedidos PÚBLICOS según usuario y servicios. Sirve para obtener datos públicos de los pedidos en un perfil ajeno. No requiere token
+// Obtiene los datos PÚBLICOS de un pedido según usuario y servicios. Sirve para obtener datos públicos de los pedidos en un perfil ajeno. No requiere token
 router.post("/allWithoutToken", [
   validateField('body', getOrdersByUserVal),
 ], getOrdersWithoutToken);
 
-// Obtiene los totales de los pedidos
+// Obtiene los datos PRIVADOS de los totales por pedido. Se usa en las estadísticas del dashboard
 router.post("/totals", [
   validateToken(), // Verifica si el token es válido
   validateField('body', getOrdersTotalVal),

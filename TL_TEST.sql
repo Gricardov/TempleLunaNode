@@ -333,7 +333,7 @@ CREATE TABLE ORDERS (
   price DOUBLE NULL DEFAULT 0,
   currency VARCHAR(50) NULL DEFAULT 'USD',
   titleWork VARCHAR(200) NULL,
-  linkWork VARCHAR(500) NULL,
+  linkWork VARCHAR(2000) NULL,
   pseudonym VARCHAR(200) NULL,
   synopsis VARCHAR(500) NULL,
   details VARCHAR(500) NULL,
@@ -345,7 +345,7 @@ CREATE TABLE ORDERS (
   priority VARCHAR(50) NULL,
   extraData JSON NULL DEFAULT '[]',
   publicLink BOOLEAN NULL DEFAULT 1, -- Esto define si el link a la obra puede quedar público en el portafolio del autor
-  resultUrl VARCHAR(500) NULL DEFAULT NULL,
+  resultUrl VARCHAR(2000) NULL DEFAULT NULL,
   numHearts INT NOT NULL DEFAULT 0, -- BY TRIGGER
   numComments INT NOT NULL DEFAULT 0, -- BY TRIGGER
   numViews INT NOT NULL DEFAULT 0, -- BY TRIGGER
@@ -376,6 +376,7 @@ CREATE TABLE MAGAZINES (
   edition INT NOT NULL,
   month INT NOT NULL,
   year INT NOT NULL,
+  editorialId INT(10) ZEROFILL UNSIGNED NULL, -- Solo adquiere un valor cuando se hace la petición a una editorial
   numHearts INT NOT NULL DEFAULT 0, -- BY TRIGGER
   numComments INT NOT NULL DEFAULT 0, -- BY TRIGGER
   numViews INT NOT NULL DEFAULT 0, -- BY TRIGGER
@@ -387,7 +388,8 @@ CREATE TABLE MAGAZINES (
 );
 
 ALTER TABLE MAGAZINES
-ADD CONSTRAINT MAGAZINES_UNIQUE_ALIAS UNIQUE (alias);
+ADD CONSTRAINT MAGAZINES_UNIQUE_ALIAS UNIQUE (alias),
+ADD FOREIGN KEY (editorialId) REFERENCES EDITORIALS(id);
 
 -- Estados de un comentario (Ejemplo: En revisión, aprobado, rechazado)
 CREATE TABLE COMMENT_STATUS (
@@ -1003,6 +1005,7 @@ INSERT INTO MAGAZINES VALUES
 1,
 2,
 2020,
+1,
 DEFAULT,
 DEFAULT,
 DEFAULT,
@@ -1022,6 +1025,7 @@ DEFAULT
 1,
 3,
 2020,
+1,
 DEFAULT,
 DEFAULT,
 DEFAULT,
@@ -1041,6 +1045,7 @@ DEFAULT
 1,
 7,
 2021,
+1,
 DEFAULT,
 DEFAULT,
 DEFAULT,
@@ -1060,6 +1065,7 @@ DEFAULT
 1,
 8,
 2021,
+1,
 DEFAULT,
 DEFAULT,
 DEFAULT,
@@ -1079,6 +1085,7 @@ DEFAULT
 1,
 9,
 2021,
+1,
 DEFAULT,
 DEFAULT,
 DEFAULT,
@@ -1098,6 +1105,7 @@ DEFAULT
 1,
 10,
 2021,
+1,
 DEFAULT,
 DEFAULT,
 DEFAULT,
@@ -1404,7 +1412,11 @@ DROP PROCEDURE IF EXISTS USP_GET_MAGAZINES_BY_YEAR;
 DELIMITER //
 CREATE PROCEDURE USP_GET_MAGAZINES_BY_YEAR (P_YEAR INT)
 BEGIN
-	SELECT id, title, urlPortrait, numPag, edition, year, numHearts, numComments, numViews, numDownloads, alias FROM MAGAZINES WHERE active = 1 AND year = P_YEAR ORDER BY createdAt DESC;
+	SELECT M.id, M.title, M.urlPortrait, M.numPag, M.edition, M.year, M.numHearts, M.numComments, M.numViews, M.numDownloads, M.alias, E.id as editorialId, E.name as editorialName, E.bgColor as editorialBgColor, E.networks as editorialNetworks
+    FROM MAGAZINES M
+    JOIN EDITORIALS E
+    ON M.editorialId = E.id
+    WHERE M.active = 1 AND M.year = P_YEAR ORDER BY M.createdAt DESC;
 END; //
 DELIMITER ;
 
@@ -1413,7 +1425,11 @@ DROP PROCEDURE IF EXISTS USP_GET_MAGAZINE_BY_ALIAS;
 DELIMITER //
 CREATE PROCEDURE USP_GET_MAGAZINE_BY_ALIAS (P_ALIAS VARCHAR(200))
 BEGIN
-	SELECT id, title, urlPortrait, displayUrl, url, numPag, edition, year, numHearts, numComments, numViews, numDownloads, alias FROM MAGAZINES WHERE active = 1 AND alias = P_ALIAS;
+	SELECT M.id, M.title, M.urlPortrait, M.displayUrl, M.url, M.numPag, M.edition, M.year, M.numHearts, M.numComments, M.numViews, M.numDownloads, M.alias, E.id as editorialId, E.name as editorialName, E.bgColor as editorialBgColor, E.networks as editorialNetworks
+    FROM MAGAZINES M
+    JOIN EDITORIALS E
+    ON M.editorialId = E.id
+    WHERE M.active = 1 AND M.alias = P_ALIAS;
 END; //
 DELIMITER ;
 
@@ -1730,8 +1746,7 @@ ORDER BY O.createdAt DESC
 LIMIT P_LIMIT;
 END; //
 DELIMITER ;
-select*from orders;
-update orders set public = 0 where id = 3
+
 -- Obtiene todos los datos PRIVADOS de los pedidos según usuario y servicio. Esto sirve para verlos en el perfil propio
 DROP PROCEDURE IF EXISTS USP_GET_ALL_PRIVATE_ORDERS_BY_WORKER_USER_ID;
 DELIMITER //
@@ -1852,16 +1867,7 @@ BEGIN
 END; //
 DELIMITER ;
 
--- Entrega el resultado de un pedido, solo si está en estado TOMADO y ha sido tomado por el mismo usuario del parámetro
-/*DROP PROCEDURE IF EXISTS USP_DEVELOP_ORDER;
-DELIMITER //
-CREATE PROCEDURE USP_DEVELOP_ORDER (P_ORDER_ID INT, P_USER_ID INT)
-BEGIN
-	UPDATE ORDERS SET workerUserId = NULL, statusId = P_ORIGINAL_STATUS_ID, prevWorkerUserId = workerUserId WHERE id = P_ORDER_ID AND statusId = 'TOMADO' AND workerUserId = P_USER_ID;
-END; //
-DELIMITER ;*/
-
--- Obtiene los datos privados de un pedido. Típicamente, para tomarlo
+-- Obtiene los datos PRIVADOS de un pedido. Esto es para verlo en un dashboard o ver los detalles en el perfil propio
 DROP PROCEDURE IF EXISTS USP_GET_PRIVATE_ORDER;
 DELIMITER //
 CREATE PROCEDURE USP_GET_PRIVATE_ORDER (P_ORDER_ID INT)
@@ -1903,6 +1909,69 @@ SELECT
 FROM ORDERS O
 LEFT JOIN `USERS` U
 ON U.id = O.workerUserId
+LEFT JOIN EDITORIALS E -- Para que traiga todo, así la editorial sea NULL, dado que los pedidos pueden ser independientes de una editorial
+ON E.id = O.editorialId
+WHERE O.id = P_ORDER_ID;
+END; //
+DELIMITER ;
+
+-- Obtiene los datos PÚBLICOS de un pedido. Esto es para ver el pedido de un perfil ajeno
+DROP PROCEDURE IF EXISTS USP_GET_PUBLIC_ORDER;
+DELIMITER //
+CREATE PROCEDURE USP_GET_PUBLIC_ORDER (P_ORDER_ID INT)
+BEGIN
+SELECT
+	O.id,
+    CASE
+		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
+        ELSE O.clientUserId
+	END as clientUserId,
+	O.workerUserId,
+	U.fName as 'workerFName',
+    U.lName as 'workerLName',
+    U.networks as 'workerNetworks',
+    U.contactEmail as 'workerContactEmail',
+    U.urlProfileImg as 'workerUrlProfileImg',
+    O.serviceId,
+	O.subserviceId,
+	O.titleWork,
+    O.editorialId,
+    CASE
+		WHEN O.public != 1 THEN ''  -- Si está privado, no se puede ver públicamente
+        ELSE E.name
+	END as editorialName,
+    CASE
+		WHEN O.public != 1 THEN ''  -- Si está privado, no se puede ver públicamente
+        ELSE E.bgColor
+	END as editorialBgColor,
+    CASE
+		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
+        ELSE O.numHearts
+	END as numHearts,
+    CASE
+		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
+        ELSE O.numComments
+	END as numComments,
+    CASE
+		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
+        ELSE O.numViews
+	END as numViews,
+	CASE
+		WHEN O.public != 1 THEN ''
+		ELSE O.resultUrl
+	END as resultUrl, -- Solo se va a mostrar el link públicamente si el solicitante lo ha elegido así
+    CASE
+		WHEN O.public = 1 AND O.publicLink = 1 THEN O.linkWork
+		ELSE ''
+	END as linkWork, -- Solo se va a mostrar el link públicamente si el solicitante lo ha elegido así
+    O.publicLink,
+    O.public, -- Esto significa que no se puede acceder a ningún dato crítico públicamente, solo al título
+    O.version
+FROM ORDERS O
+LEFT JOIN `USERS` U
+ON U.id = O.workerUserId
+LEFT JOIN EDITORIALS E -- Para que traiga todo, así la editorial sea NULL, dado que los pedidos pueden ser independientes de una editorial
+ON E.id = O.editorialId
 WHERE O.id = P_ORDER_ID;
 END; //
 DELIMITER ;
@@ -1910,7 +1979,7 @@ DELIMITER ;
 -- Establece un pedido como HECHO
 DROP PROCEDURE IF EXISTS USP_SET_ORDER_DONE;
 DELIMITER //
-CREATE PROCEDURE USP_SET_ORDER_DONE (P_ORDER_ID INT, P_RESULT_URL VARCHAR(500))
+CREATE PROCEDURE USP_SET_ORDER_DONE (P_ORDER_ID INT, P_RESULT_URL VARCHAR(2000))
 BEGIN
 	UPDATE ORDERS SET statusId = 'HECHO', resultUrl = P_RESULT_URL WHERE statusId = 'TOMADO' AND id = P_ORDER_ID;
 END; //

@@ -42,10 +42,11 @@ const getOrdersWithToken = async (req, res) => {
     }
 
     const ordersRes = await queryDB(profileStatement, [serviceId, subserviceId, workerUserId, lastDate, limit]);
-    
+
     const orders = ordersRes[0];
 
     res.json(orders);
+  
   } catch (error) {
     console.log(error)
     res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
@@ -70,10 +71,41 @@ const getOrdersWithoutToken = async (req, res) => {
 
 const getOrderWithToken = async (req, res) => {
 
+  const { orderId, claims } = req.body;
+
+  try {
+    // Obtengo el pedido privado
+    let orderRes = await queryDB('CALL USP_GET_PRIVATE_ORDER(?)', [orderId]);
+
+    let order = orderRes[0][0];
+
+    if (order) {
+
+      // Si el pedido solicitado está tomado por el solicitante, que devuelva los datos privados
+      if (claims.userId == order.workerUserId) {
+        res.json(order);
+      } else {
+        // Caso contrario, el solicitante solo debe tener acceso público
+        orderRes = await queryDB('CALL USP_GET_PUBLIC_ORDER(?)', [orderId]);
+        order = orderRes[0][0];
+        res.json(order);
+      }
+
+    } else {
+      throw { msg: 'Pedido no encontrado', statusCode: 404 };
+    }
+  } catch (error) {
+    console.log(error)
+    res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
+  }
+}
+
+const getOrderWithoutToken = async (req, res) => {
+
   const { orderId } = req.body;
 
   try {
-    const orderRes = await queryDB('CALL USP_GET_PRIVATE_ORDER(?)', [orderId]);
+    const orderRes = await queryDB('CALL USP_GET_PUBLIC_ORDER(?)', [orderId]);
     const order = orderRes[0][0];
     if (order) {
       res.json(order);
@@ -93,7 +125,7 @@ const getOrdersTotals = async (req, res) => {
     // El workerUserId está en de los claims del JWT
     // Cuando el estado es DISPONIBLE, aún no tiene asignado un workerUserId. Esa validación se hace en el procedimiento
     const workerUserId = claims.userId;
-    const totalsRes = await queryDB('CALL USP_GET_ORDER_STATUS_PRIVATE_TOTALS(?,?,?)', [editorialId, serviceId, workerUserId]);
+    const totalsRes = await queryDB('CALL USP_GET_ORDER_STATUS_PRIVATE_TOTALS_BY_EDITORIAL_ID(?,?,?)', [editorialId, serviceId, workerUserId]);
     res.json(totalsRes[0][0]);
   } catch (error) {
     console.log(error)
@@ -225,6 +257,7 @@ module.exports = {
   getOrdersWithToken,
   getOrdersWithoutToken,
   getOrderWithToken,
+  getOrderWithoutToken,
   postOrder,
   developOrder,
   takeOrder,
