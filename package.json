@@ -6,8 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "watch": "tsc -w",
-    "dev": "set NODE_ENV='development'&& nodemon app",
-    "start": "set NODE_ENV='production'&& node app"
+    "dev": "cross-env NODE_ENV=development nodemon app",
+    "start": "cross-env NODE_ENV=production node app"
   },
   "repository": {
     "type": "git",
@@ -20,7 +20,8 @@
   },
   "homepage": "https://github.com/Gricardov/BasicNodeServer#readme",
   "devDependencies": {
-    "@types/cors": "^2.8.12"
+    "@types/cors": "^2.8.12",
+    "cross-env": "^7.0.3"
   },
   "dependencies": {
     "@google-cloud/storage": "^5.14.1",
