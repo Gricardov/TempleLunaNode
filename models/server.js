@@ -16,6 +16,7 @@ const {
 const admin = require("firebase-admin");
 const serviceAccount = require("../firebase-admin-key.json");
 const { testConnectionDB } = require('../database/pool');
+require('custom-env').env();
 
 class Server {
     constructor() {
