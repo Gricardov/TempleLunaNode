@@ -46,9 +46,9 @@ const getOrdersWithToken = async (req, res) => {
     const orders = ordersRes[0];
 
     res.json(orders);
-  
+
   } catch (error) {
-    console.log(error)
+    console.log(error);
     res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
   }
 }
@@ -75,7 +75,7 @@ const getOrderWithToken = async (req, res) => {
 
   try {
     // Obtengo el pedido privado
-    let orderRes = await queryDB('CALL USP_GET_PRIVATE_ORDER(?)', [orderId]);
+    let orderRes = await queryDB('CALL USP_GET_PRIVATE_ORDER(?,?)', [orderId, claims.userId]);
 
     let order = orderRes[0][0];
 
@@ -95,7 +95,7 @@ const getOrderWithToken = async (req, res) => {
       throw { msg: 'Pedido no encontrado', statusCode: 404 };
     }
   } catch (error) {
-    console.log(error)
+    console.log(error);
     res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
   }
 }
@@ -113,7 +113,7 @@ const getOrderWithoutToken = async (req, res) => {
       throw { msg: 'Pedido no encontrado', statusCode: 404 };
     }
   } catch (error) {
-    console.log(error)
+    console.log(error);
     res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
   }
 }
@@ -128,7 +128,7 @@ const getOrdersTotals = async (req, res) => {
     const totalsRes = await queryDB('CALL USP_GET_ORDER_STATUS_PRIVATE_TOTALS_BY_EDITORIAL_ID(?,?,?)', [editorialId, serviceId, workerUserId]);
     res.json(totalsRes[0][0]);
   } catch (error) {
-    console.log(error)
+    console.log(error);
     res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
   }
 }
@@ -149,7 +149,7 @@ const postOrder = async (req, res) => {
     if (orderRes.affectedRows) {
       res.json({ ok: 'ok' });
     } else {
-      throw { msg: 'Error de inserción. Intente nuevamente', statusCode: 500 };
+      throw { msg: 'Error al crear el pedido. Intente nuevamente', statusCode: 500 };
     }
   } catch (error) {
     console.log(error)
@@ -163,7 +163,7 @@ const developOrder = async (req, res) => {
 
   try {
     // Primero, obtengo el pedido para saber como procesarlo
-    const orderRes = await queryDB('CALL USP_GET_PRIVATE_ORDER(?)', [id]);
+    const orderRes = await queryDB('CALL USP_GET_PRIVATE_ORDER(?,?)', [id, null]);
     const order = orderRes[0][0];
 
     // Verifico si es el mismo usuario quien lo va a pasar como HECHO
@@ -190,7 +190,7 @@ const developOrder = async (req, res) => {
       throw { msg: 'El usuario que va a procesar el pedido no es el mismo de quien lo tomó', statusCode: 401 };
     }
   } catch (error) {
-    console.log(error)
+    console.log(error);
     res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
   }
 };
@@ -205,7 +205,7 @@ const takeOrder = async (req, res) => {
 
     if (orderRes.affectedRows) {
       // Obtengo el pedido actualizado
-      const newOrderRes = await queryDB('CALL USP_GET_PRIVATE_ORDER(?)', [orderId]);
+      const newOrderRes = await queryDB('CALL USP_GET_PRIVATE_ORDER(?,?)', [orderId, null]);
       res.json({ ok: 'ok', updatedOrder: newOrderRes[0][0] });
     } else {
       throw { msg: 'Ocurrió un error al tomar el pedido', statusCode: 500 };
@@ -225,7 +225,7 @@ const returnOrder = async (req, res) => {
   let originalStatus = 'DISPONIBLE';
 
   try {
-    const oldOrderRes = await queryDB('CALL USP_GET_PRIVATE_ORDER(?)', [orderId]);
+    const oldOrderRes = await queryDB('CALL USP_GET_PRIVATE_ORDER(?,?)', [orderId, null]);
     const oldOrder = oldOrderRes[0][0];
 
     if (!oldOrder) {
@@ -241,7 +241,7 @@ const returnOrder = async (req, res) => {
     const orderRes = await queryDB('CALL USP_RETURN_ORDER(?,?,?)', [orderId, originalStatus, claims.userId]);
     if (orderRes.affectedRows) {
       // Obtengo el pedido actualizado
-      const newOrderRes = await queryDB('CALL USP_GET_PRIVATE_ORDER(?)', [orderId]);
+      const newOrderRes = await queryDB('CALL USP_GET_PRIVATE_ORDER(?,?)', [orderId, null]);
       res.json({ ok: 'ok', updatedOrder: newOrderRes[0][0] });
     } else {
       throw { msg: 'Ocurrió un error al devolver el pedido. Intenta nuevamente', statusCode: 500 };

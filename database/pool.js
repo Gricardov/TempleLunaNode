@@ -16,8 +16,9 @@ const pool = mysql.createPool({
   dateStrings: ['DATE', 'DATETIME'],
   typeCast: (field, next) => { // Para hacer el parseo a JSON automáticamente
     if (field.type.includes('BLOB')) { // && field.length == 4294967295
+      let value;
       try {
-        let value = field.string();
+        value = field.string();
         return JSON.parse(value);
       } catch (e) {
         return value;

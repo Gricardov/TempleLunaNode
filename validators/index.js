@@ -5,6 +5,7 @@ const postInscription = require('./postInscription');
 const postSubscription = require('./postSubscription');
 const postStatistic = require('./postStatistic');
 const postOrder = require('./postOrder');
+const postComment = require('./postComment');
 const developOrder = require('./developOrder');
 const getOrdersByEditorial = require('./getOrdersByEditorial');
 const getOrdersByUser = require('./getOrdersByUser');
@@ -33,6 +34,7 @@ module.exports = {
     postSubscription,
     postStatistic,
     postOrder,
+    postComment,
     developOrder,
     getOrdersByEditorial,
     getOrdersByUser,

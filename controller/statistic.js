@@ -1,9 +1,10 @@
 const { queryDB } = require('../database/pool');
 
 const postStatistic = async (req, res) => {
-  const { actionId, userId, email, orderId, magazineId, socialNetworkName } = req.body;
+  const { actionId, userId, email, orderId, magazineId, active, socialNetworkName } = req.body;
   try {
-    const statisticRes = await queryDB('CALL USP_ADD_STATISTICS(?,?,?,?,?,?)', [userId, email, socialNetworkName, orderId, magazineId, actionId]);
+    //console.log([userId, email, socialNetworkName, orderId, magazineId, actionId, active])
+    const statisticRes = await queryDB('CALL USP_ADD_STATISTICS(?,?,?,?,?,?,?)', [userId, email, socialNetworkName, orderId, magazineId, actionId, active]);
     if (statisticRes.affectedRows) {
       res.json({ ok: 'ok' });
     } else {

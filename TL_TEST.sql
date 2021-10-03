@@ -349,6 +349,7 @@ CREATE TABLE ORDERS (
   numHearts INT NOT NULL DEFAULT 0, -- BY TRIGGER
   numComments INT NOT NULL DEFAULT 0, -- BY TRIGGER
   numViews INT NOT NULL DEFAULT 0, -- BY TRIGGER
+  numDownloads INT NOT NULL DEFAULT 0, -- BY TRIGGER
   public BOOLEAN NOT NULL DEFAULT 1,
   version VARCHAR(100) NOT NULL DEFAULT '2.2',
   createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -381,6 +382,7 @@ CREATE TABLE MAGAZINES (
   numComments INT NOT NULL DEFAULT 0, -- BY TRIGGER
   numViews INT NOT NULL DEFAULT 0, -- BY TRIGGER
   numDownloads INT NOT NULL DEFAULT 0, -- BY TRIGGER
+  numSubscribers INT NOT NULL DEFAULT 0, -- BY TRIGGER
   alias VARCHAR(200) NOT NULL,
   active BOOLEAN NOT NULL DEFAULT 1,
   createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -441,7 +443,7 @@ CREATE TABLE ACTIONS_ON_ITEM (
   name VARCHAR(100) NOT NULL  
 );
 
--- Accion de cada usuario en una revista o pedido, etc (Ejemplo: X usuario dio un corazón en Z revista)
+-- Acción de cada usuario en una revista o pedido, etc (Ejemplo: X usuario dio un corazón en Z revista)
 CREATE TABLE ACTIONS_BY_USER_ON_ITEM (
   id INT(10) ZEROFILL UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   userId INT(10) ZEROFILL UNSIGNED NULL,
@@ -450,6 +452,7 @@ CREATE TABLE ACTIONS_BY_USER_ON_ITEM (
   orderId INT(10) ZEROFILL UNSIGNED NULL,
   magazineId INT(10) ZEROFILL UNSIGNED NULL,
   actionId VARCHAR(50) NOT NULL,
+  active BOOLEAN NOT NULL DEFAULT 1,
   createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -491,6 +494,151 @@ BEGIN
 			INSERT INTO SUBSCRIBERS VALUES (DEFAULT, NEW.clientUserId, NULL, NULL, NEW.notify, NEW.clientNames, NEW.clientEmail, 1, DEFAULT, DEFAULT);
 		END IF;
 	END IF;
+END; //
+DELIMITER ;
+
+-- Esto se activa en cada inserción a la tabla COMMENTS y actualiza el número de comentarios en USERS, ORDER o MAGAZINE. No registra en la tabla ACTIONS_BY_USER_ON_ITEM porque sería tener mucha redundancia
+DELIMITER //
+CREATE TRIGGER UTR_UPDATE_COMMENTS_STATISTICS
+AFTER INSERT
+   ON COMMENTS FOR EACH ROW
+BEGIN
+	IF NEW.orderId IS NOT NULL THEN
+		UPDATE ORDERS SET numComments = numComments + 1 WHERE id = NEW.orderId; -- Actualizo las estadísticas de comentarios del pedido
+        UPDATE USERS SET numComments = numComments + 1 WHERE id = (SELECT workerUserId FROM ORDERS WHERE id = NEW.orderId); -- Actualizo las estadísticas de comentarios del perfil
+	ELSEIF NEW.magazineId IS NOT NULL THEN
+		UPDATE MAGAZINES SET numComments = numComments + 1 WHERE id = NEW.magazineId; -- Actualizo las estadísticas de la revista
+	END IF;
+END; //
+DELIMITER ;
+
+-- Esto se activa en cada inserción a la tabla ACTIONS_BY_USER_ON_ITEM y actualiza el número de corazones en USERS, ORDER o MAGAZINE. TODO quitar el tipo de SUSCRIPCION para que ya no redunde
+DELIMITER //
+CREATE TRIGGER UTR_UPDATE_ACTIONS_BY_USER_ON_ITEM_ON_INSERT
+AFTER INSERT
+   ON ACTIONS_BY_USER_ON_ITEM FOR EACH ROW
+BEGIN
+	IF NEW.orderId IS NOT NULL THEN
+		-- Es una inserción y se supone que el primer pedido siempre es activo
+        IF NEW.active = 1 THEN
+			-- Verifico qué acción se ha realizado (Dar like, suscribirse, etc)
+			CASE NEW.actionId
+				WHEN 'GUSTAR' THEN
+				BEGIN
+					UPDATE ORDERS SET numHearts = numHearts + 1 WHERE id = NEW.orderId; -- Actualizo las estadísticas de los corazones del pedido
+					UPDATE USERS SET numHearts = numHearts + 1 WHERE id = (SELECT workerUserId FROM ORDERS WHERE id = NEW.orderId); -- Actualizo las estadísticas de los corazones del usuario
+				END;
+                WHEN 'VER' THEN
+                BEGIN
+					UPDATE ORDERS SET numViews = numViews + 1 WHERE id = NEW.orderId; -- Actualizo las estadísticas de los corazones del pedido
+				END;
+                WHEN 'DESCARGAR' THEN
+                BEGIN
+					UPDATE ORDERS SET numDownloads = numDownloads + 1 WHERE id = NEW.orderId; -- Actualizo las estadísticas de los corazones del pedido
+				END;
+			END CASE;            
+        END IF;
+	ELSEIF NEW.magazineId IS NOT NULL THEN
+		-- Es una inserción y se supone que el primer pedido siempre es activo
+        IF NEW.active = 1 THEN
+			-- Verifico qué acción se ha realizado (Dar like, suscribirse, etc)
+			CASE NEW.actionId
+				WHEN 'GUSTAR' THEN
+				BEGIN
+					UPDATE MAGAZINES SET numHearts = numHearts + 1 WHERE id = NEW.magazineId; -- Actualizo las estadísticas de los corazones de la revista
+				END;
+                WHEN 'VER' THEN
+                BEGIN
+					UPDATE MAGAZINES SET numViews = numViews + 1 WHERE id = NEW.magazineId; -- Actualizo las estadísticas de las vistas de la revista
+				END;
+                WHEN 'DESCARGAR' THEN
+                BEGIN
+					UPDATE MAGAZINES SET numDownloads = numDownloads + 1 WHERE id = NEW.magazineId; -- Actualizo las estadísticas de las descargas de la revista
+				END;
+                WHEN 'SUSCRIBIR' THEN
+                BEGIN
+					UPDATE MAGAZINES SET numSubscribers = numSubscribers + 1 WHERE id = NEW.magazineId; -- Actualizo las estadísticas de los suscriptores de la revista
+				END;
+			END CASE;     
+        END IF;
+	END IF;
+END; //
+DELIMITER ;
+
+-- Esto se activa en cada actualización a la tabla ACTIONS_BY_USER_ON_ITEM y actualiza el número de corazones en USERS, ORDER o MAGAZINE. TODO quitar el tipo de SUSCRIPCION para que ya no redunde
+DELIMITER //
+CREATE TRIGGER UTR_UPDATE_ACTIONS_BY_USER_ON_ITEM_ON_UPDATE
+AFTER UPDATE
+   ON ACTIONS_BY_USER_ON_ITEM FOR EACH ROW
+BEGIN
+	-- Verfico si el campo active ha cambiado. Solo ahí se deben actualizar las estadísticas
+	IF NEW.active != OLD.active THEN
+		-- El pedido ha cambiado
+		IF OLD.orderId IS NOT NULL THEN
+        BEGIN
+			-- Declaro si el valor va a aumentar o va a disminuir
+			DECLARE SUM_VALUE_ORDER INT;
+			
+			IF NEW.active = 1 THEN
+				SET SUM_VALUE_ORDER = 1;
+			ELSE
+				SET SUM_VALUE_ORDER = -1;
+			END IF;
+			
+			-- Verifico qué acción se ha realizado (Dar like, suscribirse, etc)
+			CASE NEW.actionId
+				WHEN 'GUSTAR' THEN
+					BEGIN
+						UPDATE ORDERS SET numHearts = numHearts + SUM_VALUE_ORDER WHERE id = NEW.orderId; -- Actualizo las estadísticas de los corazones del pedido
+						UPDATE USERS SET numHearts = numHearts + SUM_VALUE_ORDER WHERE id = (SELECT workerUserId FROM ORDERS WHERE id = NEW.orderId); -- Actualizo las estadísticas de los corazones del usuario
+					END;
+				WHEN 'VER' THEN
+					BEGIN
+						UPDATE ORDERS SET numViews = numViews + SUM_VALUE_ORDER WHERE id = NEW.orderId; -- Actualizo las estadísticas de los corazones del pedido
+					END;
+				WHEN 'DESCARGAR' THEN
+					BEGIN
+						UPDATE ORDERS SET numDownloads = numDownloads + SUM_VALUE_ORDER WHERE id = NEW.orderId; -- Actualizo las estadísticas de los corazones del pedido
+					END;
+			END CASE;			
+        END;
+                
+        
+                
+        -- La revista ha cambiado
+		ELSEIF OLD.magazineId IS NOT NULL THEN
+        BEGIN
+			-- Declaro si el valor va a aumentar o va a disminuir
+			DECLARE SUM_VALUE_MAGAZINE INT;
+			
+			IF NEW.active = 1 THEN
+				SET SUM_VALUE_MAGAZINE = 1;
+			ELSE
+				SET SUM_VALUE_MAGAZINE = -1;
+			END IF;
+            
+            -- Verifico qué acción se ha realizado (Dar like, suscribirse, etc)
+			CASE NEW.actionId
+				WHEN 'GUSTAR' THEN
+					BEGIN
+						UPDATE MAGAZINES SET numHearts = numHearts + SUM_VALUE_MAGAZINE WHERE id = NEW.magazineId; -- Actualizo las estadísticas de los corazones de la revista
+					END;
+				WHEN 'VER' THEN
+					BEGIN
+						UPDATE MAGAZINES SET numViews = numViews + SUM_VALUE_MAGAZINE WHERE id = NEW.magazineId; -- Actualizo las estadísticas de las vistas de la revista
+					END;
+				WHEN 'DESCARGAR' THEN
+					BEGIN
+						UPDATE MAGAZINES SET numDownloads = numDownloads + SUM_VALUE_MAGAZINE WHERE id = NEW.magazineId; -- Actualizo las estadísticas de las descargas de la revista
+					END;
+				WHEN 'SUSCRIBIR' THEN
+					BEGIN
+						UPDATE MAGAZINES SET numSubscribers = numSubscribers + SUM_VALUE_MAGAZINE WHERE id = NEW.magazineId; -- Actualizo las estadísticas de los suscriptores de la revista
+					END;
+			END CASE;
+        END;
+		END IF;
+    END IF;
 END; //
 DELIMITER ;
 
@@ -548,8 +696,7 @@ INSERT INTO ACTIONS_ON_ITEM VALUES
 ('GUSTAR','Dar like'),
 ('COMPARTIR','Compartir'),
 ('DESCARGAR','Descargar'),
-('SUSCRIBIR','Suscribir'),
-('COMENTAR','Comentar'); -- No se usa, ya tiene su tabla
+('SUSCRIBIR','Suscribir');
 
 -- Inserciones no maestras
 
@@ -1010,6 +1157,7 @@ DEFAULT,
 DEFAULT,
 DEFAULT,
 DEFAULT,
+DEFAULT,
 'INDIVIDUALISMO-EN-PANDEMIA-2020-1-123456789',
 DEFAULT, -- activo
 DEFAULT,
@@ -1026,6 +1174,7 @@ DEFAULT
 3,
 2020,
 1,
+DEFAULT,
 DEFAULT,
 DEFAULT,
 DEFAULT,
@@ -1050,6 +1199,7 @@ DEFAULT,
 DEFAULT,
 DEFAULT,
 DEFAULT,
+DEFAULT,
 'AMOR-EN-TIEMPOS-DE-PANDEMIA-2021-1-123456789',
 DEFAULT, -- activo
 DEFAULT,
@@ -1066,6 +1216,7 @@ DEFAULT
 8,
 2021,
 1,
+DEFAULT,
 DEFAULT,
 DEFAULT,
 DEFAULT,
@@ -1090,6 +1241,7 @@ DEFAULT,
 DEFAULT,
 DEFAULT,
 DEFAULT,
+DEFAULT,
 'IDENTIFICACIONES-DISIDENTES-2021-1-123456789',
 DEFAULT, -- activo
 DEFAULT,
@@ -1106,6 +1258,7 @@ DEFAULT
 10,
 2021,
 1,
+DEFAULT,
 DEFAULT,
 DEFAULT,
 DEFAULT,
@@ -1372,12 +1525,27 @@ END IF;
 END; //
 DELIMITER ;
 
--- Para guardar las estadísticas
+-- Para insertar las estadísticas SI ES QUE NO HAY UNA IGUAL. Caso contrario, que solo la actualice
 DROP PROCEDURE IF EXISTS USP_ADD_STATISTICS;
 DELIMITER //
-CREATE PROCEDURE USP_ADD_STATISTICS (P_USER_ID INT(10), P_EMAIL VARCHAR(200), P_SOCIAL_NETWORK_NAME VARCHAR(50), P_ORDER_ID INT(10), P_MAGAZINE_ID INT(10), P_ACTION_ID VARCHAR(50))
+CREATE PROCEDURE USP_ADD_STATISTICS (P_USER_ID INT(10), P_EMAIL VARCHAR(200), P_SOCIAL_NETWORK_NAME VARCHAR(50), P_ORDER_ID INT(10), P_MAGAZINE_ID INT(10), P_ACTION_ID VARCHAR(50), P_ACTIVE BOOLEAN)
 BEGIN
-	INSERT INTO ACTIONS_BY_USER_ON_ITEM VALUES (DEFAULT, P_USER_ID, P_EMAIL, P_SOCIAL_NETWORK_NAME, P_ORDER_ID, P_MAGAZINE_ID, P_ACTION_ID, DEFAULT, DEFAULT);
+	DECLARE STATISTIC_ID INT;
+        
+    SELECT id INTO STATISTIC_ID FROM ACTIONS_BY_USER_ON_ITEM WHERE userId <=> P_USER_ID AND email <=> P_EMAIL AND orderId <=> P_ORDER_ID AND magazineId <=> P_MAGAZINE_ID AND actionId <=> P_ACTION_ID LIMIT 1;
+    
+    IF STATISTIC_ID IS NOT NULL THEN
+		BEGIN
+			-- El único campo permitido para actualizarse tiene que ser active, para saber si esa reacción se quitó o se activo. Esto se hace para asegurarse de que cada acción es única
+            UPDATE ACTIONS_BY_USER_ON_ITEM SET active = P_ACTIVE WHERE id = STATISTIC_ID;
+        END;
+	ELSE
+		BEGIN
+			-- Insertar nuevo. La primera estadística de cada tipo, se supone que siempre tiene el estado active por DEFAULT, por eso no se pasa aquí
+			INSERT INTO ACTIONS_BY_USER_ON_ITEM VALUES (DEFAULT, P_USER_ID, P_EMAIL, P_SOCIAL_NETWORK_NAME, P_ORDER_ID, P_MAGAZINE_ID, P_ACTION_ID, DEFAULT, DEFAULT, DEFAULT);    
+        END;
+    END IF;
+	
 END; //
 DELIMITER ;
 
@@ -1386,7 +1554,7 @@ DROP PROCEDURE IF EXISTS USP_CREATE_ORDER;
 DELIMITER //
 CREATE PROCEDURE USP_CREATE_ORDER (P_CLIENT_USER_ID INT(10), P_CLIENT_EMAIL VARCHAR(200), P_CLIENT_NAMES VARCHAR(200), P_CLIENT_AGE TINYINT, P_CLIENT_PHONE VARCHAR(50), P_CLIENT_APP VARCHAR(50), P_WORKER_ID INT(10),  P_EDITORIAL_ID INT(10), P_SERVICE_ID VARCHAR(50), P_SUBSERVICE_ID VARCHAR(50), P_STATUS_ID VARCHAR(50), P_TITLE_WORK VARCHAR(200), P_LINK_WORK VARCHAR(500), P_PSEUDONYM VARCHAR(200), P_SYNOPSIS VARCHAR(500), P_DETAILS VARCHAR(500), P_INTENTION VARCHAR(500), P_MAIN_PHRASE VARCHAR(200), P_NOTIFY BOOLEAN, P_IMG_URL_DATA JSON, P_PRIORITY VARCHAR(50), P_EXTRA_DATA JSON, P_PUBLIC_RESULT BOOLEAN, P_VERSION VARCHAR(100))
 BEGIN
-	INSERT INTO ORDERS VALUES (DEFAULT, P_CLIENT_USER_ID, P_CLIENT_EMAIL, P_CLIENT_NAMES, P_CLIENT_AGE, P_CLIENT_PHONE, P_CLIENT_APP, P_WORKER_ID, NULL, NULL, NULL, P_EDITORIAL_ID, P_SERVICE_ID, P_SUBSERVICE_ID, P_STATUS_ID, NULL, NULL, P_TITLE_WORK, P_LINK_WORK, P_PSEUDONYM, P_SYNOPSIS, P_DETAILS, P_INTENTION, P_MAIN_PHRASE, NULL, P_NOTIFY, P_IMG_URL_DATA, P_PRIORITY, P_EXTRA_DATA, P_PUBLIC_RESULT, NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT, P_VERSION, DEFAULT, DEFAULT);    
+	INSERT INTO ORDERS VALUES (DEFAULT, P_CLIENT_USER_ID, P_CLIENT_EMAIL, P_CLIENT_NAMES, P_CLIENT_AGE, P_CLIENT_PHONE, P_CLIENT_APP, P_WORKER_ID, NULL, NULL, NULL, P_EDITORIAL_ID, P_SERVICE_ID, P_SUBSERVICE_ID, P_STATUS_ID, NULL, NULL, P_TITLE_WORK, P_LINK_WORK, P_PSEUDONYM, P_SYNOPSIS, P_DETAILS, P_INTENTION, P_MAIN_PHRASE, NULL, P_NOTIFY, P_IMG_URL_DATA, P_PRIORITY, P_EXTRA_DATA, P_PUBLIC_RESULT, NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, P_VERSION, DEFAULT, DEFAULT);    
 END; //
 DELIMITER ;
 
@@ -1412,7 +1580,7 @@ DROP PROCEDURE IF EXISTS USP_GET_MAGAZINES_BY_YEAR;
 DELIMITER //
 CREATE PROCEDURE USP_GET_MAGAZINES_BY_YEAR (P_YEAR INT)
 BEGIN
-	SELECT M.id, M.title, M.urlPortrait, M.numPag, M.edition, M.year, M.numHearts, M.numComments, M.numViews, M.numDownloads, M.alias, E.id as editorialId, E.name as editorialName, E.bgColor as editorialBgColor, E.networks as editorialNetworks
+	SELECT M.id, M.title, M.urlPortrait, M.numPag, M.edition, M.year, M.numHearts, M.numComments, M.numViews, M.numDownloads, M.numSubscribers, M.alias, E.id as editorialId, E.name as editorialName, E.bgColor as editorialBgColor, E.networks as editorialNetworks
     FROM MAGAZINES M
     JOIN EDITORIALS E
     ON M.editorialId = E.id
@@ -1420,12 +1588,48 @@ BEGIN
 END; //
 DELIMITER ;
 
--- Para obtener una revista por alias
+-- Para obtener una revista por alias. El parámetros P_USER_ID_FOR_ACTION puede ser null y solo sirve para ver si dicho usuario ha dejado una reacción en la revista (tabla ACTIONS_BY_USER_ON_ITEM)
 DROP PROCEDURE IF EXISTS USP_GET_MAGAZINE_BY_ALIAS;
 DELIMITER //
-CREATE PROCEDURE USP_GET_MAGAZINE_BY_ALIAS (P_ALIAS VARCHAR(200))
+CREATE PROCEDURE USP_GET_MAGAZINE_BY_ALIAS (P_ALIAS VARCHAR(200), P_USER_ID_FOR_ACTION INT)
 BEGIN
-	SELECT M.id, M.title, M.urlPortrait, M.displayUrl, M.url, M.numPag, M.edition, M.year, M.numHearts, M.numComments, M.numViews, M.numDownloads, M.alias, E.id as editorialId, E.name as editorialName, E.bgColor as editorialBgColor, E.networks as editorialNetworks
+	DECLARE V_USER_ID_FOR_ACTION INT;
+		IF (P_USER_ID_FOR_ACTION IS NULL) THEN
+			BEGIN
+				SET V_USER_ID_FOR_ACTION = NULL;
+			END;
+		ELSE
+			BEGIN
+				SET V_USER_ID_FOR_ACTION = P_USER_ID_FOR_ACTION;
+			END;
+	END IF;
+
+	SELECT
+    M.id,
+    M.title,
+    M.urlPortrait,
+    M.displayUrl,
+    M.url,
+    M.numPag,
+    M.edition,
+    M.year,
+    M.numHearts,
+    M.numComments,
+    M.numViews,
+    M.numDownloads,
+    M.numSubscribers,
+    M.alias,
+    E.id as editorialId,
+    E.name as editorialName,
+    E.bgColor as editorialBgColor,
+    E.networks as editorialNetworks,
+      -- Para verificar si ha dado una reacción de corazón
+    CASE
+		WHEN V_USER_ID_FOR_ACTION IS NULL THEN
+			NULL
+		ELSE
+			(SELECT EXISTS ( SELECT ABU.userId FROM ACTIONS_BY_USER_ON_ITEM ABU JOIN MAGAZINES M ON ABU.magazineId = M.id WHERE M.alias = P_ALIAS AND ABU.active = 1 AND ABU.actionId = 'GUSTAR'))
+	END as hasGivenLove
     FROM MAGAZINES M
     JOIN EDITORIALS E
     ON M.editorialId = E.id
@@ -1433,7 +1637,34 @@ BEGIN
 END; //
 DELIMITER ;
 
--- Para obtener comentarios de una revista, según su alias. Dado que se obtienen los más actuales primero, el parámetro P_LAST_TIMESTAMP debe obtener los más antiguos que le siguen
+-- Para obtener comentarios de una revista, según su id. Esto sirve cuando el id no está disponible o no es bonito pasarlo. Por ejemplo, al postear un comentario y usar esos mismos datos para obtenerlos actualizados
+DROP PROCEDURE IF EXISTS USP_GET_OLDER_COMMENTS_BY_MAGAZINE_ID;
+DELIMITER //
+CREATE PROCEDURE USP_GET_OLDER_COMMENTS_BY_MAGAZINE_ID (P_MAGAZINE_ID INT, P_LIMIT INT, P_LAST_TIMESTAMP TIMESTAMP)
+BEGIN
+DECLARE V_LAST_TIMESTAMP TIMESTAMP;
+	IF (P_LAST_TIMESTAMP IS NULL) THEN
+		BEGIN
+			SET V_LAST_TIMESTAMP = TIMESTAMPADD(HOUR, 1, (SELECT MAX(C.createdAt) FROM COMMENTS C));
+		END;
+	ELSE
+		BEGIN
+			SET V_LAST_TIMESTAMP = P_LAST_TIMESTAMP;    
+		END;
+END IF;
+
+SELECT C.id, C.userId, CONCAT(U.fName, ' ', U.lName) as names, U.urlProfileImg as urlImg, C.content, C.createdAt FROM COMMENTS C
+JOIN MAGAZINES M
+ON C.magazineId = M.id
+JOIN USERS U
+ON U.id = C.userId
+WHERE C.statusId = 'APROBADO' AND M.id = P_MAGAZINE_ID AND C.createdAt < V_LAST_TIMESTAMP
+ORDER BY C.createdAt DESC
+LIMIT P_LIMIT;
+END; //
+DELIMITER ;
+
+-- Para obtener comentarios de una revista, según su alias. Dado que se obtienen los más actuales primero, el parámetro P_LAST_TIMESTAMP debe obtener los más antiguos que le siguen. Esto se usa para obtener la revista con una URL
 DROP PROCEDURE IF EXISTS USP_GET_OLDER_COMMENTS_BY_MAGAZINE_ALIAS;
 DELIMITER //
 CREATE PROCEDURE USP_GET_OLDER_COMMENTS_BY_MAGAZINE_ALIAS (P_ALIAS VARCHAR(200), P_LIMIT INT, P_LAST_TIMESTAMP TIMESTAMP)
@@ -1457,6 +1688,42 @@ ON U.id = C.userId
 WHERE C.statusId = 'APROBADO' AND M.alias = P_ALIAS AND C.createdAt < V_LAST_TIMESTAMP
 ORDER BY C.createdAt DESC
 LIMIT P_LIMIT;
+END; //
+DELIMITER ;
+
+-- Para obtener comentarios de un pedido, según su id. Dado que se obtienen los más actuales primero, el parámetro P_LAST_TIMESTAMP debe obtener los más antiguos que le siguen
+DROP PROCEDURE IF EXISTS USP_GET_OLDER_COMMENTS_BY_ORDER_ID;
+DELIMITER //
+CREATE PROCEDURE USP_GET_OLDER_COMMENTS_BY_ORDER_ID (P_ORDER_ID INT, P_LIMIT INT, P_LAST_TIMESTAMP TIMESTAMP)
+BEGIN
+DECLARE V_LAST_TIMESTAMP TIMESTAMP;
+	IF (P_LAST_TIMESTAMP IS NULL) THEN
+		BEGIN
+			SET V_LAST_TIMESTAMP = TIMESTAMPADD(HOUR, 1, (SELECT MAX(C.createdAt) FROM COMMENTS C));
+		END;
+	ELSE
+		BEGIN
+			SET V_LAST_TIMESTAMP = P_LAST_TIMESTAMP;    
+		END;
+END IF;
+
+SELECT C.id, C.userId, CONCAT(U.fName, ' ', U.lName) as names, U.urlProfileImg as urlImg, C.content, C.createdAt FROM COMMENTS C
+JOIN ORDERS O
+ON O.id = C.orderId
+JOIN USERS U
+ON U.id = C.userId
+WHERE C.statusId = 'APROBADO' AND O.id = P_ORDER_ID AND C.createdAt < V_LAST_TIMESTAMP
+ORDER BY C.createdAt DESC
+LIMIT P_LIMIT;
+END; //
+DELIMITER ;
+
+-- Postea un comentario
+DROP PROCEDURE IF EXISTS USP_POST_COMMENT;
+DELIMITER //
+CREATE PROCEDURE USP_POST_COMMENT (P_USER_ID INT, P_ORDER_ID INT, P_MAGAZINE_ID INT, P_CONTENT VARCHAR(1000))
+BEGIN
+	INSERT INTO COMMENTS VALUES (DEFAULT, P_USER_ID, P_ORDER_ID, P_MAGAZINE_ID, P_CONTENT, NULL, 'APROBADO', DEFAULT, DEFAULT);
 END; //
 DELIMITER ;
 
@@ -1618,6 +1885,7 @@ SELECT
 	O.numHearts,
 	O.numComments,
 	O.numViews,
+    O.numDownloads,
     O.takenAt,
     O.publicLink,
     O.public,
@@ -1714,6 +1982,10 @@ SELECT
 		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
         ELSE O.numViews
 	END as numViews,
+    CASE
+		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
+        ELSE O.numDownloads
+	END as numDownloads,
 	CASE
 		WHEN O.public != 1 THEN ''
 		ELSE O.resultUrl
@@ -1796,6 +2068,7 @@ SELECT
 	O.numHearts,
 	O.numComments,
 	O.numViews,
+    numDownloads,
     O.takenAt,
 	O.public,
     O.version,
@@ -1867,18 +2140,31 @@ BEGIN
 END; //
 DELIMITER ;
 
--- Obtiene los datos PRIVADOS de un pedido. Esto es para verlo en un dashboard o ver los detalles en el perfil propio
+-- Obtiene los datos PRIVADOS de un pedido. Esto es para verlo en un dashboard o ver los detalles en el perfil propio. El parámetros P_USER_ID_FOR_ACTION puede ser null y solo sirve para ver si dicho usuario ha dejado una reacción en el pedido (tabla ACTIONS_BY_USER_ON_ITEM)
 DROP PROCEDURE IF EXISTS USP_GET_PRIVATE_ORDER;
 DELIMITER //
-CREATE PROCEDURE USP_GET_PRIVATE_ORDER (P_ORDER_ID INT)
+CREATE PROCEDURE USP_GET_PRIVATE_ORDER (P_ORDER_ID INT, P_USER_ID_FOR_ACTION INT)
 BEGIN
+DECLARE V_USER_ID_FOR_ACTION INT;
+	IF (P_USER_ID_FOR_ACTION IS NULL) THEN
+		BEGIN
+			SET V_USER_ID_FOR_ACTION = NULL;
+		END;
+	ELSE
+		BEGIN
+			SET V_USER_ID_FOR_ACTION = P_USER_ID_FOR_ACTION;
+		END;
+END IF;
+
 SELECT
 	O.id,
-	O.clientUserId, -- Si clientUserId es nulo, significa que los datos están en la tabla actual. Caso contrario, debo consultarlo desde la tabla USERS. TODO: Cambiar el email por contactEmail del usuario
+	O.clientUserId, -- Si clientUserId es nulo, significa que los datos están en la tabla actual. Caso contrario, debo consultarlo desde la tabla USERS. TODO: Cambiar el email por contactEmail del usuario (ACTIONS_BY_USER_ON_ITEM)
 	CASE WHEN O.clientUserId IS NULL THEN O.clientEmail ELSE (SELECT email FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientEmail,
 	CASE WHEN O.clientUserId IS NULL THEN O.clientNames ELSE (SELECT CONCAT(fName, " ", lName) FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientNames,
 	CASE WHEN O.clientUserId IS NULL THEN O.clientPhone ELSE (SELECT phone FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientPhone,
 	CASE WHEN O.clientUserId IS NULL THEN O.clientAppId ELSE (SELECT appId FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientAppId,
+    -- Para verificar si ha dado una reacción de corazón
+    CASE WHEN V_USER_ID_FOR_ACTION IS NULL THEN NULL ELSE (SELECT EXISTS ( SELECT userId FROM ACTIONS_BY_USER_ON_ITEM WHERE orderId = P_ORDER_ID AND active = 1 AND actionId = 'GUSTAR')) END as hasGivenLove,
 	O.workerUserId,
     U.fName as 'workerFName',
     U.lName as 'workerLName',
@@ -1902,6 +2188,7 @@ SELECT
 	O.numHearts,
 	O.numComments,
 	O.numViews,
+    O.numDownloads,
     O.takenAt,
     O.version,
     O.expiresAt,
@@ -1956,6 +2243,10 @@ SELECT
 		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
         ELSE O.numViews
 	END as numViews,
+    CASE
+		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
+        ELSE O.numDownloads
+	END as numDownloads,
 	CASE
 		WHEN O.public != 1 THEN ''
 		ELSE O.resultUrl
@@ -2021,6 +2312,7 @@ DELIMITER ;
 -- update users set active = 0 where email = 'gricardov@gmail.com';
 SELECT*FROM EDITORIAL_MEMBER_SERVICES;
 SELECT*FROM COMMENTS;
+SELECT*FROM MAGAZINES;
 SELECT*FROM EDITORIAL_MEMBER_SERVICES;
 select*from services_by_editorial;
 select*from actions_on_item;
@@ -2036,8 +2328,9 @@ SELECT*FROM INSCRIPTIONS;
 SELECT*FROM ORDERS;
 select*from order_status;
 select*from subscribers;
-SELECT*FROM MAGAZINES;
 SELECT*FROM EVENTS;
+
+-- USE TL_TEST;
 
 -- update orders set expiresAt = '2021-08-31 23:40:52' where id = 1;
 -- update orders set expiresAt = '2021-09-05 20:50:52' where id = 2;
