@@ -1,6 +1,6 @@
 const { Router } = require("express");
 const { postLogin } = require("../controller/login");
-const { validateField, validateToken, postToken: postTokenVal, login: loginVal } = require('../validators');
+const { validateToken, login: loginVal } = require('../validators');
 
 const router = Router();
 

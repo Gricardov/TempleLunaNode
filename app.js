@@ -1,8 +1,8 @@
-const dotenv = require("dotenv");
+/*const dotenv = require("dotenv");*/
 const Server = require("./models/server");
 
 // Configuración dotenv
-dotenv.config();
+require('custom-env').env();
 
 const server = new Server();
 

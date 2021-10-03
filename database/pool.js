@@ -1,17 +1,11 @@
 const mysql = require('mysql');
-const config = require("./config");
-const dotenv = require("dotenv");
-dotenv.config();
-
-const env = process.env.NODE_ENV ? process.env.NODE_ENV.trim() : 'development';
-
-const { username, password, database, host } = config[env];
+require('custom-env').env();
 
 const pool = mysql.createPool({
-  host,
-  user: username,
-  password,
-  database,
+  host: process.env.HOST_HOST,
+  user: process.env.HOST_USER,
+  password: process.env.HOST_PASS,
+  database: process.env.HOST_DB,
   timezone: '+00:00',
   dateStrings: ['DATE', 'DATETIME'],
   typeCast: (field, next) => { // Para hacer el parseo a JSON automáticamente

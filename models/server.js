@@ -20,7 +20,7 @@ const { testConnectionDB } = require('../database/pool');
 class Server {
     constructor() {
         this.app = express();
-        this.port = process.env.PORT;
+        this.port = process.env.HOST_PORT;
         this.apiPaths = {
             login: '/api/login',
             register: '/api/register',
