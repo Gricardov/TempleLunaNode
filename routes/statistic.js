@@ -1,10 +1,15 @@
 const { Router } = require("express");
-const { postStatistic } = require("../controller/statistic");
-const { validateField, postStatistic: postStatisticVal } = require('../validators');
+const { postStatisticWithToken, postStatisticWithoutToken } = require("../controller/statistic");
+const { validateField, postStatistic: postStatisticVal, validateToken } = require('../validators');
 const router = Router();
 
 router.post("/", [
+  validateToken(), // Verifica si el token es válido
   validateField('body', postStatisticVal),
-], postStatistic);
+], postStatisticWithToken);
+
+router.post("/postWithoutToken", [
+  validateField('body', postStatisticVal),
+], postStatisticWithoutToken);
 
 module.exports = router;

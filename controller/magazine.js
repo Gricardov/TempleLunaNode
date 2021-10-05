@@ -1,9 +1,26 @@
 const { queryDB } = require('../database/pool');
 
-const getMagazine = async (req, res) => {
+const getMagazineWithToken = async (req, res) => {
+    const { alias } = req.params;
+    const { claims } = req.body;
+    try {
+        const magRes = await queryDB('CALL USP_GET_MAGAZINE_BY_ALIAS(?,?)', [alias, claims.userId]); // Evento
+        const magazine = magRes[0][0]; // El primero es por las estadísticas; el segundo, por que solo quiero un resultado
+        if (magazine) {
+            res.json(magazine);
+        } else {
+            throw { msg: 'Revista no encontrada', statusCode: 404 };
+        }
+    } catch (error) {
+        console.log(error);
+        res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
+    }
+}
+
+const getMagazineWithoutToken = async (req, res) => {
     const { alias } = req.params;
     try {
-        const magRes = await queryDB('CALL USP_GET_MAGAZINE_BY_ALIAS(?)', [alias]); // Evento
+        const magRes = await queryDB('CALL USP_GET_MAGAZINE_BY_ALIAS(?,?)', [alias, null]); // Evento
         const magazine = magRes[0][0]; // El primero es por las estadísticas; el segundo, por que solo quiero un resultado
         if (magazine) {
             res.json(magazine);
@@ -28,6 +45,7 @@ const getMagazinesByYear = async (req, res) => {
 };
 
 module.exports = {
-    getMagazine,
+    getMagazineWithoutToken,
+    getMagazineWithToken,
     getMagazinesByYear
 }

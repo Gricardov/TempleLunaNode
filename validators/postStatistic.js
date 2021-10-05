@@ -3,7 +3,7 @@ const { isNullOrUndefined } = require('../utils/functions');
 
 const schema = yup.object({
     actionId: yup.string().min(1).max(50).required(),
-    userId: yup.number().min(1).max(100000000).nullable(),
+    // userId: yup.number().min(1).max(100000000).nullable(), No se necesita ya, porque se puede extraer del posible JWT
     email: yup.string().trim().email('Ingresa un correo válido').min(5).max(200),
     orderId: yup.number().min(1).max(100000000).nullable(),
     magazineId: yup.number().min(1).max(100000000).nullable(),

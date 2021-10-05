@@ -1,6 +1,6 @@
 const { Router } = require("express");
-const { getMagazinesByYear, getMagazine } = require("../controller/magazine");
-const { validateField, getMagazines: getMagazinesVal, getMagazine: getMagazineVal } = require('../validators');
+const { getMagazinesByYear, getMagazineWithoutToken,getMagazineWithToken } = require("../controller/magazine");
+const { validateField, getMagazines: getMagazinesVal, getMagazine: getMagazineVal, validateToken } = require('../validators');
 const router = Router();
 
 router.get("/", [
@@ -9,6 +9,11 @@ router.get("/", [
 
 router.get("/:alias", [
   validateField('params', getMagazineVal)
-], getMagazine);
+], getMagazineWithoutToken);
+
+router.post("/:alias", [
+  validateToken(), // Verifica si el token es válido
+  validateField('params', getMagazineVal)
+], getMagazineWithToken);
 
 module.exports = router;

@@ -541,6 +541,7 @@ BEGIN
                 BEGIN
 					UPDATE ORDERS SET numDownloads = numDownloads + 1 WHERE id = NEW.orderId; -- Actualizo las estadísticas de los corazones del pedido
 				END;
+                ELSE BEGIN END;
 			END CASE;            
         END IF;
 	ELSEIF NEW.magazineId IS NOT NULL THEN
@@ -564,7 +565,8 @@ BEGIN
                 BEGIN
 					UPDATE MAGAZINES SET numSubscribers = numSubscribers + 1 WHERE id = NEW.magazineId; -- Actualizo las estadísticas de los suscriptores de la revista
 				END;
-			END CASE;     
+                ELSE BEGIN END;
+			END CASE;
         END IF;
 	END IF;
 END; //
@@ -605,11 +607,9 @@ BEGIN
 					BEGIN
 						UPDATE ORDERS SET numDownloads = numDownloads + SUM_VALUE_ORDER WHERE id = NEW.orderId; -- Actualizo las estadísticas de los corazones del pedido
 					END;
+				ELSE BEGIN END;
 			END CASE;			
-        END;
-                
-        
-                
+        END;                
         -- La revista ha cambiado
 		ELSEIF OLD.magazineId IS NOT NULL THEN
         BEGIN
@@ -640,6 +640,7 @@ BEGIN
 					BEGIN
 						UPDATE MAGAZINES SET numSubscribers = numSubscribers + SUM_VALUE_MAGAZINE WHERE id = NEW.magazineId; -- Actualizo las estadísticas de los suscriptores de la revista
 					END;
+				ELSE BEGIN END;
 			END CASE;
         END;
 		END IF;
@@ -1593,7 +1594,7 @@ BEGIN
 END; //
 DELIMITER ;
 
--- Para obtener una revista por alias. El parámetros P_USER_ID_FOR_ACTION puede ser null y solo sirve para ver si dicho usuario ha dejado una reacción en la revista (tabla ACTIONS_BY_USER_ON_ITEM)
+-- Para obtener una revista por alias. El parámetro P_USER_ID_FOR_ACTION puede ser null y solo sirve para ver si dicho usuario ha dejado una reacción en la revista (tabla ACTIONS_BY_USER_ON_ITEM)
 DROP PROCEDURE IF EXISTS USP_GET_MAGAZINE_BY_ALIAS;
 DELIMITER //
 CREATE PROCEDURE USP_GET_MAGAZINE_BY_ALIAS (P_ALIAS VARCHAR(200), P_USER_ID_FOR_ACTION INT)
