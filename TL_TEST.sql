@@ -2,13 +2,13 @@
 
 -- DROP DATABASE TL_TEST;
 
-SET GLOBAL time_zone = '+00:00';
+/*SET GLOBAL time_zone = '+00:00';
 SET time_zone='+00:00';
 
 SET NAMES utf8mb4;
 SET CHARACTER SET utf8mb4;
 SET CHARACTER_SET_SERVER = utf8mb4;
-SET COLLATION_SERVER = utf8mb4_unicode_ci;
+SET COLLATION_SERVER = utf8mb4_unicode_ci;*/
 
 CREATE DATABASE IF NOT EXISTS TL_TEST;
 
@@ -1966,6 +1966,7 @@ SELECT
     U.urlProfileImg as 'workerUrlProfileImg',
 	O.serviceId,
 	O.subserviceId,
+	O.statusId,
 	O.titleWork,
     O.editorialId,
     CASE
@@ -2227,6 +2228,7 @@ SELECT
     U.urlProfileImg as 'workerUrlProfileImg',
     O.serviceId,
 	O.subserviceId,
+	O.statusId,
 	O.titleWork,
     O.editorialId,
     CASE

@@ -4,6 +4,7 @@ const stream = require('stream');
 const moment = require('moment');
 const { v4: uuidv4 } = require('uuid');
 const { uploadResultRequest } = require('../utils/functions');
+const { sendEmail } = require('../mail/sender');
 
 const expirationDays = 7;
 
@@ -186,6 +187,8 @@ const developOrder = async (req, res) => {
           break;
       }
       res.json({ url });
+      // Send email
+      return sendEmail(order.clientEmail, order.clientNames.split(' ')[0], 'REQUEST_DONE', order);
     } else {
       throw { msg: 'El usuario que va a procesar el pedido no es el mismo de quien lo tomó', statusCode: 401 };
     }
