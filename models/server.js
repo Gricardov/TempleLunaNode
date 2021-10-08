@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const { EventEmitter } = require("events");
 const {
     loginRoutes,
     registerRoutes,
@@ -21,6 +22,7 @@ require('custom-env').env();
 class Server {
     constructor() {
         this.app = express();
+        this.mailEventEmitter = new EventEmitter();
         this.port = process.env.HOST_PORT;
         this.apiPaths = {
             login: '/api/login',
@@ -40,14 +42,32 @@ class Server {
         // Firebase
         this.firebase();
 
-        // Conexión
+        // Conexión a la bd
         this.connectDB();
 
         // Middlewares
         this.middlewares();
 
+        // Eventos
+        this.eventEmitters();
+
         // Rutas
         this.routes();
+    }
+
+    async firebase() {
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount)
+        });
+    }
+
+    async connectDB() {
+        try {
+            await testConnectionDB();
+            console.log('Conectado a bd!');
+        } catch (error) {
+            console.log(error);
+        }
     }
 
     middlewares() {
@@ -75,19 +95,11 @@ class Server {
         this.app.use(this.apiPaths.comment, commentRoutes);
     }
 
-    async firebase() {
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount)
-        });
-    }
-
-    async connectDB() {
-        try {
-            await testConnectionDB();
-            console.log('Conectado a bd!');
-        } catch (error) {
-            console.log(error);
-        }
+    eventEmitters() {
+        /*this.app.set('mailEventEmitter', this.mailEventEmitter);
+        this.app.get('mailEventEmitter').on('mailEventEmitter', () => {
+            console.log('an event occurred!');
+          });*/
     }
 
     listen() {

@@ -108,19 +108,6 @@ ADD FOREIGN KEY (appId) REFERENCES CONTACT_APPS(id),
 ADD FOREIGN KEY (roleId) REFERENCES USER_ROLES(id),
 ADD UNIQUE INDEX USERS_FOLLOWNAME_INDEX (followName);
 
-/*-- Roles por usuario (Un usuario puede ser admin, moderador, colaborador)
-CREATE TABLE ROLES_BY_USER (
-	userId INT(10) ZEROFILL UNSIGNED NOT NULL,
-    roleId VARCHAR(50) NOT NULL,
-	createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-
-ALTER TABLE ROLES_BY_USER
-ADD PRIMARY KEY (userId, roleId),
-ADD FOREIGN KEY (userId) REFERENCES USERS(id),
-ADD FOREIGN KEY (roleId) REFERENCES USER_ROLES(id);*/
-
 -- Inscripciones a los eventos
 CREATE TABLE INSCRIPTIONS (
   id INT(10) ZEROFILL UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -811,7 +798,7 @@ DEFAULT,
 DEFAULT,
 DEFAULT,
 '["https://www.facebook.com/", "https://www.instagram.com/"]',
-'BASIC',
+'COLAB',
 DEFAULT,
 DEFAULT,
 DEFAULT
@@ -835,7 +822,7 @@ DEFAULT,
 DEFAULT,
 DEFAULT,
 '["https://www.facebook.com/", "https://www.instagram.com/"]',
-'BASIC',
+'COLAB',
 DEFAULT,
 DEFAULT,
 DEFAULT
@@ -859,19 +846,11 @@ DEFAULT,
 DEFAULT,
 DEFAULT,
 '["https://www.facebook.com/", "https://www.instagram.com/"]',
-'BASIC',
+'COLAB',
 DEFAULT,
 DEFAULT,
 DEFAULT
 );
-
-/*-- Roles por usuario
-INSERT INTO ROLES_BY_USER VALUES
-(1,'BASIC',DEFAULT,DEFAULT),
-(1,'ADMIN',DEFAULT,DEFAULT),
-(2,'BASIC',DEFAULT,DEFAULT),
-(2,'COLAB',DEFAULT,DEFAULT),
-(2,'MOD',DEFAULT,DEFAULT);*/
 
 -- Inscripciones
 INSERT INTO INSCRIPTIONS VALUES
@@ -2284,65 +2263,75 @@ BEGIN
 END; //
 DELIMITER ;
 
--- select*from users;
--- SELECT*FROM ORDERS WHERE statusId = 'DISPONIBLE' AND EDITORIALID = 1 AND SERVICEID = 'DISENO' AND SUBSERVICEID IS NULL
--- UPDATE ORDERS SET workerUserID = null, statusId = 'DISPONIBLE' WHERE id = 1;
--- call USP_GET_ORDER_STATUS_TOTALS (1, 'DISENO', 1);
--- SELECT*FROM ORDERS;
--- SELECT*FROM ORDER_STATUS;
--- select*from event_dates;
--- Ejemplos
--- CALL USP_ORDERS (1,'DISPONIBLE','DISENO',NULL,1,NULL,NULL,5);
--- CALL USP_GET_ORDER_STATUS_TOTALS(1,'ESCUCHA',NULL,1)
--- select*from orders where serviceid='CRITICA'
--- CALL USP_GET_ORDERS (1,'DISPONIBLE','CRITICA',NULL,1,NULL,NULL,5);
--- CALL USP_GET_ORDERS (1, 'DISPONIBLE', 'ESCUCHA', NULL, 1, NULL, NULL, 5);
--- SELECT*FROM ORDERS WHERE subserviceId <=> null;
--- CALL USP_GET_EDITORIAL_SERVICES_BY_EDITORIAL_MEMBER (2, 1, 0);
--- SELECT*FROM EDITORIAL_MEMBERS;
--- SELECT*FROM EDITORIAL_MEMBER_SERVICES;
--- SELECT*FROM SERVICES_BY_EDITORIAL;
--- select*from services;
--- select*from services_by_editorial;
--- CALL USP_GET_EDITORIAL_SERVICES(1,1);
--- CALL USP_GET_COMMENTS_BY_MAGAZINE_ALIAS('AMOR-EN-TIEMPOS-DE-PANDEMIA-2021-1-123456789',1,NULL);
--- CALL USP_GET_MAGAZINE_BY_ALIAS('AMOR-EN-TIEMPOS-DE-PANDEMIA-2021-1-123456789');
--- CALL USP_GET_MAGAZINES_BY_YEAR(2020);
--- CALL USP_CREATE_ORDER (NULL, NULL, 'Mila', 54, '987654321', 'WSP', 2, NULL, 1, 'CRITICA', NULL, NULL, NULL, NULL, NULL, '', NULL, NULL, NULL, NULL, 'NORMAL', '{"modality":"LMD"}', NULL);
--- CALL USP_GET_MEMBERS_BY_EDITORIAL_SERVICE (1,'DISENO')
--- call usp_add_statistics (NULL, 'gricardov@gmail.com','FACEBOOK',NULL,NULL,'VER');
--- call USP_EXISTS_IN_INSCRIPTION(1 null, 'corazon@gmail.com');
--- CALL USP_SUBSCRIBE(NULL, 'Mila','g,ricardov@gmail.com',NULL, TRUE, NULL);
--- UPDATE MAGAZINES SET numComments = 23, numHearts = 12 where id = 2;
--- select * from comments where createdAt > '2021-08-07T16:05:56.000Z';
--- call USP_GET_USER_STATUS_BY_EMAIL('gricardov@gmail.com');
--- update orders set takenAt = '2021-09-02 05:31:02' expiresAt = '2021-09-05 05:31:02' where id = 1;
--- update users set active = 0 where email = 'gricardov@gmail.com';
-SELECT*FROM EDITORIAL_MEMBER_SERVICES;
-SELECT*FROM COMMENTS;
-SELECT*FROM MAGAZINES;
-SELECT*FROM EDITORIAL_MEMBER_SERVICES;
-select*from services_by_editorial;
-select*from actions_on_item;
-SELECT*FROM ACTIONS_BY_USER_ON_ITEM;
-select*from editorials;
-select*from services;
-select*from subservices;
-select*from actions_by_user_on_item;
-SELECT*FROM SUBSCRIBERS;
-select*from event_dates;
-SELECT*FROM USERS;
-SELECT*FROM INSCRIPTIONS;
-SELECT*FROM ORDERS;
-select*from order_status;
-select*from subscribers;
-SELECT*FROM EVENTS;
+-- Generated from firebase
 
--- USE TL_TEST;
+INSERT INTO USERS VALUES (49, 'escritos.oswaldo.ortiz@gmail.com', 1, 'escritos.oswaldo.ortiz@gmail.com', 'Ángel', 'Ortiz', NULL, NULL, NULL, NULL, 'OswaldoOrtiz', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fchamo.jpg?alt=media&token=468f6551-b903-4223-b647-c5cc892039d8', DEFAULT, DEFAULT, '["instagram.com/escritos_ortiz","https://www.wattpad.com/user/oswald85"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(50, 'sayrabaylon41@gmail.com', 1, 'sayrabaylon41@gmail.com', 'Sayra', 'Baylon', NULL, NULL, NULL, NULL, 'SayraBaylon', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fsayrih.jpg?alt=media&token=6a770c21-f3c9-475b-ae03-8423f1876c45', DEFAULT, DEFAULT, '["https://instagram.com/sayrabaylon_2321","https://www.wattpad.com/user/SayraBaylon"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(51, 'irisadk94@gmail.com', 1, 'irisadk94@gmail.com', 'Erendira', 'León', NULL, NULL, NULL, NULL, 'ErendiraLeon', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Ferendira.jpg?alt=media&token=5c35bb61-131c-4d8b-a9dc-79958ed273d0', DEFAULT, DEFAULT, '["https://instagram.com/irisadk94","https://iristomandoelcontrol.blogspot.com/","http://www.tusrelatos.com/autores/pajarita-enamorada"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(52, 'miadurant4@gmail.com', 1, 'miadurant4@gmail.com', 'Mia', 'Victoria', NULL, NULL, NULL, NULL, 'MiaDurant4', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fmia.jpg?alt=media&token=c2da3ac5-18f4-4967-9c20-e01374e5fe03', DEFAULT, DEFAULT, '["https://instagram.com/gianna_g.durant_l.04","https://www.wattpad.com/user/Gianna04G02DL"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(53, 'mila_enorriz_luna@tfbnw.net', 0, 'mila_enorriz_luna@tfbnw.net', 'Nuevo', 'Usuario', NULL, NULL, NULL, NULL, 'MilaEnorrizLuna', 0, 0, 0, '', DEFAULT, DEFAULT, '[]', 'COLAB', 1, DEFAULT, DEFAULT),
+(54, 'marimercado922@gmail.com', 1, 'marimercado922@gmail.com', 'Maria', 'Mercado', NULL, NULL, NULL, NULL, 'PrincesaDeFresa', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fmarim1.jpg?alt=media&token=692c003a-17cf-4825-9f76-15c3c09a0f7f', DEFAULT, DEFAULT, '["instagram.com/marimer.25","https://www.wattpad.com/user/MariMercado8"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(55, 'marthariveraantequera@outlook.com', 1, 'marthariveraantequera@outlook.com', 'Martha', 'Rivera', NULL, NULL, NULL, NULL, 'MarthaRivera', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fmartharivera.jpg?alt=media&token=4a0289d4-5d4b-4fd6-a288-3ae4f261cbc7', DEFAULT, DEFAULT, '["https://www.instagram.com/lrservicioseditoriales","https://www.fiverr.com/lrserviciosedit/correccion-edicion-y-maquetacion","https://linktr.ee/mlbradleyescritora"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(56, 'lacarodelreal@gmail.com', 1, 'lacarodelreal@gmail.com', 'Carolina', 'Morales', NULL, NULL, NULL, NULL, 'LaCaroDelReal', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fcaro.jpg?alt=media&token=329c34cd-ca44-41f1-9355-37084d0dd0e5', DEFAULT, DEFAULT, '["https://instagram.com/carodepenarol","https://www.wattpad.com/user/CaroDePearolMorales"]', 'COLAB', 1, DEFAULT, DEFAULT),        
+(57, 'templelunalye@gmail.com', 1, 'templelunalye@gmail.com', 'Nuevo', 'Usuario', NULL, NULL, NULL, NULL, 'TempleLunaLye', 0, 0, 0, '', DEFAULT, DEFAULT, '[]', 'COLAB', 1, DEFAULT, DEFAULT),
+-- (DEFAULT, 'gricardov@gmail.com', 1, 'gricardov@gmail.com', 'Giovanni', 'Temoche', NULL, NULL, NULL, NULL, 'gricardov', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Flindo.jpg?alt=media&token=177bb113-efb9-4e15-9291-743a525a2420', DEFAULT, DEFAULT, '["https://www.wattpad.com/user/Gricardov","https://templeluna.app"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(58, 'natalyacalderonh@gmail.com', 1, 'natalyacalderonh@gmail.com', 'Nataly', 'Calderón', NULL, NULL, NULL, NULL, 'NatalyCalderonH', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fnataly.jpg?alt=media&token=2c8c19ab-0b00-4e7f-b657-6f3ac0b0d674', DEFAULT, DEFAULT, '["https://instagram.com/soytatyautor/"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(59, 'siranaulavaleria@gmail.com', 1, 'siranaulavaleria@gmail.com', 'Valeria', 'Siranaula', NULL, NULL, NULL, NULL, 'ValeriaSiranaula', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fvalesina.jpg?alt=media&token=0ac8e523-972b-490f-9061-68d289f7e0f9', DEFAULT, DEFAULT, '["https://www.instagram.com/vale.designs/","https://twitter.com/ValeSiranaula"]', 'COLAB', 1, DEFAULT, DEFAULT),     
+(60, 'zariuxluna@gmail.com', 1, 'zariuxluna@gmail.com', 'Zariux', 'Luna', NULL, NULL, NULL, NULL, 'ZariuxLuna', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fzariux.jpg?alt=media&token=16e2777e-e149-4cd3-baaf-84600116cbdc', DEFAULT, DEFAULT, '["https://instagram.com/zariux_luna/","https://www.zariuxluna.com/","https://www.wattpad.com/user/ZariuxLuna","https://www.facebook.com/cronicasdelunita"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(61, 'dani.rod.2402@gmail.com', 1, 'dani.rod.2402@gmail.com', 'Daniel', 'Rodriguez', NULL, NULL, NULL, NULL, 'DanielRodriguez', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fdanielrodriguez.jpg?alt=media&token=699ebe7d-35d6-4480-8a3f-8beff3177b7b', DEFAULT, DEFAULT, '["https://www.instagram.com/Bo.ok_addicts/","https://www.facebook.com/elvisdaniel.rodriguezmorillo.3"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(62, 'zhazirt123@gmail.com', 1, 'zhazirt123@gmail.com', 'Zhazirt', 'Flores', NULL, NULL, NULL, NULL, 'ZhazirtFlores', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fzhazirt.jpg?alt=media&token=6b0bf0b7-1189-4cab-818a-a725d6f09d47', DEFAULT, DEFAULT, '["https://jackdreamer99.blogspot.com/","https://www.wattpad.com/user/zhazirt"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(63, 'zulpecristo@gmail.com', 1, 'zulpecristo@gmail.com', 'Luz', 'Cespedes', NULL, NULL, NULL, NULL, 'LuzCespedesMartinez', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fluz.jpg?alt=media&token=4314d1f6-7660-40b4-8eb6-054d7fc729d4', DEFAULT, DEFAULT, '["https://instagram.com/luzcespedesmartinez/"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(64, 'feelingss.023@gmail.com', 1, 'feelingss.023@gmail.com', 'Pilar', 'Melgarejo', NULL, NULL, NULL, NULL, 'Pilyy', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fcrushhh.jpg?alt=media&token=251f510a-71a5-46a3-a746-165d07f96c64', DEFAULT, DEFAULT, '["https://www.facebook.com/PiccoloScrittore26 ","https://www.wattpad.com/user/PiccolaScrittrice17","https://www.wattpad.com/user/PiccolaScrittrice23"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(65, 'academiatemple@gmail.com', 1, 'academiatemple@gmail.com', 'Nuevo', 'Usuario', NULL, NULL, NULL, NULL, 'academiatemple', 0, 0, 0, '', DEFAULT, DEFAULT, '[]', 'COLAB', 1, DEFAULT, DEFAULT),
+(66, 'reds.words@outlook.es', 1, 'reds.words@outlook.es', 'Redin', 'Mendez', NULL, NULL, NULL, NULL, 'RedsLetters', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fredinmendez2.jpg?alt=media&token=c68806eb-bf73-4c3f-9a43-94a9b0c02ac5', DEFAULT, DEFAULT, '["https://www.instagram.com/reds.letters/","https://www.facebook.com/reds.letters"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(67, 'efrainapazabustamante@gmail.com', 1, 'efrainapazabustamante@gmail.com', 'Ricardo', 'Apaza', NULL, NULL, NULL, NULL, 'Chamo', 0, 0, 0, 'undefined', DEFAULT, DEFAULT, '["https://instagram.com/ricardoab0","https://www.wattpad.com/user/RickRock02"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(68, 'oct967777777@gmail.com', 0, 'oct967777777@gmail.com', 'Nuevo', 'Usuario', NULL, NULL, NULL, NULL, 'ErikZavaleta', 0, 0, 0, '', DEFAULT, DEFAULT, '[]', 'COLAB', 1, DEFAULT, DEFAULT),
+(69, 'monica.ruiz@nauta.cu', 0, 'monica.ruiz@nauta.cu', 'Amanda', 'Torres', NULL, NULL, NULL, NULL, 'Morena', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Famanda.jpg?alt=media&token=6fed5baf-c4f9-4799-b2b9-f448d3b55b6e', DEFAULT, DEFAULT, '["https://www.wattpad.com/user/Titania2408"]', 'COLAB', 1, DEFAULT, DEFAULT);
 
--- update orders set expiresAt = '2021-08-31 23:40:52' where id = 1;
--- update orders set expiresAt = '2021-09-05 20:50:52' where id = 2;
+INSERT INTO EDITORIAL_MEMBERS VALUES (49, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(50, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(51, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(52, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(53, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(54, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(55, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(56, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(57, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(58, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(59, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(60, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(61, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(62, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(63, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(64, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(65, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(66, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(67, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(68, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(69, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
 
--- INSERT INTO events VALUES (DEFAULT,'Evento 1',DEFAULT,'https://www.youtube.com/watch?v=cD2bQH8-pos&t=424s&ab_channel=Ra%C3%BAlValverde',DEFAULT,'["Objetivo1", "Objetivo2"]','["Beneficio1", "Beneficio2"]','["Tema1","Tema2"]',0,NULL,DEFAULT,DEFAULT,DEFAULT,DEFAULT,'Título del evento','Cuéntame que es de tu vida y trataré de quererte todavía',DEFAULT,DEFAULT,'[{"name":"Obras llevadas al teatro","link":{"name":"Leer aquí","href":"https://www.google.com"}}]','GRAN-TEXTO-GUION-TEXTO-Y-NOVELA-CCADENA-1',DEFAULT,DEFAULT,DEFAULT);
+INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES (49, 1, 'CRITICA', NULL, 'Crítico(a)',1),
+(50, 1, 'CRITICA', NULL, 'Crítico(a)',1),
+(51, 1, 'CRITICA', NULL, 'Crítico(a)',1),
+(52, 1, 'CRITICA', NULL, 'Crítico(a)',1),
+(53, 1, 'CRITICA', NULL, 'Crítico(a)',1),
+(54, 1, 'CRITICA', NULL, 'Crítico(a)',1),
+(55, 1, 'CRITICA', NULL, 'Crítico(a)',1),
+(56, 1, 'CRITICA', NULL, 'Crítico(a)',1),
+(57, 1, 'CRITICA', NULL, 'Crítico(a)',1),
+(58, 1, 'CRITICA', NULL, 'Crítico(a)',1),
+(59, 1, 'CRITICA', NULL, 'Crítico(a)',1),
+(60, 1, 'CRITICA', NULL, 'Crítico(a)',1),
+(61, 1, 'CRITICA', NULL, 'Crítico(a)',1),
+(62, 1, 'CRITICA', NULL, 'Crítico(a)',1),
+(63, 1, 'CRITICA', NULL, 'Crítico(a)',1),
+(64, 1, 'CRITICA', NULL, 'Crítico(a)',1),
+(65, 1, 'CRITICA', NULL, 'Crítico(a)',1),
+(66, 1, 'CRITICA', NULL, 'Crítico(a)',1),
+(67, 1, 'CRITICA', NULL, 'Crítico(a)',1),
+(68, 1, 'CRITICA', NULL, 'Crítico(a)',1),
+(69, 1, 'CRITICA', NULL, 'Crítico(a)',1);
 
--- INSERT INTO EVENT_DATES VALUES (DEFAULT, 0000000001,NOW(),NOW(),DEFAULT,DEFAULT, DEFAULT, DEFAULT);
+
+
+

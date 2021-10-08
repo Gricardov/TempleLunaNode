@@ -75,6 +75,7 @@ const getOrderWithToken = async (req, res) => {
   const { orderId, claims } = req.body;
 
   try {
+    
     // Obtengo el pedido privado
     let orderRes = await queryDB('CALL USP_GET_PRIVATE_ORDER(?,?)', [orderId, claims.userId]);
 
@@ -188,7 +189,7 @@ const developOrder = async (req, res) => {
       }
       res.json({ url });
       // Send email
-      return sendEmail(order.clientEmail, order.clientNames.split(' ')[0], 'REQUEST_DONE', order);
+      sendEmail(order?.clientEmail, order.clientNames.split(' ')[0], 'REQUEST_DONE', order);
     } else {
       throw { msg: 'El usuario que va a procesar el pedido no es el mismo de quien lo tomó', statusCode: 401 };
     }

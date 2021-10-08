@@ -7,7 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "watch": "tsc -w",
     "dev": "cross-env NODE_ENV=development nodemon app",
-    "start": "cross-env NODE_ENV=production node app"
+    "start": "cross-env NODE_ENV=production node app",
+    "start:dev": "cross-env NODE_ENV=development node app"
   },
   "repository": {
     "type": "git",
