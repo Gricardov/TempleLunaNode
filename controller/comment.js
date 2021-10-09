@@ -29,14 +29,13 @@ const getOlderComments = async (req, res) => {
 }
 
 const postComment = async (req, res) => {
-    const { magazineId, orderId, comment, limit, claims } = req.body;
+    const { magazineId, orderId, comment, claims } = req.body;
     try {
         const userId = claims.userId;
         const comRes = await queryDB('CALL USP_POST_COMMENT(?,?,?,?)', [userId, orderId, magazineId, comment]);
-        if (comRes.affectedRows) {
-            // Obtengo los comentarios otra vez
-            const comRes = await switchAndGetComments(orderId, { id: magazineId }, limit, null);
-            res.json(comRes);
+        const inserted = comRes[0][0];
+        if (inserted) {
+            res.json(inserted);
         } else {
             throw { msg: 'Error al crear el comentario. Intente nuevamente', statusCode: 500 };
         }
