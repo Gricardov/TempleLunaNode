@@ -4,7 +4,7 @@ const stream = require('stream');
 const moment = require('moment');
 const { v4: uuidv4 } = require('uuid');
 const { uploadResultRequest } = require('../utils/functions');
-const { sendEmail } = require('../mail/sender');
+const { notifyOrderDone } = require('../mail/sender');
 
 const expirationDays = 7;
 
@@ -75,7 +75,7 @@ const getOrderWithToken = async (req, res) => {
   const { orderId, claims } = req.body;
 
   try {
-    
+
     // Obtengo el pedido privado
     let orderRes = await queryDB('CALL USP_GET_PRIVATE_ORDER(?,?)', [orderId, claims.userId]);
 
@@ -188,8 +188,12 @@ const developOrder = async (req, res) => {
           break;
       }
       res.json({ url });
-      // Send email
-      sendEmail(order?.clientEmail, order.clientNames.split(' ')[0], 'REQUEST_DONE', order);
+
+      // Solo se notifican como terminados los pedidos que no son ESCUCHA
+      if (order.serviceId !== 'ESCUCHA') {
+        notifyOrderDone({ clientNames: order.clientNames.split(' ')[0], clientEmail: order.clientEmail }, order);
+      }
+
     } else {
       throw { msg: 'El usuario que va a procesar el pedido no es el mismo de quien lo tomó', statusCode: 401 };
     }

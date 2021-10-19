@@ -13,6 +13,7 @@ const {
     editorialRoutes,
     magazineRoutes,
     commentRoutes,
+    testRoutes
 } = require("../routes");
 const admin = require("firebase-admin");
 const serviceAccount = require("../firebase-admin-key.json");
@@ -36,7 +37,8 @@ class Server {
             editorial: '/api/editorials',
             magazine: '/api/magazines',
             comment: '/api/comments',
-            service: '/api/services'
+            service: '/api/services',
+            test:'/api/test'
         };
 
         // Firebase
@@ -93,6 +95,7 @@ class Server {
         this.app.use(this.apiPaths.editorial, editorialRoutes);
         this.app.use(this.apiPaths.magazine, magazineRoutes);
         this.app.use(this.apiPaths.comment, commentRoutes);
+        this.app.use(this.apiPaths.test, testRoutes);
     }
 
     eventEmitters() {

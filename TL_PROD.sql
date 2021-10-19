@@ -9,6 +9,7 @@ SET NAMES utf8mb4;
 SET CHARACTER SET utf8mb4;
 SET CHARACTER_SET_SERVER = utf8mb4;
 SET COLLATION_SERVER = utf8mb4_unicode_ci;
+
 CREATE DATABASE IF NOT EXISTS TL_PROD;
 
 USE TL_PROD;
@@ -106,19 +107,6 @@ ADD CONSTRAINT USERS_UNIQUE_EMAIL UNIQUE (email),
 ADD FOREIGN KEY (appId) REFERENCES CONTACT_APPS(id),
 ADD FOREIGN KEY (roleId) REFERENCES USER_ROLES(id),
 ADD UNIQUE INDEX USERS_FOLLOWNAME_INDEX (followName);
-
-/*-- Roles por usuario (Un usuario puede ser admin, moderador, colaborador)
-CREATE TABLE ROLES_BY_USER (
-	userId INT(10) ZEROFILL UNSIGNED NOT NULL,
-    roleId VARCHAR(50) NOT NULL,
-	createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-
-ALTER TABLE ROLES_BY_USER
-ADD PRIMARY KEY (userId, roleId),
-ADD FOREIGN KEY (userId) REFERENCES USERS(id),
-ADD FOREIGN KEY (roleId) REFERENCES USER_ROLES(id);*/
 
 -- Inscripciones a los eventos
 CREATE TABLE INSCRIPTIONS (
@@ -540,6 +528,7 @@ BEGIN
                 BEGIN
 					UPDATE ORDERS SET numDownloads = numDownloads + 1 WHERE id = NEW.orderId; -- Actualizo las estadísticas de los corazones del pedido
 				END;
+                ELSE BEGIN END;
 			END CASE;            
         END IF;
 	ELSEIF NEW.magazineId IS NOT NULL THEN
@@ -563,7 +552,8 @@ BEGIN
                 BEGIN
 					UPDATE MAGAZINES SET numSubscribers = numSubscribers + 1 WHERE id = NEW.magazineId; -- Actualizo las estadísticas de los suscriptores de la revista
 				END;
-			END CASE;     
+                ELSE BEGIN END;
+			END CASE;
         END IF;
 	END IF;
 END; //
@@ -604,11 +594,9 @@ BEGIN
 					BEGIN
 						UPDATE ORDERS SET numDownloads = numDownloads + SUM_VALUE_ORDER WHERE id = NEW.orderId; -- Actualizo las estadísticas de los corazones del pedido
 					END;
+				ELSE BEGIN END;
 			END CASE;			
-        END;
-                
-        
-                
+        END;                
         -- La revista ha cambiado
 		ELSEIF OLD.magazineId IS NOT NULL THEN
         BEGIN
@@ -639,6 +627,7 @@ BEGIN
 					BEGIN
 						UPDATE MAGAZINES SET numSubscribers = numSubscribers + SUM_VALUE_MAGAZINE WHERE id = NEW.magazineId; -- Actualizo las estadísticas de los suscriptores de la revista
 					END;
+				ELSE BEGIN END;
 			END CASE;
         END;
 		END IF;
@@ -646,724 +635,31 @@ BEGIN
 END; //
 DELIMITER ;
 
--- Inserciones
-
--- Inserciones maestras
-
-INSERT INTO CONTACT_APPS VALUES
-('WSP','Whatsapp'),
-('TLG','Telegram'),
-('SIG','Signal'),
-('OAPP','Otra app');
-
-INSERT INTO USER_ROLES VALUES
-('ADMIN','Administrador'), -- Para los que tienen privilegios de hacer cambios en la plataforma
-('MOD','Moderador'), -- Para los que aprueban contenidos
-('COLAB','Colaborador'), -- Para los que dan servicios
-('CREATOR','Creador de contenidos'), -- Para los que crean sus contenidos como blogs
-('BASIC','Básico'); -- Todos
-
-INSERT INTO SERVICES VALUES
-('CRITICA','Crítica'),
-('DISENO','Diseño'),
-('CORRECCION','Corrección'),
-('ESCUCHA','Escucha'),
-('BTRAILER','Booktrailer');
-
-INSERT INTO SUBSERVICES VALUES
-('POR', 'DISENO','Portada'),
-('BAN','DISENO','Banner para redes');
-
-INSERT INTO EDITORIAL_MEMBER_ROLES VALUES
-('ADMIN','Administrador'),
-('COLAB','Colaborador(a) de editorial');
-/*('CRITICO','Crítico'),
-('DISEÑADOR','Diseñador'),
-('CORRECTOR','Corrector'),
-('ESCUCHADOR','Escuchador'),
-('PRODUCTOR-BTRAILER','Productor de booktrailer');*/
-
-INSERT INTO ORDER_STATUS VALUES
-('DISPONIBLE','Disponible'),
-('TOMADO','Tomado'),
-('ANULADO','Anulado'),
-('HECHO','Hecho'),
-('SOLICITADO','Solicitado'); -- Esto se refiere a un pedido (tabla ORDERS) donde se puede elegir quien quieres que lo atienda (workerUserId adquiere un valor)
-
-INSERT INTO COMMENT_STATUS VALUES
-('REVISION','En revisión'),
-('APROBADO','Aprobado'),
-('RECHAZADO','Rechazado');
-
-INSERT INTO ACTIONS_ON_ITEM VALUES
-('VER','Visualizar'),
-('GUSTAR','Dar like'),
-('COMPARTIR','Compartir'),
-('DESCARGAR','Descargar'),
-('SUSCRIBIR','Suscribir');
-
--- Inserciones no maestras
-
--- Eventos
-INSERT INTO EVENTS VALUES
-(DEFAULT,
-'Aprende a construir tu libro desde cero',
-'https://images.pexels.com/photos/6383219/pexels-photo-6383219.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500',
-'https://www.youtube.com/watch?v=cD2bQH8-pos&t=424s&ab_channel=Ra%C3%BAlValverde',
-'["Requisito 1", "Requisito 2", "Requisito 3"]',
-'["Objetivo 1", "Objetivo 2"]',
-'["Beneficio 1","Beneficio 2"]',
-'["Tema 1", "Tema 2", "Tema 3"]',
-0,
-NULL,
-'Zoom',
-NULL,
-NULL,
-NULL,
-'Este es el encabezado del evento',
-'Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry"s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book',
-'10 inscritos como mínimo',
-NULL,
-'[{"name":"Introducción al curso","url":"https://www.youtube.com/watch?v=c70NJVO9jtE&ab_channel=M%C3%9ASICAVARIADALBA","resources":[]},{"name":"Creando la historia","url":"https://www.youtube.com/watch?v=6nemwgJZCc8&ab_channel=Pat%C3%A9deFu%C3%A1","resources":[]}]',
-'[{"name":"Obras llevadas al teatro","link":{"name":"Leer aquí","href":"https://www.google.com"}}]',
-'APRENDE-A-CREAR-TU-LIBRO-DESDE-CERO-AMASCARITA-1-2021',
-'https://chat.whatsapp.com/FW4fmEli2WsATci5RYU2nI',
-DEFAULT,
-DEFAULT,
-DEFAULT
-),
-
-(DEFAULT,
-'Aprende a crear tu historial desde cero',
-'https://images.pexels.com/photos/6383219/pexels-photo-6383219.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500',
-DEFAULT,
-'["Requisito 1", "Requisito 2", "Requisito 3", "Requisito 4"]',
-'["Objetivo 1", "Objetivo 2", "Objetivo 3"]',
-'["Beneficio 1"]',
-'["Tema 1", "Tema 2" ,"Tema 3"]',
-20,
-'USD',
-'Zoom',
-'https://paypal.me/gricardov',
-'Bitcoin',
-'Estas son las facilidades de pago',
-'Este es el encabezado del evento',
-'Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry"s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book',
-'10 inscritos como mínimo',
-NULL,
-'[{"name":"Introducción al taller","url":"https://www.youtube.com/watch?v=c70NJVO9jtE&ab_channel=M%C3%9ASICAVARIADALBA","resources":[]},{"name":"Creando la pupusa","url":"https://www.youtube.com/watch?v=6nemwgJZCc8&ab_channel=Pat%C3%A9deFu%C3%A1","resources":[]}]',
-'[{"name":"Obras llevadas al teatro","link":{"name":"Leer aquí","href":"https://www.google.com"}}]',
-'APRENDE-A-CREAR-TU-EDITORIAL-AMASCARITA-1-2021',
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT);
-
--- Fechas de los eventos
-INSERT INTO EVENT_DATES VALUES
-(DEFAULT, 0000000001, DATE_ADD(NOW(), INTERVAL 10 DAY), DATE_ADD(NOW(), INTERVAL 11 DAY), 1, DEFAULT, DEFAULT, DEFAULT),
-(DEFAULT, 0000000001, DATE_ADD(NOW(), INTERVAL 13 DAY), DATE_ADD(NOW(), INTERVAL 14 DAY), 0, DEFAULT, DEFAULT, DEFAULT),
-(DEFAULT, 0000000002, DATE_ADD(NOW(), INTERVAL 1 HOUR), DATE_ADD(NOW(), INTERVAL 2 HOUR), 1, DEFAULT, DEFAULT, DEFAULT);
-
--- Usuarios
-INSERT INTO USERS VALUES
-(DEFAULT,
-'gricardov@gmail.com',
-1,
-'gricardov@templeluna.app',
-'Giovanni',
-'Ricardo',
-'1995-04-20',
-'+51999999999',
-'WSP',
-'Corazón de melón',
-'corazondemelon',
-DEFAULT,
-DEFAULT,
-DEFAULT,
-'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Flindo.jpg?alt=media&token=177bb113-efb9-4e15-9291-743a525a2420',
-DEFAULT,
-DEFAULT,
-'["https://www.facebook.com/", "https://www.instagram.com/", "https://www.wattpad.com/story/262132830?utm_medium=link&utm_source=android&utm_content=story_info"]',
-'ADMIN',
-DEFAULT,
-DEFAULT,
-DEFAULT
-),
-
-(DEFAULT,
-'corazon@gmail.com',
-1,
-'contacto@gmail.com',
-'Alyoh',
-'Mascarita',
-'1995-04-20',
-'+51999999999',
-'WSP',
-'Alyoh Mascarita',
-'alyohmascarita',
-DEFAULT,
-DEFAULT,
-DEFAULT,
-'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Flindo.jpg?alt=media&token=177bb113-efb9-4e15-9291-743a525a2420',
-DEFAULT,
-DEFAULT,
-'["https://www.facebook.com/", "https://www.instagram.com/"]',
-'BASIC',
-DEFAULT,
-DEFAULT,
-DEFAULT
-),
-
-(DEFAULT,
-'pilyy@gmail.com',
-1,
-'contactopilyy@gmail.com',
-'Pilyy',
-'Hernandez',
-'1992-04-01',
-'+529999999',
-'TLG',
-'Pilyy Hernandez',
-'pilyyhernandez',
-DEFAULT,
-DEFAULT,
-DEFAULT,
-'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fsayrih.jpg?alt=media&token=6a770c21-f3c9-475b-ae03-8423f1876c45',
-DEFAULT,
-DEFAULT,
-'["https://www.facebook.com/", "https://www.instagram.com/"]',
-'BASIC',
-DEFAULT,
-DEFAULT,
-DEFAULT
-),
-
-(DEFAULT,
-'maricucha@gmail.com',
-1,
-'contactomaricucha@gmail.com',
-'Mari',
-'Cucha',
-'1995-03-03',
-'+569999999',
-'WSP',
-'La maricucha',
-'marucha',
-DEFAULT,
-DEFAULT,
-DEFAULT,
-'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fsayrih.jpg?alt=media&token=6a770c21-f3c9-475b-ae03-8423f1876c45',
-DEFAULT,
-DEFAULT,
-'["https://www.facebook.com/", "https://www.instagram.com/"]',
-'BASIC',
-DEFAULT,
-DEFAULT,
-DEFAULT
-);
-
-/*-- Roles por usuario
-INSERT INTO ROLES_BY_USER VALUES
-(1,'BASIC',DEFAULT,DEFAULT),
-(1,'ADMIN',DEFAULT,DEFAULT),
-(2,'BASIC',DEFAULT,DEFAULT),
-(2,'COLAB',DEFAULT,DEFAULT),
-(2,'MOD',DEFAULT,DEFAULT);*/
-
--- Inscripciones
-INSERT INTO INSCRIPTIONS VALUES
-(DEFAULT, 0000000001, 0000000001, NULL, NULL, NULL, 'WSP', NULL, DEFAULT, NULL, NULL, 1, DEFAULT, DEFAULT),
-(DEFAULT, 0000000001, NULL, 'Tipito Enojado', 26, '+519999999', 'TLG', 'tipitoenojada@gmail.com', 1, NULL, NULL, 1, DEFAULT, DEFAULT);
-
--- Instructores por evento
-INSERT INTO INSTRUCTORS_BY_EVENT VALUES
-(DEFAULT, 2, 1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'Soy escritor y poeta amateur',NULL,NULL,NULL,DEFAULT,DEFAULT),
-(DEFAULT,1,NULL,'Cosme','Fulanito',NOW(),'+519999999','TLG','cosme@gmail.com', 'https://i.ytimg.com/vi/xnoummdS3DA/maxresdefault.jpg','Escritor y poeta','Lo siento nene vas a morir. Me quitaste lo que más quería y volverá conmigo, volverá algún día.','["https://www.facebook.com"]',NULL,DEFAULT,DEFAULT);
-
--- Editoriales
-INSERT INTO EDITORIALS VALUES
-(1,
-'Editorial Temple Luna',
-'Somos Temple Luna, la editorial de los artistas',
-'templeluna',
-'+5212721588788',
-'WSP',
-'contacto@templeluna.app',
-DEFAULT,
-DEFAULT,
-'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/editorial%2FGrupo%20195.svg?alt=media&token=782e36a5-a88b-4a52-aa9e-5d13e22ed396',
-'#1A1A1A',
-'["https://www.facebook.com/templeluna", "https://www.instagram.com/templelunaeditorial"]',
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT
-);
-
--- Servicios por editorial
-INSERT INTO SERVICES_BY_EDITORIAL VALUES
-(DEFAULT,
-1,
-'CRITICA',
-NULL,
-DEFAULT,
-'Servicio de críticas',
-'Descripción del servicio',
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-0,
-0,
-DEFAULT,
-NULL,
-DEFAULT,
-DEFAULT
-),
-
-(DEFAULT,
-1,
-'DISENO',
-NULL,
-DEFAULT,
-'Servicio de diseño',
-'Descripción del servicio',
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-0,
-0,
-DEFAULT,
-NULL,
-DEFAULT,
-DEFAULT
-),
-
-(DEFAULT,
-1,
-'DISENO',
-'BAN',
-DEFAULT,
-'Servicio de diseño',
-'Descripción del servicio',
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-0,
-0,
-DEFAULT,
-NULL,
-DEFAULT,
-DEFAULT
-),
-
-(DEFAULT,
-1,
-'DISENO',
-'POR',
-DEFAULT,
-'Servicio de diseño',
-'Descripción del servicio',
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-0,
-0,
-DEFAULT,
-NULL,
-DEFAULT,
-DEFAULT
-),
-
-(DEFAULT,
-1,
-'ESCUCHA',
-NULL,
-DEFAULT,
-'Servicio de escucha',
-'Descripción del servicio',
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-0,
-0,
-DEFAULT,
-NULL,
-DEFAULT,
-DEFAULT
-);
-
--- Miembros de una editorial
-INSERT INTO EDITORIAL_MEMBERS VALUES
-(1,
-1, -- Temple Luna
-'ADMIN',
-'Disponible sábados y domingos',
-DEFAULT,
-DEFAULT, -- activo
-DEFAULT,
-DEFAULT
-),
-
-(3,
-1, -- Temple Luna
-'COLAB',
-'Disponible solo sábados',
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT
-);
-
--- Servicios por miembros de editorial
-INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
-(1,
-1,
-'CRITICA',
-NULL,
-'Crítico(a)',
-DEFAULT
-),
-
-(1,
-1,
-'DISENO',
-NULL,
-'Diseñador(a)',
-DEFAULT
-),
-
-(1,
-1,
-'DISENO',
-'BAN',
-'Diseñador(a) de banners',
-DEFAULT
-),
-
-(1,
-1,
-'ESCUCHA',
-NULL,
-'Escuchador(a) aficionada',
-DEFAULT
-),
-
-(3,
-1,
-'ESCUCHA',
-NULL,
-'Escuchador(a)',
-DEFAULT
-);
-
--- Servicios por usuario
-INSERT INTO SERVICES_BY_USER VALUES
-(DEFAULT,
-2,
-'CRITICA',
-NULL,
-DEFAULT,
-'Servicio de críticas',
-'Este es mi servicio',
-'["Beneficio 1"]',
-'["Requisito 1", "Requisito 2"]',
-'Política de sobre mí',
-'Política de precios',
-'Política de contribución',
-'Política de tiempo',
-0,
-0,
-DEFAULT,
-NULL,
-DEFAULT, -- activo
-DEFAULT,
-DEFAULT
-),
-
-(DEFAULT,
-2,
-'DISENO',
-NULL,
-DEFAULT,
-'Servicio de diseños',
-'Este es mi diseño',
-'["Beneficio 1"]',
-'["Requisito 1", "Requisito 2"]',
-'Política sobre mí',
-'Política de precios',
-'Política de contribución',
-'Política de tiempo',
-0,
-0,
-DEFAULT,
-NULL,
-DEFAULT, -- activo
-DEFAULT,
-DEFAULT
-),
-
-(DEFAULT,
-2,
-'DISENO',
-'BAN',
-DEFAULT,
-'Servicio de diseños',
-'Este es mi diseño',
-'["Beneficio 1"]',
-'["Requisito 1", "Requisito 2"]',
-'Política sobre mí',
-'Política de precios',
-'Política de contribución',
-'Política de tiempo',
-0,
-0,
-DEFAULT,
-NULL,
-DEFAULT, -- activo
-DEFAULT,
-DEFAULT
-);
-
--- Revistas
-INSERT INTO MAGAZINES VALUES 
-(DEFAULT,
-'Individualismo en pandemia',
-'https://assets.entrepreneur.com/content/3x4/600/1624551191-ent21-julyaug-cover.jpg?width=400',
-'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2FTL1JPG.pdf?alt=media&token=940b3eb9-7187-4d5d-bb6d-525b45282c7b',
-'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2Famor-en-tiempos-de-pandemia-vol-1_compressed.pdf?alt=media&token=e588c669-4edd-4d24-865b-3e55512e1b59',
-18,
-1,
-2,
-2020,
-1,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-'INDIVIDUALISMO-EN-PANDEMIA-2020-1-123456789',
-DEFAULT, -- activo
-DEFAULT,
-DEFAULT
-),
-
-(DEFAULT,
-'Hablando piedras',
-'https://m.media-amazon.com/images/I/51FhT+gJCLL._AC_SY445_.jpg',
-'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2FTL1JPG.pdf?alt=media&token=940b3eb9-7187-4d5d-bb6d-525b45282c7b',
-'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2Famor-en-tiempos-de-pandemia-vol-1_compressed.pdf?alt=media&token=e588c669-4edd-4d24-865b-3e55512e1b59',
-15,
-1,
-3,
-2020,
-1,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-'HABLANDO-PIEDRAS-2020-1-123456789',
-DEFAULT, -- activo
-DEFAULT,
-DEFAULT
-),
-
-(DEFAULT,
-'Amor en tiempos de pandemia',
-'https://images-na.ssl-images-amazon.com/images/I/91-NnXIFTTL.jpg',
-'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2FTL1JPG.pdf?alt=media&token=940b3eb9-7187-4d5d-bb6d-525b45282c7b',
-'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2Fsilabo-angular.pdf?alt=media&token=ef600a92-58cd-4949-9d33-ef2b33853d07',
-20,
-1,
-7,
-2021,
-1,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-'AMOR-EN-TIEMPOS-DE-PANDEMIA-2021-1-123456789',
-DEFAULT, -- activo
-DEFAULT,
-DEFAULT
-),
-
-(DEFAULT,
-'Burrocracias: Cuando la mitad del país es bruta',
-'https://cdn.www.gob.pe/uploads/document/file/1780193/standard_Elecciones-Generales-800x450.jpg.jpg',
-'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2FTL1JPG.pdf?alt=media&token=940b3eb9-7187-4d5d-bb6d-525b45282c7b',
-'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2Famor-en-tiempos-de-pandemia-vol-1_compressed.pdf?alt=media&token=e588c669-4edd-4d24-865b-3e55512e1b59',
-22,
-1,
-8,
-2021,
-1,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-'BURROCRACIAS-CUANDO-LA-MITAD-DEL-PAIS-ES-BRUTA-2021-1-123456789',
-DEFAULT, -- activo
-DEFAULT,
-DEFAULT
-),
-
-(DEFAULT,
-'Identificaciones disidentes',
-'https://www.paho.org/sites/default/files/styles/flexslider_full/public/2020-02/coronavirus-creativeneko-shutterstock-com.jpg?h=111de37a&itok=azilfE4h',
-'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2FTL1JPG.pdf?alt=media&token=940b3eb9-7187-4d5d-bb6d-525b45282c7b',
-'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2Famor-en-tiempos-de-pandemia-vol-1_compressed.pdf?alt=media&token=e588c669-4edd-4d24-865b-3e55512e1b59',
-22,
-1,
-9,
-2021,
-1,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-'IDENTIFICACIONES-DISIDENTES-2021-1-123456789',
-DEFAULT, -- activo
-DEFAULT,
-DEFAULT
-),
-
-(DEFAULT,
-'El mundo de cabeza',
-'https://i2.wp.com/ecuadortoday.media/wp-content/uploads/2020/03/Captura-de-Pantalla-2020-03-14-a-las-13.03.36.jpg?fit=524%2C346&ssl=1',
-'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2FTL1JPG.pdf?alt=media&token=940b3eb9-7187-4d5d-bb6d-525b45282c7b',
-'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2Famor-en-tiempos-de-pandemia-vol-1_compressed.pdf?alt=media&token=e588c669-4edd-4d24-865b-3e55512e1b59',
-5,
-1,
-10,
-2021,
-1,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-'EL-MUNDO-DE-CABEZA-2021-1-123456789',
-DEFAULT, -- activo
-DEFAULT,
-DEFAULT
-);
-
--- Comentarios para la revista
-INSERT INTO COMMENTS VALUES
-(DEFAULT,
-1,
-NULL,
-3,
-'Este es mi primer comentario de prueba',
-NULL,
-'APROBADO',
-TIMESTAMPADD(HOUR, 1, CURRENT_TIMESTAMP()),
-TIMESTAMPADD(HOUR, 1, CURRENT_TIMESTAMP())
-),
-
-(DEFAULT,
-2,
-NULL,
-3,
-'Excelente revista, yo la amo',
-NULL,
-'APROBADO',
-TIMESTAMPADD(HOUR, 2, CURRENT_TIMESTAMP()),
-TIMESTAMPADD(HOUR, 2, CURRENT_TIMESTAMP())
-),
-
-(DEFAULT,
-2,
-NULL,
-3,
-'Esta es la mejor muestra de que cuando se quiere se puede',
-NULL,
-'APROBADO',
-TIMESTAMPADD(HOUR, 3, CURRENT_TIMESTAMP()),
-TIMESTAMPADD(HOUR, 3, CURRENT_TIMESTAMP())
-),
-
-(DEFAULT,
-3,
-NULL,
-3,
-'Este es mi primer comentario de prueba',
-NULL,
-'APROBADO',
-TIMESTAMPADD(HOUR, 4, CURRENT_TIMESTAMP()),
-TIMESTAMPADD(HOUR, 4, CURRENT_TIMESTAMP())
-),
-
-(DEFAULT,
-3,
-NULL,
-3,
-'Si me ayudan, yo promociono su revista en instagram',
-NULL,
-'APROBADO',
-TIMESTAMPADD(HOUR, 5, CURRENT_TIMESTAMP()),
-TIMESTAMPADD(HOUR, 5, CURRENT_TIMESTAMP())
-),
-
-(DEFAULT,
-1,
-NULL,
-3,
-'Cómo puedo suscrirme?',
-NULL,
-'APROBADO',
-TIMESTAMPADD(HOUR, 6, CURRENT_TIMESTAMP()),
-TIMESTAMPADD(HOUR, 6, CURRENT_TIMESTAMP())
-),
-
-(DEFAULT,
-1,
-NULL,
-3,
-'Son geniales',
-NULL,
-'APROBADO',
-TIMESTAMPADD(HOUR, 7, CURRENT_TIMESTAMP()),
-TIMESTAMPADD(HOUR, 7, CURRENT_TIMESTAMP())
-),
-
-(DEFAULT,
-1,
-NULL,
-3,
-'Giovani, eres my crush',
-NULL,
-'APROBADO',
-TIMESTAMPADD(HOUR, 8, CURRENT_TIMESTAMP()),
-TIMESTAMPADD(HOUR, 8, CURRENT_TIMESTAMP())
-);
-
 -- Procedimientos
+
+-- Obtiene los suscriptores a la revista TL. Si el nombre es anónimo (TL_ANONYMOUS_HP), entonces que devuelva "artista" para que el usuario vea ese nombre
+DROP PROCEDURE IF EXISTS USP_GET_MAGAZINE_SUBSCRIBERS;
+DELIMITER //
+CREATE PROCEDURE USP_GET_MAGAZINE_SUBSCRIBERS ()
+BEGIN
+SELECT
+	CASE
+		WHEN S.userId IS NULL THEN
+			CASE
+				WHEN S.names = 'TL_ANONYMOUS_HP' THEN 'artista'
+			ELSE
+				CONCAT(UCASE(LEFT(SUBSTRING_INDEX(SUBSTRING_INDEX(S.names, ' ', 1), ' ', -1), 1)),
+				LCASE(SUBSTRING(SUBSTRING_INDEX(SUBSTRING_INDEX(S.names, ' ', 1), ' ', -1), 2))) -- La primera letra siempre en mayúscula y las siguientes en minúscula, y solo extrae el primer nombre
+			END
+    ELSE
+		(SELECT CONCAT(UCASE(LEFT(SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING_INDEX(fName, ' ', 1), ' ', -1), ' ', 1), ' ', -1), 1)), 
+				LCASE(SUBSTRING(SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING_INDEX(fName, ' ', 1), ' ', -1), ' ', 1), ' ', -1), 2))) -- La primera letra siempre en mayúscula y las siguientes en minúscula, y solo extrae el primer nombre
+         FROM USERS WHERE id = S.userId LIMIT 1)
+	END as name,
+    S.email
+FROM SUBSCRIBERS S WHERE magazine = 1;
+END; //
+DELIMITER ;
 
 -- Obtiene la data privada estrictamente necesaria de un usuario si se encuentra activo
 DROP PROCEDURE IF EXISTS USP_GET_PRIVATE_USER_BY_EMAIL;
@@ -1388,7 +684,7 @@ DROP PROCEDURE IF EXISTS USP_GET_PUBLIC_PROFILE_BY_ID;
 DELIMITER //
 CREATE PROCEDURE USP_GET_PUBLIC_PROFILE_BY_ID (P_USER_ID INT)
 BEGIN
-	SELECT id, contactEmail, fName, lName, followName, numFollowers, numComments, numHearts, urlProfileImg, about, networks, createdAt FROM USERS WHERE id = P_USER_ID AND active = 1;
+	SELECT id, contactEmail, fName, lName, followName, numFollowers, numComments, numHearts, urlProfileImg, about, networks, roleId, createdAt FROM USERS WHERE id = P_USER_ID AND active = 1;
 END; //
 DELIMITER ;
 
@@ -1538,15 +834,15 @@ BEGIN
         
     SELECT id INTO STATISTIC_ID FROM ACTIONS_BY_USER_ON_ITEM WHERE userId <=> P_USER_ID AND email <=> P_EMAIL AND orderId <=> P_ORDER_ID AND magazineId <=> P_MAGAZINE_ID AND actionId <=> P_ACTION_ID LIMIT 1;
     
-    IF STATISTIC_ID IS NOT NULL THEN
+    IF STATISTIC_ID IS NULL OR P_USER_ID IS NULL THEN -- Pregunto si P_USER_ID is null porque en el caso de estadísticas de COMPARTIR no es necesario que el usuario esté logueado (Puede ser null)
 		BEGIN
-			-- El único campo permitido para actualizarse tiene que ser active, para saber si esa reacción se quitó o se activo. Esto se hace para asegurarse de que cada acción es única
-            UPDATE ACTIONS_BY_USER_ON_ITEM SET active = P_ACTIVE WHERE id = STATISTIC_ID;
+			-- Insertar nuevo. La primera estadística de cada tipo, se supone que siempre tiene el estado active por DEFAULT, por eso no se pasa aquí
+			INSERT INTO ACTIONS_BY_USER_ON_ITEM VALUES (DEFAULT, P_USER_ID, P_EMAIL, P_SOCIAL_NETWORK_NAME, P_ORDER_ID, P_MAGAZINE_ID, P_ACTION_ID, DEFAULT, DEFAULT, DEFAULT);
         END;
 	ELSE
 		BEGIN
-			-- Insertar nuevo. La primera estadística de cada tipo, se supone que siempre tiene el estado active por DEFAULT, por eso no se pasa aquí
-			INSERT INTO ACTIONS_BY_USER_ON_ITEM VALUES (DEFAULT, P_USER_ID, P_EMAIL, P_SOCIAL_NETWORK_NAME, P_ORDER_ID, P_MAGAZINE_ID, P_ACTION_ID, DEFAULT, DEFAULT, DEFAULT);    
+			-- El único campo permitido para actualizarse tiene que ser active, para saber si esa reacción se quitó o se activo. Esto se hace para asegurarse de que cada acción es única
+            UPDATE ACTIONS_BY_USER_ON_ITEM SET active = P_ACTIVE WHERE id = STATISTIC_ID;
         END;
     END IF;
 	
@@ -1592,7 +888,7 @@ BEGIN
 END; //
 DELIMITER ;
 
--- Para obtener una revista por alias. El parámetros P_USER_ID_FOR_ACTION puede ser null y solo sirve para ver si dicho usuario ha dejado una reacción en la revista (tabla ACTIONS_BY_USER_ON_ITEM)
+-- Para obtener una revista por alias. El parámetro P_USER_ID_FOR_ACTION puede ser null y solo sirve para ver si dicho usuario ha dejado una reacción en la revista (tabla ACTIONS_BY_USER_ON_ITEM)
 DROP PROCEDURE IF EXISTS USP_GET_MAGAZINE_BY_ALIAS;
 DELIMITER //
 CREATE PROCEDURE USP_GET_MAGAZINE_BY_ALIAS (P_ALIAS VARCHAR(200), P_USER_ID_FOR_ACTION INT)
@@ -1728,6 +1024,10 @@ DELIMITER //
 CREATE PROCEDURE USP_POST_COMMENT (P_USER_ID INT, P_ORDER_ID INT, P_MAGAZINE_ID INT, P_CONTENT VARCHAR(1000))
 BEGIN
 	INSERT INTO COMMENTS VALUES (DEFAULT, P_USER_ID, P_ORDER_ID, P_MAGAZINE_ID, P_CONTENT, NULL, 'APROBADO', DEFAULT, DEFAULT);
+    SELECT C.id, C.userId, CONCAT(U.fName, ' ', U.lName) as names, U.urlProfileImg as urlImg, C.content, C.createdAt FROM COMMENTS C
+	JOIN USERS U
+	ON U.id = C.userId
+    WHERE C.id = LAST_INSERT_ID();
 END; //
 DELIMITER ;
 
@@ -1964,6 +1264,7 @@ SELECT
     U.urlProfileImg as 'workerUrlProfileImg',
 	O.serviceId,
 	O.subserviceId,
+	O.statusId,
 	O.titleWork,
     O.editorialId,
     CASE
@@ -2225,6 +1526,7 @@ SELECT
     U.urlProfileImg as 'workerUrlProfileImg',
     O.serviceId,
 	O.subserviceId,
+	O.statusId,
 	O.titleWork,
     O.editorialId,
     CASE
@@ -2280,65 +1582,467 @@ BEGIN
 END; //
 DELIMITER ;
 
--- select*from users;
--- SELECT*FROM ORDERS WHERE statusId = 'DISPONIBLE' AND EDITORIALID = 1 AND SERVICEID = 'DISENO' AND SUBSERVICEID IS NULL
--- UPDATE ORDERS SET workerUserID = null, statusId = 'DISPONIBLE' WHERE id = 1;
--- call USP_GET_ORDER_STATUS_TOTALS (1, 'DISENO', 1);
--- SELECT*FROM ORDERS;
--- SELECT*FROM ORDER_STATUS;
--- select*from event_dates;
--- Ejemplos
--- CALL USP_ORDERS (1,'DISPONIBLE','DISENO',NULL,1,NULL,NULL,5);
--- CALL USP_GET_ORDER_STATUS_TOTALS(1,'ESCUCHA',NULL,1)
--- select*from orders where serviceid='CRITICA'
--- CALL USP_GET_ORDERS (1,'DISPONIBLE','CRITICA',NULL,1,NULL,NULL,5);
--- CALL USP_GET_ORDERS (1, 'DISPONIBLE', 'ESCUCHA', NULL, 1, NULL, NULL, 5);
--- SELECT*FROM ORDERS WHERE subserviceId <=> null;
--- CALL USP_GET_EDITORIAL_SERVICES_BY_EDITORIAL_MEMBER (2, 1, 0);
--- SELECT*FROM EDITORIAL_MEMBERS;
--- SELECT*FROM EDITORIAL_MEMBER_SERVICES;
--- SELECT*FROM SERVICES_BY_EDITORIAL;
--- select*from services;
--- select*from services_by_editorial;
--- CALL USP_GET_EDITORIAL_SERVICES(1,1);
--- CALL USP_GET_COMMENTS_BY_MAGAZINE_ALIAS('AMOR-EN-TIEMPOS-DE-PANDEMIA-2021-1-123456789',1,NULL);
--- CALL USP_GET_MAGAZINE_BY_ALIAS('AMOR-EN-TIEMPOS-DE-PANDEMIA-2021-1-123456789');
--- CALL USP_GET_MAGAZINES_BY_YEAR(2020);
--- CALL USP_CREATE_ORDER (NULL, NULL, 'Mila', 54, '987654321', 'WSP', 2, NULL, 1, 'CRITICA', NULL, NULL, NULL, NULL, NULL, '', NULL, NULL, NULL, NULL, 'NORMAL', '{"modality":"LMD"}', NULL);
--- CALL USP_GET_MEMBERS_BY_EDITORIAL_SERVICE (1,'DISENO')
--- call usp_add_statistics (NULL, 'gricardov@gmail.com','FACEBOOK',NULL,NULL,'VER');
--- call USP_EXISTS_IN_INSCRIPTION(1 null, 'corazon@gmail.com');
--- CALL USP_SUBSCRIBE(NULL, 'Mila','g,ricardov@gmail.com',NULL, TRUE, NULL);
--- UPDATE MAGAZINES SET numComments = 23, numHearts = 12 where id = 2;
--- select * from comments where createdAt > '2021-08-07T16:05:56.000Z';
--- call USP_GET_USER_STATUS_BY_EMAIL('gricardov@gmail.com');
--- update orders set takenAt = '2021-09-02 05:31:02' expiresAt = '2021-09-05 05:31:02' where id = 1;
--- update users set active = 0 where email = 'gricardov@gmail.com';
-SELECT*FROM EDITORIAL_MEMBER_SERVICES;
-SELECT*FROM COMMENTS;
-SELECT*FROM MAGAZINES;
-SELECT*FROM EDITORIAL_MEMBER_SERVICES;
-select*from services_by_editorial;
-select*from actions_on_item;
-SELECT*FROM ACTIONS_BY_USER_ON_ITEM;
-select*from editorials;
-select*from services;
-select*from subservices;
-select*from actions_by_user_on_item;
-SELECT*FROM SUBSCRIBERS;
-select*from event_dates;
-SELECT*FROM USERS;
-SELECT*FROM INSCRIPTIONS;
-SELECT*FROM ORDERS;
-select*from order_status;
-select*from subscribers;
-SELECT*FROM EVENTS;
+-- Inserciones
 
--- USE TL_PROD;
+-- Inserciones maestras
 
--- update orders set expiresAt = '2021-08-31 23:40:52' where id = 1;
--- update orders set expiresAt = '2021-09-05 20:50:52' where id = 2;
+INSERT INTO CONTACT_APPS VALUES
+('WSP','Whatsapp'),
+('TLG','Telegram'),
+('SIG','Signal'),
+('OAPP','Otra app');
 
--- INSERT INTO events VALUES (DEFAULT,'Evento 1',DEFAULT,'https://www.youtube.com/watch?v=cD2bQH8-pos&t=424s&ab_channel=Ra%C3%BAlValverde',DEFAULT,'["Objetivo1", "Objetivo2"]','["Beneficio1", "Beneficio2"]','["Tema1","Tema2"]',0,NULL,DEFAULT,DEFAULT,DEFAULT,DEFAULT,'Título del evento','Cuéntame que es de tu vida y trataré de quererte todavía',DEFAULT,DEFAULT,'[{"name":"Obras llevadas al teatro","link":{"name":"Leer aquí","href":"https://www.google.com"}}]','GRAN-TEXTO-GUION-TEXTO-Y-NOVELA-CCADENA-1',DEFAULT,DEFAULT,DEFAULT);
+INSERT INTO USER_ROLES VALUES
+('ADMIN','Administrador'), -- Para los que tienen privilegios de hacer cambios en la plataforma
+('MOD','Moderador'), -- Para los que aprueban contenidos
+('COLAB','Colaborador'), -- Para los que dan servicios
+('CREATOR','Creador de contenidos'), -- Para los que crean sus contenidos como blogs
+('BASIC','Básico'); -- Todos
 
--- INSERT INTO EVENT_DATES VALUES (DEFAULT, 0000000001,NOW(),NOW(),DEFAULT,DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO SERVICES VALUES
+('CRITICA','Crítica'),
+('DISENO','Diseño'),
+('CORRECCION','Corrección'),
+('ESCUCHA','Escucha'),
+('BTRAILER','Booktrailer');
+
+INSERT INTO SUBSERVICES VALUES
+('POR', 'DISENO','Portada'),
+('BAN','DISENO','Banner para redes');
+
+INSERT INTO EDITORIAL_MEMBER_ROLES VALUES
+('ADMIN','Administrador'),
+('COLAB','Colaborador(a) de editorial');
+/*('CRITICO','Crítico'),
+('DISEÑADOR','Diseñador'),
+('CORRECTOR','Corrector'),
+('ESCUCHADOR','Escuchador'),
+('PRODUCTOR-BTRAILER','Productor de booktrailer');*/
+
+INSERT INTO ORDER_STATUS VALUES
+('DISPONIBLE','Disponible'),
+('TOMADO','Tomado'),
+('ANULADO','Anulado'),
+('HECHO','Hecho'),
+('SOLICITADO','Solicitado'); -- Esto se refiere a un pedido (tabla ORDERS) donde se puede elegir quien quieres que lo atienda (workerUserId adquiere un valor)
+
+INSERT INTO COMMENT_STATUS VALUES
+('REVISION','En revisión'),
+('APROBADO','Aprobado'),
+('RECHAZADO','Rechazado');
+
+INSERT INTO ACTIONS_ON_ITEM VALUES
+('VER','Visualizar'),
+('GUSTAR','Dar like'),
+('COMPARTIR','Compartir'),
+('DESCARGAR','Descargar'),
+('SUSCRIBIR','Suscribir');
+
+-- Inserciones para producción
+
+-- Generales
+
+INSERT INTO EDITORIALS VALUES
+(1,
+'Editorial Temple Luna',
+'Somos Temple Luna, la editorial de los artistas',
+'templeluna',
+'+5212721588788',
+'WSP',
+'contacto@templeluna.app',
+DEFAULT,
+DEFAULT,
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/editorial%2FGrupo%20195.svg?alt=media&token=782e36a5-a88b-4a52-aa9e-5d13e22ed396',
+'#1A1A1A',
+'["https://www.facebook.com/templeluna", "https://www.instagram.com/templelunaeditorial"]',
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT
+);
+
+INSERT INTO SERVICES_BY_EDITORIAL VALUES
+(DEFAULT,1,'CRITICA',NULL,DEFAULT,'Servicio de críticas','Descripción del servicio',DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,0,0,DEFAULT,NULL,DEFAULT,DEFAULT),
+(DEFAULT,1,'DISENO',NULL,DEFAULT,'Servicio de diseño','Descripción del servicio',DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,0,0,DEFAULT,NULL,DEFAULT,DEFAULT),
+(DEFAULT,1,'DISENO','BAN',DEFAULT,'Servicio de diseño','Descripción del servicio',DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,0,0,DEFAULT,NULL,DEFAULT,DEFAULT),
+(DEFAULT,1,'DISENO','POR',DEFAULT,'Servicio de diseño','Descripción del servicio',DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,0,0,DEFAULT,NULL,DEFAULT,DEFAULT),
+(DEFAULT,1,'ESCUCHA',NULL,DEFAULT,'Servicio de escucha','Descripción del servicio',DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,0,0,DEFAULT,NULL,DEFAULT,DEFAULT);
+
+INSERT INTO USERS VALUES (1,'gricardov@gmail.com',1,'gricardov@templeluna.app','Giovanni','Ricardo',NULL,'+51999999999',NULL,'Corazón de melón','corazondemelon',DEFAULT,DEFAULT,DEFAULT,'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Flindo.jpg?alt=media&token=177bb113-efb9-4e15-9291-743a525a2420',DEFAULT,DEFAULT,'["https://www.facebook.com/gricardov/", "https://www.instagram.com/", "https://www.instagram.com/gricardov/"]','ADMIN',DEFAULT,DEFAULT,DEFAULT);
+
+INSERT INTO EDITORIAL_MEMBERS VALUES 
+(1, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+
+INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
+(1, 1, 'ESCUCHA', NULL, 'Artista', 1);
+INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
+(1, 1, 'CRITICA', NULL, 'Artista', 1);
+INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
+(1, 1, 'DISENO', NULL, 'Artista', 1);
+
+-- Desde firebase
+
+INSERT INTO USERS VALUES 
+(49, 'escritos.oswaldo.ortiz@gmail.com', 1, 'escritos.oswaldo.ortiz@gmail.com', 'Ángel', 'Ortiz', NULL, NULL, NULL, NULL, 'OswaldoOrtiz', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fchamo.jpg?alt=media&token=468f6551-b903-4223-b647-c5cc892039d8', DEFAULT, DEFAULT, '["instagram.com/escritos_ortiz","https://www.wattpad.com/user/oswald85"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(50, 'sayrabaylon41@gmail.com', 1, 'sayrabaylon41@gmail.com', 'Sayra', 'Baylon', NULL, NULL, NULL, NULL, 'SayraBaylon', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fsayrih.jpg?alt=media&token=6a770c21-f3c9-475b-ae03-8423f1876c45', DEFAULT, DEFAULT, '["https://instagram.com/sayrabaylon_2321","https://www.wattpad.com/user/SayraBaylon"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(51, 'irisadk94@gmail.com', 1, 'irisadk94@gmail.com', 'Erendira', 'León', NULL, NULL, NULL, NULL, 'ErendiraLeon', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Ferendira.jpg?alt=media&token=5c35bb61-131c-4d8b-a9dc-79958ed273d0', DEFAULT, DEFAULT, '["https://instagram.com/irisadk94","https://iristomandoelcontrol.blogspot.com/","http://www.tusrelatos.com/autores/pajarita-enamorada"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(52, 'miadurant4@gmail.com', 1, 'miadurant4@gmail.com', 'Mia', 'Victoria', NULL, NULL, NULL, NULL, 'MiaDurant4', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fmia.jpg?alt=media&token=c2da3ac5-18f4-4967-9c20-e01374e5fe03', DEFAULT, DEFAULT, '["https://instagram.com/gianna_g.durant_l.04","https://www.wattpad.com/user/Gianna04G02DL"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(53, 'mila_enorriz_luna@tfbnw.net', 0, 'mila_enorriz_luna@tfbnw.net', 'Nuevo', 'Usuario', NULL, NULL, NULL, NULL, 'followName53', 0, 0, 0, '', DEFAULT, DEFAULT, '[]', 'COLAB', 1, DEFAULT, DEFAULT),
+(54, 'marimercado922@gmail.com', 1, 'marimercado922@gmail.com', 'Maria', 'Mercado', NULL, NULL, NULL, NULL, 'PrincesaDeFresa', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fmarim1.jpg?alt=media&token=692c003a-17cf-4825-9f76-15c3c09a0f7f', DEFAULT, DEFAULT, '["instagram.com/marimer.25","https://www.wattpad.com/user/MariMercado8"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(55, 'marthariveraantequera@outlook.com', 1, 'marthariveraantequera@outlook.com', 'Martha', 'Rivera', NULL, NULL, NULL, NULL, 'MarthaRivera', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fmartharivera.jpg?alt=media&token=4a0289d4-5d4b-4fd6-a288-3ae4f261cbc7', DEFAULT, DEFAULT, '["https://www.instagram.com/lrservicioseditoriales","https://www.fiverr.com/lrserviciosedit/correccion-edicion-y-maquetacion","https://linktr.ee/mlbradleyescritora"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(56, 'lacarodelreal@gmail.com', 1, 'lacarodelreal@gmail.com', 'Carolina', 'Morales', NULL, NULL, NULL, NULL, 'LaCaroDelReal', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fcaro.jpg?alt=media&token=329c34cd-ca44-41f1-9355-37084d0dd0e5', DEFAULT, DEFAULT, '["https://instagram.com/carodepenarol","https://www.wattpad.com/user/CaroDePearolMorales"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(57, 'templelunalye@gmail.com', 1, 'templelunalye@gmail.com', 'Nuevo', 'Usuario', NULL, NULL, NULL, NULL, 'followName57', 0, 0, 0, '', DEFAULT, DEFAULT, '[]', 'COLAB', 1, DEFAULT, DEFAULT),
+(58, 'natalyacalderonh@gmail.com', 1, 'natalyacalderonh@gmail.com', 'Nataly', 'Calderón', NULL, NULL, NULL, NULL, 'NatalyCalderonH', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fnataly.jpg?alt=media&token=2c8c19ab-0b00-4e7f-b657-6f3ac0b0d674', DEFAULT, DEFAULT, '["https://instagram.com/soytatyautor/"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(59, 'siranaulavaleria@gmail.com', 1, 'siranaulavaleria@gmail.com', 'Valeria', 'Siranaula', NULL, NULL, NULL, NULL, 'ValeriaSiranaula', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fvalesina.jpg?alt=media&token=0ac8e523-972b-490f-9061-68d289f7e0f9', DEFAULT, DEFAULT, '["https://www.instagram.com/vale.designs/","https://twitter.com/ValeSiranaula"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(60, 'zariuxluna@gmail.com', 1, 'zariuxluna@gmail.com', 'Zariux', 'Luna', NULL, NULL, NULL, NULL, 'ZariuxLuna', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fzariux.jpg?alt=media&token=16e2777e-e149-4cd3-baaf-84600116cbdc', DEFAULT, DEFAULT, '["https://instagram.com/zariux_luna/","https://www.zariuxluna.com/","https://www.wattpad.com/user/ZariuxLuna","https://www.facebook.com/cronicasdelunita"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(61, 'dani.rod.2402@gmail.com', 1, 'dani.rod.2402@gmail.com', 'Daniel', 'Rodriguez', NULL, NULL, NULL, NULL, 'DanielRodriguez', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fdanielrodriguez.jpg?alt=media&token=699ebe7d-35d6-4480-8a3f-8beff3177b7b', DEFAULT, DEFAULT, '["https://www.instagram.com/Bo.ok_addicts/","https://www.facebook.com/elvisdaniel.rodriguezmorillo.3"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(62, 'zhazirt123@gmail.com', 1, 'zhazirt123@gmail.com', 'Zhazirt', 'Flores', NULL, NULL, NULL, NULL, 'ZhazirtFlores', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fzhazirt.jpg?alt=media&token=6b0bf0b7-1189-4cab-818a-a725d6f09d47', DEFAULT, DEFAULT, '["https://jackdreamer99.blogspot.com/","https://www.wattpad.com/user/zhazirt"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(63, 'zulpecristo@gmail.com', 1, 'zulpecristo@gmail.com', 'Luz', 'Cespedes', NULL, NULL, NULL, NULL, 'LuzCespedesMartinez', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fluz.jpg?alt=media&token=4314d1f6-7660-40b4-8eb6-054d7fc729d4', DEFAULT, DEFAULT, '["https://instagram.com/luzcespedesmartinez/"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(64, 'feelingss.023@gmail.com', 1, 'feelingss.023@gmail.com', 'Pilar', 'Melgarejo', NULL, NULL, NULL, NULL, 'Pilyy', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fcrushhh.jpg?alt=media&token=251f510a-71a5-46a3-a746-165d07f96c64', DEFAULT, DEFAULT, '["https://www.facebook.com/PiccoloScrittore26 ","https://www.wattpad.com/user/PiccolaScrittrice17","https://www.wattpad.com/user/PiccolaScrittrice23"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(65, 'academiatemple@gmail.com', 1, 'academiatemple@gmail.com', 'Nuevo', 'Usuario', NULL, NULL, NULL, NULL, 'followName65', 0, 0, 0, '', DEFAULT, DEFAULT, '[]', 'COLAB', 1, DEFAULT, DEFAULT),
+(66, 'reds.words@outlook.es', 1, 'reds.words@outlook.es', 'Redin', 'Mendez', NULL, NULL, NULL, NULL, 'RedsLetters', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fredinmendez2.jpg?alt=media&token=c68806eb-bf73-4c3f-9a43-94a9b0c02ac5', DEFAULT, DEFAULT, '["https://www.instagram.com/reds.letters/","https://www.facebook.com/reds.letters"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(67, 'efrainapazabustamante@gmail.com', 1, 'efrainapazabustamante@gmail.com', 'Ricardo', 'Apaza', NULL, NULL, NULL, NULL, 'Chamo', 0, 0, 0, 'undefined', DEFAULT, DEFAULT, '["https://instagram.com/ricardoab0","https://www.wattpad.com/user/RickRock02"]', 'COLAB', 1, DEFAULT, DEFAULT),
+(68, 'monica.ruiz@nauta.cu', 0, 'monica.ruiz@nauta.cu', 'Amanda', 'Torres', NULL, NULL, NULL, NULL, 'Morena', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Famanda.jpg?alt=media&token=6fed5baf-c4f9-4799-b2b9-f448d3b55b6e', DEFAULT, DEFAULT, '["https://www.wattpad.com/user/Titania2408"]', 'COLAB', 1, DEFAULT, DEFAULT);
+
+
+INSERT INTO EDITORIAL_MEMBERS VALUES 
+(49, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(50, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(51, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(52, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(53, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(54, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(55, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(56, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(57, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(58, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(59, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(60, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(61, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(62, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(63, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(64, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(65, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(66, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(67, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(68, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+
+INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
+(49, 1, 'CRITICA', NULL, 'Artista', 1),
+(50, 1, 'CRITICA', NULL, 'Artista', 1),
+(50, 1, 'CORRECCION', NULL, 'Artista', 1),
+(51, 1, 'CRITICA', NULL, 'Artista', 1),
+(52, 1, 'DISENO', NULL, 'Artista', 1),
+(54, 1, 'CORRECCION', NULL, 'Artista', 1),
+(54, 1, 'CRITICA', NULL, 'Artista', 1),
+(55, 1, 'CRITICA', NULL, 'Artista', 1),
+(55, 1, 'DISENO', NULL, 'Artista', 1),
+(56, 1, 'CRITICA', NULL, 'Artista', 1),
+(56, 1, 'CORRECCION', NULL, 'Artista', 1),
+(58, 1, 'CRITICA', NULL, 'Artista', 1),
+(59, 1, 'DISENO', NULL, 'Artista', 1),
+(60, 1, 'CRITICA', NULL, 'Artista', 1),
+(60, 1, 'CORRECCION', NULL, 'Artista', 1),
+(61, 1, 'DISENO', NULL, 'Artista', 1),
+(62, 1, 'CRITICA', NULL, 'Artista', 1),
+(63, 1, 'CRITICA', NULL, 'Artista', 1),
+(64, 1, 'CRITICA', NULL, 'Artista', 1),
+(64, 1, 'CORRECCION', NULL, 'Artista', 1),
+(66, 1, 'CRITICA', NULL, 'Artista', 1),
+(66, 1, 'DISENO', NULL, 'Artista', 1),
+(67, 1, 'CORRECCION', NULL, 'Artista', 1),
+(68, 1, 'CRITICA', NULL, 'Artista', 1);
+
+-- Temporales para iniciar
+INSERT INTO EVENTS VALUES
+(1,
+'Gran inauguración de Temple Luna',
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/miscelanea%2FTemple%20Luna.png?alt=media&token=33f2e8c4-b35e-47d7-8435-e7965b104750',
+'',
+'["Amar la lectura y la escritura"]',
+'["Asistir a la inauguración de la plataforma Temple Luna"]',
+'["Podrás ser el primero en disfrutar los beneficios de la plataforma"]',
+'["Inauguración"]',
+0,
+NULL,
+'Google Meets',
+NULL,
+NULL,
+NULL,
+'Gran inauguración de Temple Luna',
+'¡Bienvenido(a)! Asiste y podrás ser parte de la gran iniciativa Temple Luna, que busca acerca los mejores servicios a lectores y escritores',
+'10 inscritos como mínimo',
+NULL,
+NULL,
+NULL,
+'GRAN-INAUGURACION-TEMPLE-LUNA-2021',
+'https://chat.whatsapp.com/Gxm48ky5Ein9qwkK7FkAC7',
+DEFAULT,
+DEFAULT,
+DEFAULT
+);
+
+INSERT INTO EVENT_DATES VALUES
+(DEFAULT, 1, '2021-10-09 01:00:00','2021-10-09 02:00:00', 0, DEFAULT, DEFAULT, DEFAULT);
+
+INSERT INTO INSTRUCTORS_BY_EVENT VALUES
+(DEFAULT, 1, 1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'Creador y fundador de Temple Luna',NULL,NULL,NULL,DEFAULT,DEFAULT);
+
+INSERT INTO MAGAZINES VALUES 
+(DEFAULT,
+'Amor en tiempos de pandemia',
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2Fpreview-revista-1.PNG?alt=media&token=1a8fcf71-afc2-4d77-b8d1-d9b58e6d7950',
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2FRevista-TL-1_compressed.pdf?alt=media&token=f6e957ab-0361-4913-81b8-4c8f792135fa',
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2FTL1JPG.pdf?alt=media&token=940b3eb9-7187-4d5d-bb6d-525b45282c7b',
+22,
+1,
+10,
+2021,
+1,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+'AMOR-EN-TIEMPOS-DE-PANDEMIA-1-2021',
+DEFAULT, -- activo
+DEFAULT,
+DEFAULT
+);
+
+-- 11/10/2021: Inserción del evento de la tertulia
+
+INSERT INTO EVENTS VALUES
+(2,
+'La gran tertulia literaria',
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/eventos%2Ffondo-grupo-la-tertulia.png?alt=media&token=6e44f2e4-fab6-4ec0-b8f4-cfeddf5ee29b',
+'',
+'["Amar la lectura y/o escritura", "Interactuar con otros miembros de la comunidad", "Participar de las reuniones semanales"]',
+'["Conocer obras nuevas", "Conocer de cerca nuevos autores", "Debatir ideas literarias"]',
+'["Expandir conocimientos del mundo literario por medio de la comunidad"]',
+'["Los temas son variables y se proponen cada semana en el grupo"]',
+0,
+NULL,
+'Google Meets',
+NULL,
+NULL,
+NULL,
+'La gran tertulia literaria',
+'¡Bienvenido(a)! Si te interesa hablar sobre obras y amas escuchar autores nuevos, este es tu lugar. Te invitamos a este grupo de tertulia literaria. Nos unimos todos los sábados de 9pm a 11pm (Hora Colombia - Lima) para aprender y debatir. ¡Te encantará!',
+'20 inscritos como mínimo',
+NULL,
+NULL,
+NULL,
+'LA-GRAN-TERTULIA-LITERARIA-WMUNIZ-2021',
+'https://chat.whatsapp.com/FCU0DzPxGtw8AdoFxVRbJt',
+DEFAULT,
+DEFAULT,
+DEFAULT
+);
+
+INSERT INTO EVENT_DATES VALUES
+(DEFAULT, 2, '2021-11-14 02:00:00','2021-11-14 04:00:00', 1, DEFAULT, DEFAULT, DEFAULT);
+
+INSERT INTO INSTRUCTORS_BY_EVENT VALUES
+(DEFAULT, 2, NULL,'Wilfrido','Muniz',NULL,NULL,NULL,NULL,'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fwilfrido3.jpg?alt=media&token=c6938927-c784-49d2-9999-cb878c20dd0d','Periodista y autor literario',NULL,NULL,NULL,DEFAULT,DEFAULT);
+
+-- 12/10/2021: Asignación de roles de escucha a Pilar, Maria Belén y Mauro, previa agregación a la editorial para los dos últimos. Eliminación del servicio de escucha para mí (userId=1)
+
+-- Me elimino del servicio de escucha
+DELETE FROM EDITORIAL_MEMBER_SERVICES WHERE serviceId = 'ESCUCHA' AND userId = 1;
+
+-- Actualizo los roles de Mauro y Maria Belés
+UPDATE USERS SET roleId = 'COLAB' WHERE id = 71 OR id = 87;
+
+-- Agrego a Mauro y Mía Belés a la editorial Temple Luna
+INSERT INTO EDITORIAL_MEMBERS VALUES 
+(71, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
+(87, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+
+-- Les asigno el rol a todos
+INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
+(71, 1, 'ESCUCHA', NULL, 'Artista', 1);
+INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
+(87, 1, 'ESCUCHA', NULL, 'Artista', 1);
+INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
+(64, 1, 'ESCUCHA', NULL, 'Artista', 1);
+
+-- Actualizo la foto de Mia
+UPDATE USERS SET urlProfileImg = 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fmia-belen.jpg?alt=media&token=529bf739-66ec-4ffa-85cc-b098fda1f675' WHERE id = 87;
+UPDATE USERS SET about = 'Tec. Profesional en literatura, guión, y teatro.\nPsicóloga psiquiatría en temas:\n\n- Trastorno depresivo\n- Crisis\n- Bloqueo mental en escritores\n- Escritores en proceso, e independientes.' WHERE id = 87;
+
+-- Actualizo la disponibilidad de Mía
+UPDATE EDITORIAL_MEMBERS SET availability = 'Miércoles en toda la mañana y fines de semana de 1-4pm (Hora Colombia - Lima)' WHERE userId = 87;
+
+-- Actualizo las redes de Pilyy
+UPDATE USERS SET networks='["https://www.facebook.com/Pily.135","https://www.wattpad.com/user/PiccolaScrittrice230","https://www.wattpad.com/user/PiccolaScrittrice23"]' WHERE id = 64;
+
+-- Inserto las suscripciones a 12-10-2021
+INSERT INTO SUBSCRIBERS VALUES 
+(DEFAULT, NULL, 1, 1, 1, 'Manuel Pereira ', 'manucho1024mbungb@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Luis Orozco', 'luisorozco.lde@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Sagk Bautista ', 'sacgbautista@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Eva Maria', 'eva271992@hotmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Trisha Sanz', 'escritoraenlasmilyunalunas@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 0, 1, 1, 'Sergio A. Amaya Santamaría ', 'sergioamaysas@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'José Alberto Nápoles Torres', 'napolesjosealberto@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 0, 'Marie Chavier ', 'mariechavier13@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Fernando ', 'ferjosza21@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Mar', 'virginialezcano980@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Katherine Marin', 'namkathe99@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Isabel ', 'mariaisabelchacon9@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Yorman', 'yorm.dar@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Edgar Sánchez ', 'edgarsahdz@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Jorge Berganza ', 'jorgeberganza13.com@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Francisco Alvarado', 'javatre57@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Mariel', 'losocy_857@hotmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Benito ', 'benycamacho8@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'hector', 'hmontesc65@hotmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 0, 0, 'Carla', 'paz303229@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Ada ', 'adaescalante@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Hector Nila', 'dulcinea6607@yahoo.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Juan Carlos ', 'juankjcag@hotmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Melina Paccini', 'melinapaccini@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Constanza antonia ', 'fritisconstanza86@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Olo Waypiler', 'oloway07@gmail.com', 1, DEFAULT, DEFAULT),
+-- (DEFAULT, NULL, 1, 1, 1, 'Iliana', 'ilianazapico1103@gmail.com', 1, DEFAULT, DEFAULT),
+-- (DEFAULT, NULL, 1, 1, 1, 'Sagk Bautista ', 'sacgbautista@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Roxana', 'roxycanteros@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Yarelly Ramos ', 'yarellyramosgonzalez@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Eva', 'evagiraldo33@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Kris Buendia ', 'krisbuendia.autora@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Silvia', 'bersata@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Miguel', 'msaints.fff@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Laczuly', 'laydyalejandra@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Arnoldo', 'publiccoloroionca@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Victoria ', 'Victoriavalon@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 0, 1, 1, 'Carlos Rodriguez', 'youtevi123@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Nelson', 'nelsoncarvajalgomez@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Liliana Martínez', 'liliana2068@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Paulina', 'pauline_dozar@hotmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Pilar Cerón Durán ', 'pilarceronduran@yahoo.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'sheila', 'sheilamoya74@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Tyler', 'ty2020king@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'maria mercado ', 'marimercado922@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Solange', 'solesimon@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Jhorgelis Chacón Díaz ', 'Jhorgelischacon0712@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Ricardo Gustavo Espeja', 'rgespeja1950@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 0, 1, 'Christian Rios', 'christianriossifuentes@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Beatriz', 'bessi.puertas@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 0, 'Brenda Soraya Lopez', 'brendalopez070981@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Zero', 'joseyaoo123@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Veronica', 'veronica.l.vignolo@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Rosa Hernández', 'kimalezi95@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Jeison Eulacio', 'yeisoneulacio28@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Nelson Gutiérrez', 'nelsongrr2018@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Daisy', 'Daisuidlv@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Iriel cuello', 'irielanahicuello@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Daniela', 'danielaandreaellesmartinez@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Brianne López Sánchez ', 'skipi0625@yahoo.com.mx', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Ivelisse Esquilin', 'ivyesquilin@hotmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 0, 'Melissa Falco', 'naypasede@hotmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Montserrath', 'ramirezacostakarinamontserrath@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Zhazirt ', 'zhazirt123@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'DAN', 'daercimi@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Ania Tamas', 'amy.tamas15@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Biosneidy Bereguete Mendoza', 'biosneidy23@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Ramon Abel Salazar monreal', 'ramonabelsalazar@11gomail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Isidoro García Cruz', 'isidorogc.igc@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Karma', 'karma.libros.0103@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Celia', 'celiagarciagil25@gmail.com', 1, DEFAULT, DEFAULT),
+-- (DEFAULT, NULL, 1, 1, 1, 'Trisha Sanz', 'escritoraenlasmilyunalunas@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Eugenia', 'eugenia.roman@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Pedro Villahermosa', 'villahermosapedro69@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Caro Morales', 'lacarodelreal@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Mauricio Vega Vivas', 'mauriciovega@prodigy.met.mx', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Ayden Atwood ', 'princesa.solitaria85@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Pilarica', 'pilaricasi@hotmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Manuel Antón Mosteiro García', 'bateledicions@hotmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Noemí', 'noemigisbertnadal@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Jairo', 'jairo.currea@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Fabián Amir Ortíz ', 'famiro14@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Rebeca Vazquez Galaviz', 'garebebi.1104@gmail.com', 1, DEFAULT, DEFAULT),
+-- (DEFAULT, NULL, 1, 1, 1, 'Trisha Sanz', 'escritoraenlasmilyunalunas@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Cindy Caicedo ', 'cindyjohannacc@gmail.com', 1, DEFAULT, DEFAULT),
+-- (DEFAULT, NULL, 1, 1, 1, 'Efraín', 'efrainapazabustamante@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 0, 1, 1, 'Marco Antonio Román Encinas', 'mromane@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Darío Valenzuela', 'alberto_valenzuela2001@yahoo.com.ar', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Silvia', 'chivitagon35@hotmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Dariam', 'darvingjosuer@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Luis Rízolo', 'luisrizolo@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Julieta', 'pekemichelena@hotmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Amanda Torres', 'monica.ruiz@nauta.cu', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Camones Rondan Yulhiño Sisley', 'Ycamonesrondan@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Marcelo', 'marcelosolis_2000@yahoo.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Alejandro Eduardo Klappenbach', 'aleklapen62@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Vanessa', 'vanessalopez21254@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Susana Zenteno Jurado', 'moralrsmorales@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Yeraldin', 'geraltaborda40@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Manuel Antón Mosteiro García', 'mamosteiro@hotmail.es', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Diana Flores ', 'dianitaflores854@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 0, 1, 1, 'Rivka', 'rivkaplotnikova28@hotmail.com', 1, DEFAULT, DEFAULT),
+-- (DEFAULT, NULL, 1, 1, 1, 'Iliana', 'ilianazapico1103@gmail.com', 1, DEFAULT, DEFAULT),
+-- (DEFAULT, NULL, 1, 1, 1, 'Joselin', 'centenojt29@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Enver Bazante', 'ggermanb@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 0, 1, 'Ruis coy', 'ruiscoy@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Andrea', 'andrealmarenco@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Danna Quiroz', 'dannapaola61863@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Sandra Jaimes', 'sandra.jaimes.celis@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Nataly', 'natalyacalderonh@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Rashel ', 'Rashelgarcia03@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Joselin', 'centenojt29@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Luis Gustavo', 'mulatillovasquezluis2@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Elena', 'elenaacaro31@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Nicole Zevallos Alarcon', 'nicole.zevallos@ucsp.edu.pe', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Juanrobertoautor ', 'juanelmanu@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Dayana ', 'anchitipandayana1@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Susana Vaca Fuentes ', 'licsue@yahoo.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Jeyr', 'jackofeelins@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Marcelo León Jara', 'mleon369@hotmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'An', 'anescribes@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Silvia Ester mamani', 'roderojas11@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 0, 1, 1, 'Manuel Silva ', 'xenophilo1@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Nelly Mendoza Sánchez ', 'enead5@hotmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Carlos Valdés', 'Pubyco@yahoo.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Samuel Molina', 'ss97lgdlv@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Martín Madín', 'martinmadinramirez1986.7@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Angélica ', 'angelica2609@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Lucas Puentes Vilchis', 'lucas.puentes@plastiglas.com.mx', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Martín Bisio', 'mbisio@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Victoria Pikholc', 'sabrinagarlic@hotmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'So Van de Langerberg ', 'NoVgs3697@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Alexa', 'vacationstelephone@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'josue', 'josuevalentramijac@hotmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Ernesto Lópz', 'erlovi31@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Ana', 'alianita201@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Rivera', 'rdgzccs@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Alyah Fulgencio', 'fulgencioalyah2004@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Maria', 'merodriguezvalentin@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Paula', 'paulacuelli@hotmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Karla Yazmin', 'heryourself01997@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Llany', 'Jhany0904@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Neisy Alvarez', 'alvarezneisy106@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'ID Loría', 'dianaloria08@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'MIGUEL ANGEL DURAND MELGAREJO', 'mig6209@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Myrian Silva', 'sillvamyrian9@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Fernando baena Vejarano', 'ferbaena7@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Mar', 'marcela.valdesdostres@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Santiago Vega', 'bookgamecorporation@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Ricarda Pantoja', 'laaldeademoco@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Fernanda Ramos ', 'susan_mare@hotmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Jarlin Mejía ', 'jarlinyaelm@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Guillermo Alfaro Morera ', 'alfaromorera1965@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Geovanny', 'geoalfchaconromerom@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Eliseo García Martínez', 'garciaeliseo75@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Katherin', 'katherinalvaradoespinosa@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Liliana', 'lilianadelrossoescritora@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Melody Domínguez ', 'gdmngz1828@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Yazmin venegas ', 'venegasjazz@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'José Manuel Valdez', 'jmvldz@hotmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Carlos Montaño ', 'montanocarlos@gmail.com', 1, DEFAULT, DEFAULT),
+(DEFAULT, NULL, 1, 1, 1, 'Jennifer', 'jennifergarrigosmartinez1232@gmail.com', 1, DEFAULT, DEFAULT);
+
+-- Actualizo el nombre de un suscriptor
+UPDATE SUBSCRIBERS SET names = 'Alyoh', courses = 1 where id = 2;
+USE TL_PROD;
+call USP_GET_MAGAZINE_SUBSCRIBERS

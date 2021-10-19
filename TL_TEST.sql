@@ -108,6 +108,19 @@ ADD FOREIGN KEY (appId) REFERENCES CONTACT_APPS(id),
 ADD FOREIGN KEY (roleId) REFERENCES USER_ROLES(id),
 ADD UNIQUE INDEX USERS_FOLLOWNAME_INDEX (followName);
 
+/*-- Roles por usuario (Un usuario puede ser admin, moderador, colaborador)
+CREATE TABLE ROLES_BY_USER (
+	userId INT(10) ZEROFILL UNSIGNED NOT NULL,
+    roleId VARCHAR(50) NOT NULL,
+	createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+ALTER TABLE ROLES_BY_USER
+ADD PRIMARY KEY (userId, roleId),
+ADD FOREIGN KEY (userId) REFERENCES USERS(id),
+ADD FOREIGN KEY (roleId) REFERENCES USER_ROLES(id);*/
+
 -- Inscripciones a los eventos
 CREATE TABLE INSCRIPTIONS (
   id INT(10) ZEROFILL UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -528,7 +541,6 @@ BEGIN
                 BEGIN
 					UPDATE ORDERS SET numDownloads = numDownloads + 1 WHERE id = NEW.orderId; -- Actualizo las estadísticas de los corazones del pedido
 				END;
-                ELSE BEGIN END;
 			END CASE;            
         END IF;
 	ELSEIF NEW.magazineId IS NOT NULL THEN
@@ -552,8 +564,7 @@ BEGIN
                 BEGIN
 					UPDATE MAGAZINES SET numSubscribers = numSubscribers + 1 WHERE id = NEW.magazineId; -- Actualizo las estadísticas de los suscriptores de la revista
 				END;
-                ELSE BEGIN END;
-			END CASE;
+			END CASE;     
         END IF;
 	END IF;
 END; //
@@ -594,9 +605,11 @@ BEGIN
 					BEGIN
 						UPDATE ORDERS SET numDownloads = numDownloads + SUM_VALUE_ORDER WHERE id = NEW.orderId; -- Actualizo las estadísticas de los corazones del pedido
 					END;
-				ELSE BEGIN END;
 			END CASE;			
-        END;                
+        END;
+                
+        
+                
         -- La revista ha cambiado
 		ELSEIF OLD.magazineId IS NOT NULL THEN
         BEGIN
@@ -627,934 +640,10 @@ BEGIN
 					BEGIN
 						UPDATE MAGAZINES SET numSubscribers = numSubscribers + SUM_VALUE_MAGAZINE WHERE id = NEW.magazineId; -- Actualizo las estadísticas de los suscriptores de la revista
 					END;
-				ELSE BEGIN END;
 			END CASE;
         END;
 		END IF;
     END IF;
-END; //
-DELIMITER ;
-
--- Procedimientos
-
--- Obtiene la data privada estrictamente necesaria de un usuario si se encuentra activo
-DROP PROCEDURE IF EXISTS USP_GET_PRIVATE_USER_BY_EMAIL;
-DELIMITER //
-CREATE PROCEDURE USP_GET_PRIVATE_USER_BY_EMAIL (P_EMAIL VARCHAR(200))
-BEGIN
-	SELECT id, email, emailVerified, fName, lName, followName, urlProfileImg, roleId FROM USERS WHERE email = P_EMAIL AND active = 1;
-END; //
-DELIMITER ;
-
--- Obtiene la data privada de un perfil
-DROP PROCEDURE IF EXISTS USP_GET_PRIVATE_PROFILE_BY_ID;
-DELIMITER //
-CREATE PROCEDURE USP_GET_PRIVATE_PROFILE_BY_ID (P_USER_ID INT)
-BEGIN
-	SELECT id, email, emailVerified, contactEmail, fName, lName, birthday, phone, appId, pseudonym, followName, numFollowers, numComments, numHearts, urlProfileImg, occupation, about, networks, roleId, createdAt FROM USERS WHERE id = P_USER_ID AND active = 1;
-END; //
-DELIMITER ;
-
--- Obtiene la data pública de un perfil
-DROP PROCEDURE IF EXISTS USP_GET_PUBLIC_PROFILE_BY_ID;
-DELIMITER //
-CREATE PROCEDURE USP_GET_PUBLIC_PROFILE_BY_ID (P_USER_ID INT)
-BEGIN
-	SELECT id, contactEmail, fName, lName, followName, numFollowers, numComments, numHearts, urlProfileImg, about, networks, roleId, createdAt FROM USERS WHERE id = P_USER_ID AND active = 1;
-END; //
-DELIMITER ;
-
--- Obtiene los eventos más cercanos a iniciar
-DROP PROCEDURE IF EXISTS USP_GET_LATEST_EVENTS;
-DELIMITER //
-CREATE PROCEDURE USP_GET_LATEST_EVENTS (P_LIMIT INT, P_LAST_DATE DATETIME)
-BEGIN
-DECLARE V_LAST_DATE DATETIME;
-IF (P_LAST_DATE IS NULL) THEN
-BEGIN
-	SET V_LAST_DATE = DATE_ADD((SELECT MAX(ED.from) FROM EVENT_DATES ED), INTERVAL 1 HOUR);
-END;
-ELSE
-BEGIN
-	SET V_LAST_DATE = P_LAST_DATE;    
-END;
-END IF;
-
-SELECT 
-    E.id,
-    E.name,
-    E.urlBg,
-    E.price,
-    E.currency,
-    E.platform,
-    E.title,
-    E.about,
-    E.timezoneText,
-    E.alias,
-    ED.from,
-    ED.until,
-    ED.weekly
-FROM
-    EVENTS E
-        JOIN
-    EVENT_DATES ED ON E.id = ED.eventId
-WHERE
-    ED.from < V_LAST_DATE AND ED.active = 1
-        AND E.active = 1
-GROUP BY E.id
-ORDER BY ED.from DESC
-LIMIT P_LIMIT;
-END; //
-DELIMITER ;
-
--- Obtiene los eventos
-DROP PROCEDURE IF EXISTS USP_GET_EVENT_BY_ALIAS;
-DELIMITER //
-CREATE PROCEDURE USP_GET_EVENT_BY_ALIAS (P_ALIAS VARCHAR(200))
-BEGIN
-SELECT E.id, E.name, E.urlBg, E.urlPresentation, E.requisites, E.objectives, E.benefits, E.topics, E.price, E.currency, E.platform, E.paymentLink, E.paymentMethod, E.paymentFacilities, E.recordings, E.title, E.about, E.condition, E.timezoneText, E.whatsappGroup, E.alias, E.extraData
-FROM EVENTS E
-WHERE E.alias = P_ALIAS AND E.active = 1
-LIMIT 1;
-END; //
-DELIMITER ;
-
--- Obtiene las fechas de los eventos
-DROP PROCEDURE IF EXISTS USP_GET_DATES_BY_EVENT_ALIAS;
-DELIMITER //
-CREATE PROCEDURE USP_GET_DATES_BY_EVENT_ALIAS (P_ALIAS VARCHAR(200))
-BEGIN
-SELECT ED.from, ED.until, ED.weekly
-FROM EVENT_DATES ED
-JOIN EVENTS E
-ON E.id = ED.eventId
-WHERE E.alias=P_ALIAS AND E.active = 1 AND ED.active = 1;
-END; //
-DELIMITER ;
-
--- Obtiene los instructores de los eventos
-DROP PROCEDURE IF EXISTS USP_GET_INSTRUCTORS_BY_EVENT_ALIAS;
-DELIMITER //
-CREATE PROCEDURE USP_GET_INSTRUCTORS_BY_EVENT_ALIAS (P_ALIAS VARCHAR(200))
-BEGIN
-SELECT -- Si userId es nulo, significa que los datos están en la tabla actual. Caso contrario, debo consultarlo desde la tabla USERS
-IBE.userId,
-CASE WHEN IBE.userId IS NULL THEN IBE.fName ELSE (SELECT fName FROM USERS WHERE id = IBE.userId LIMIT 1) END as fName,
-CASE WHEN IBE.userId IS NULL THEN IBE.lName ELSE (SELECT lName FROM USERS WHERE id = IBE.userId LIMIT 1) END as lName,
-CASE WHEN IBE.userId IS NULL THEN IBE.urlProfileImg ELSE (SELECT urlProfileImg FROM USERS WHERE id = IBE.userId LIMIT 1) END as urlProfileImg,
-CASE WHEN IBE.userId IS NULL THEN IBE.occupation ELSE (SELECT occupation FROM USERS WHERE id = IBE.userId LIMIT 1) END as occupation,
-CASE WHEN IBE.userId IS NULL THEN IBE.about ELSE (SELECT about FROM USERS WHERE id = IBE.userId LIMIT 1) END as about,
-CASE WHEN IBE.userId IS NULL THEN IBE.networks ELSE (SELECT networks FROM USERS WHERE id = IBE.userId LIMIT 1) END as networks
-FROM INSTRUCTORS_BY_EVENT IBE
-JOIN EVENTS E
-ON E.id = IBE.eventId
-WHERE E.alias = P_ALIAS;
-END; //
-DELIMITER ;
-
--- Registra inscripción a un evento
-DROP PROCEDURE IF EXISTS USP_INSERT_INSCRIPTION;
-DELIMITER //
-CREATE PROCEDURE USP_INSERT_INSCRIPTION (P_EVENT_ID INT(10), P_USER_ID INT(10), P_NAMES VARCHAR(200), P_AGE TINYINT, P_PHONE VARCHAR(50), P_APP VARCHAR(50), P_EMAIL VARCHAR(200), P_NOTIFY BOOLEAN, P_PAYMENT_DATA JSON, P_EXTRA_DATA JSON)
-BEGIN
-INSERT INTO INSCRIPTIONS VALUES (DEFAULT, P_EVENT_ID, P_USER_ID, P_NAMES, P_AGE, P_PHONE, P_APP, P_EMAIL, P_NOTIFY, P_PAYMENT_DATA, P_EXTRA_DATA, DEFAULT, DEFAULT, DEFAULT);
-END; //
-DELIMITER ;
-
--- Verifica si un correo ya se registró en un evento. Si se registró con userId, verifica el email en la tabla Users también
-DROP PROCEDURE IF EXISTS USP_EXISTS_INSCRIPTION;
-DELIMITER //
-CREATE PROCEDURE USP_EXISTS_IN_INSCRIPTION (P_EVENT_ID INT(10), P_USER_ID INT(10), P_EMAIL VARCHAR(200)) -- Si paso P_USER_ID, se supone que no debo pasar el email, porque la info ya es suficiente. Viceversa con P_EMAIL
-BEGIN
-SELECT EXISTS (
-SELECT id FROM INSCRIPTIONS WHERE eventId=P_EVENT_ID AND (email=P_EMAIL OR userId=P_USER_ID)
-UNION
-SELECT I.id FROM INSCRIPTIONS I
-JOIN
-USERS U
-ON U.id = I.userId
-WHERE I.eventId=P_EVENT_ID AND (U.email=P_EMAIL OR U.id=P_USER_ID)
-) AS 'exists';
-END; //
-DELIMITER ;
-
--- Realiza la suscripción a un servicio
-DROP PROCEDURE IF EXISTS USP_SUBSCRIBE;
-DELIMITER //
-CREATE PROCEDURE USP_SUBSCRIBE (P_USER_ID INT(10), P_SUB_COURSES BOOLEAN, P_SUB_MAGAZINE BOOLEAN, P_SUB_NOVELTIES BOOLEAN, P_NAMES VARCHAR(200), P_EMAIL VARCHAR(200))
-BEGIN
-IF EXISTS (SELECT id FROM SUBSCRIBERS WHERE userId = P_USER_ID OR email = P_EMAIL) THEN -- Si ..._COURSES, ..._MAGAZINE o ..._NOVELTIES es NULL, significa que esos valores no se deben actualizar
-	IF P_SUB_COURSES IS NOT NULL THEN
-		UPDATE SUBSCRIBERS SET courses = P_SUB_COURSES WHERE userId = P_USER_ID OR email = P_EMAIL;
-    END IF;
-    
-    IF P_SUB_MAGAZINE IS NOT NULL THEN
-		UPDATE SUBSCRIBERS SET magazine = P_SUB_MAGAZINE WHERE userId = P_USER_ID OR email = P_EMAIL;
-    END IF;
-			
-	IF P_SUB_NOVELTIES IS NOT NULL THEN
-		UPDATE SUBSCRIBERS SET novelties = P_SUB_NOVELTIES WHERE userId = P_USER_ID OR email = P_EMAIL;
-    END IF;
-ELSE
-	INSERT INTO SUBSCRIBERS VALUES (DEFAULT, P_USER_ID, P_SUB_COURSES, P_SUB_MAGAZINE, P_SUB_NOVELTIES, P_NAMES, P_EMAIL, 1, DEFAULT, DEFAULT);
-END IF;
-END; //
-DELIMITER ;
-
--- Para insertar las estadísticas SI ES QUE NO HAY UNA IGUAL. Caso contrario, que solo la actualice
-DROP PROCEDURE IF EXISTS USP_ADD_STATISTICS;
-DELIMITER //
-CREATE PROCEDURE USP_ADD_STATISTICS (P_USER_ID INT(10), P_EMAIL VARCHAR(200), P_SOCIAL_NETWORK_NAME VARCHAR(50), P_ORDER_ID INT(10), P_MAGAZINE_ID INT(10), P_ACTION_ID VARCHAR(50), P_ACTIVE BOOLEAN)
-BEGIN
-	DECLARE STATISTIC_ID INT;
-        
-    SELECT id INTO STATISTIC_ID FROM ACTIONS_BY_USER_ON_ITEM WHERE userId <=> P_USER_ID AND email <=> P_EMAIL AND orderId <=> P_ORDER_ID AND magazineId <=> P_MAGAZINE_ID AND actionId <=> P_ACTION_ID LIMIT 1;
-    
-    IF STATISTIC_ID IS NULL OR P_USER_ID IS NULL THEN -- Pregunto si P_USER_ID is null porque en el caso de estadísticas de COMPARTIR no es necesario que el usuario esté logueado (Puede ser null)
-		BEGIN
-			-- Insertar nuevo. La primera estadística de cada tipo, se supone que siempre tiene el estado active por DEFAULT, por eso no se pasa aquí
-			INSERT INTO ACTIONS_BY_USER_ON_ITEM VALUES (DEFAULT, P_USER_ID, P_EMAIL, P_SOCIAL_NETWORK_NAME, P_ORDER_ID, P_MAGAZINE_ID, P_ACTION_ID, DEFAULT, DEFAULT, DEFAULT);
-        END;
-	ELSE
-		BEGIN
-			-- El único campo permitido para actualizarse tiene que ser active, para saber si esa reacción se quitó o se activo. Esto se hace para asegurarse de que cada acción es única
-            UPDATE ACTIONS_BY_USER_ON_ITEM SET active = P_ACTIVE WHERE id = STATISTIC_ID;
-        END;
-    END IF;
-	
-END; //
-DELIMITER ;
-
--- Para insertar un pedido. La creación no requiere todos los campos de la tabla
-DROP PROCEDURE IF EXISTS USP_CREATE_ORDER;
-DELIMITER //
-CREATE PROCEDURE USP_CREATE_ORDER (P_CLIENT_USER_ID INT(10), P_CLIENT_EMAIL VARCHAR(200), P_CLIENT_NAMES VARCHAR(200), P_CLIENT_AGE TINYINT, P_CLIENT_PHONE VARCHAR(50), P_CLIENT_APP VARCHAR(50), P_WORKER_ID INT(10),  P_EDITORIAL_ID INT(10), P_SERVICE_ID VARCHAR(50), P_SUBSERVICE_ID VARCHAR(50), P_STATUS_ID VARCHAR(50), P_TITLE_WORK VARCHAR(200), P_LINK_WORK VARCHAR(500), P_PSEUDONYM VARCHAR(200), P_SYNOPSIS VARCHAR(500), P_DETAILS VARCHAR(500), P_INTENTION VARCHAR(500), P_MAIN_PHRASE VARCHAR(200), P_NOTIFY BOOLEAN, P_IMG_URL_DATA JSON, P_PRIORITY VARCHAR(50), P_EXTRA_DATA JSON, P_PUBLIC_RESULT BOOLEAN, P_VERSION VARCHAR(100))
-BEGIN
-	INSERT INTO ORDERS VALUES (DEFAULT, P_CLIENT_USER_ID, P_CLIENT_EMAIL, P_CLIENT_NAMES, P_CLIENT_AGE, P_CLIENT_PHONE, P_CLIENT_APP, P_WORKER_ID, NULL, NULL, NULL, P_EDITORIAL_ID, P_SERVICE_ID, P_SUBSERVICE_ID, P_STATUS_ID, NULL, NULL, P_TITLE_WORK, P_LINK_WORK, P_PSEUDONYM, P_SYNOPSIS, P_DETAILS, P_INTENTION, P_MAIN_PHRASE, NULL, P_NOTIFY, P_IMG_URL_DATA, P_PRIORITY, P_EXTRA_DATA, P_PUBLIC_RESULT, NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, P_VERSION, DEFAULT, DEFAULT);    
-END; //
-DELIMITER ;
-
--- Para obtener a las personas que dan X servicio de Z editorial
-DROP PROCEDURE IF EXISTS USP_GET_MEMBERS_BY_EDITORIAL_SERVICE;
-DELIMITER //
-CREATE PROCEDURE USP_GET_MEMBERS_BY_EDITORIAL_SERVICE (P_EDITORIAL_ID INT, P_SERVICE_ID VARCHAR(50))
-BEGIN
-SELECT EMS.userId as 'id', CONCAT(U.fName, " ", U.lName) as 'name', U.urlProfileImg as 'imgUrl', EMS.description, EM.availability FROM EDITORIAL_MEMBER_SERVICES EMS
-JOIN EDITORIAL_MEMBERS EM
-ON EM.userId = EMS.userId
-AND EM.editorialId = EMS.editorialId
-JOIN USERS U
-ON U.id = EMS.userId
-WHERE EMS.editorialId = P_EDITORIAL_ID
-AND EMS.serviceId = P_SERVICE_ID
-GROUP BY EMS.userId; -- Para que este campo sea único, porque hay campos como serviceId que tienen subServices null y not null, y ahí se pueden repetir los resultados
-END; //
-DELIMITER ;
-
--- Para obtener las revistas por año
-DROP PROCEDURE IF EXISTS USP_GET_MAGAZINES_BY_YEAR;
-DELIMITER //
-CREATE PROCEDURE USP_GET_MAGAZINES_BY_YEAR (P_YEAR INT)
-BEGIN
-	SELECT M.id, M.title, M.urlPortrait, M.numPag, M.edition, M.year, M.numHearts, M.numComments, M.numViews, M.numDownloads, M.numSubscribers, M.alias, E.id as editorialId, E.name as editorialName, E.bgColor as editorialBgColor, E.networks as editorialNetworks
-    FROM MAGAZINES M
-    JOIN EDITORIALS E
-    ON M.editorialId = E.id
-    WHERE M.active = 1 AND M.year = P_YEAR ORDER BY M.createdAt DESC;
-END; //
-DELIMITER ;
-
--- Para obtener una revista por alias. El parámetro P_USER_ID_FOR_ACTION puede ser null y solo sirve para ver si dicho usuario ha dejado una reacción en la revista (tabla ACTIONS_BY_USER_ON_ITEM)
-DROP PROCEDURE IF EXISTS USP_GET_MAGAZINE_BY_ALIAS;
-DELIMITER //
-CREATE PROCEDURE USP_GET_MAGAZINE_BY_ALIAS (P_ALIAS VARCHAR(200), P_USER_ID_FOR_ACTION INT)
-BEGIN
-	DECLARE V_USER_ID_FOR_ACTION INT;
-		IF (P_USER_ID_FOR_ACTION IS NULL) THEN
-			BEGIN
-				SET V_USER_ID_FOR_ACTION = NULL;
-			END;
-		ELSE
-			BEGIN
-				SET V_USER_ID_FOR_ACTION = P_USER_ID_FOR_ACTION;
-			END;
-	END IF;
-
-	SELECT
-    M.id,
-    M.title,
-    M.urlPortrait,
-    M.displayUrl,
-    M.url,
-    M.numPag,
-    M.edition,
-    M.year,
-    M.numHearts,
-    M.numComments,
-    M.numViews,
-    M.numDownloads,
-    M.numSubscribers,
-    M.alias,
-    E.id as editorialId,
-    E.name as editorialName,
-    E.bgColor as editorialBgColor,
-    E.networks as editorialNetworks,
-      -- Para verificar si ha dado una reacción de corazón
-    CASE
-		WHEN V_USER_ID_FOR_ACTION IS NULL THEN
-			NULL
-		ELSE
-			(SELECT EXISTS ( SELECT ABU.userId FROM ACTIONS_BY_USER_ON_ITEM ABU JOIN MAGAZINES M ON ABU.magazineId = M.id WHERE M.alias = P_ALIAS AND ABU.active = 1 AND ABU.actionId = 'GUSTAR'))
-	END as hasGivenLove
-    FROM MAGAZINES M
-    JOIN EDITORIALS E
-    ON M.editorialId = E.id
-    WHERE M.active = 1 AND M.alias = P_ALIAS;
-END; //
-DELIMITER ;
-
--- Para obtener comentarios de una revista, según su id. Esto sirve cuando el id no está disponible o no es bonito pasarlo. Por ejemplo, al postear un comentario y usar esos mismos datos para obtenerlos actualizados
-DROP PROCEDURE IF EXISTS USP_GET_OLDER_COMMENTS_BY_MAGAZINE_ID;
-DELIMITER //
-CREATE PROCEDURE USP_GET_OLDER_COMMENTS_BY_MAGAZINE_ID (P_MAGAZINE_ID INT, P_LIMIT INT, P_LAST_TIMESTAMP TIMESTAMP)
-BEGIN
-DECLARE V_LAST_TIMESTAMP TIMESTAMP;
-	IF (P_LAST_TIMESTAMP IS NULL) THEN
-		BEGIN
-			SET V_LAST_TIMESTAMP = TIMESTAMPADD(HOUR, 1, (SELECT MAX(C.createdAt) FROM COMMENTS C));
-		END;
-	ELSE
-		BEGIN
-			SET V_LAST_TIMESTAMP = P_LAST_TIMESTAMP;    
-		END;
-END IF;
-
-SELECT C.id, C.userId, CONCAT(U.fName, ' ', U.lName) as names, U.urlProfileImg as urlImg, C.content, C.createdAt FROM COMMENTS C
-JOIN MAGAZINES M
-ON C.magazineId = M.id
-JOIN USERS U
-ON U.id = C.userId
-WHERE C.statusId = 'APROBADO' AND M.id = P_MAGAZINE_ID AND C.createdAt < V_LAST_TIMESTAMP
-ORDER BY C.createdAt DESC
-LIMIT P_LIMIT;
-END; //
-DELIMITER ;
-
--- Para obtener comentarios de una revista, según su alias. Dado que se obtienen los más actuales primero, el parámetro P_LAST_TIMESTAMP debe obtener los más antiguos que le siguen. Esto se usa para obtener la revista con una URL
-DROP PROCEDURE IF EXISTS USP_GET_OLDER_COMMENTS_BY_MAGAZINE_ALIAS;
-DELIMITER //
-CREATE PROCEDURE USP_GET_OLDER_COMMENTS_BY_MAGAZINE_ALIAS (P_ALIAS VARCHAR(200), P_LIMIT INT, P_LAST_TIMESTAMP TIMESTAMP)
-BEGIN
-DECLARE V_LAST_TIMESTAMP TIMESTAMP;
-	IF (P_LAST_TIMESTAMP IS NULL) THEN
-		BEGIN
-			SET V_LAST_TIMESTAMP = TIMESTAMPADD(HOUR, 1, (SELECT MAX(C.createdAt) FROM COMMENTS C));
-		END;
-	ELSE
-		BEGIN
-			SET V_LAST_TIMESTAMP = P_LAST_TIMESTAMP;    
-		END;
-END IF;
-
-SELECT C.id, C.userId, CONCAT(U.fName, ' ', U.lName) as names, U.urlProfileImg as urlImg, C.content, C.createdAt FROM COMMENTS C
-JOIN MAGAZINES M
-ON C.magazineId = M.id
-JOIN USERS U
-ON U.id = C.userId
-WHERE C.statusId = 'APROBADO' AND M.alias = P_ALIAS AND C.createdAt < V_LAST_TIMESTAMP
-ORDER BY C.createdAt DESC
-LIMIT P_LIMIT;
-END; //
-DELIMITER ;
-
--- Para obtener comentarios de un pedido, según su id. Dado que se obtienen los más actuales primero, el parámetro P_LAST_TIMESTAMP debe obtener los más antiguos que le siguen
-DROP PROCEDURE IF EXISTS USP_GET_OLDER_COMMENTS_BY_ORDER_ID;
-DELIMITER //
-CREATE PROCEDURE USP_GET_OLDER_COMMENTS_BY_ORDER_ID (P_ORDER_ID INT, P_LIMIT INT, P_LAST_TIMESTAMP TIMESTAMP)
-BEGIN
-DECLARE V_LAST_TIMESTAMP TIMESTAMP;
-	IF (P_LAST_TIMESTAMP IS NULL) THEN
-		BEGIN
-			SET V_LAST_TIMESTAMP = TIMESTAMPADD(HOUR, 1, (SELECT MAX(C.createdAt) FROM COMMENTS C));
-		END;
-	ELSE
-		BEGIN
-			SET V_LAST_TIMESTAMP = P_LAST_TIMESTAMP;    
-		END;
-END IF;
-
-SELECT C.id, C.userId, CONCAT(U.fName, ' ', U.lName) as names, U.urlProfileImg as urlImg, C.content, C.createdAt FROM COMMENTS C
-JOIN ORDERS O
-ON O.id = C.orderId
-JOIN USERS U
-ON U.id = C.userId
-WHERE C.statusId = 'APROBADO' AND O.id = P_ORDER_ID AND C.createdAt < V_LAST_TIMESTAMP
-ORDER BY C.createdAt DESC
-LIMIT P_LIMIT;
-END; //
-DELIMITER ;
-
--- Postea un comentario
-DROP PROCEDURE IF EXISTS USP_POST_COMMENT;
-DELIMITER //
-CREATE PROCEDURE USP_POST_COMMENT (P_USER_ID INT, P_ORDER_ID INT, P_MAGAZINE_ID INT, P_CONTENT VARCHAR(1000))
-BEGIN
-	INSERT INTO COMMENTS VALUES (DEFAULT, P_USER_ID, P_ORDER_ID, P_MAGAZINE_ID, P_CONTENT, NULL, 'APROBADO', DEFAULT, DEFAULT);
-    SELECT C.id, C.userId, CONCAT(U.fName, ' ', U.lName) as names, U.urlProfileImg as urlImg, C.content, C.createdAt FROM COMMENTS C
-	JOIN USERS U
-	ON U.id = C.userId
-    WHERE C.id = LAST_INSERT_ID();
-END; //
-DELIMITER ;
-
--- Verifica 1) si el usuario existe, y 2) si el usuario está activo o ha sido inhabilitado; ambos por email. Esto sirve para validar el login y enviar mensajes de error dependiendo si el usuario está inhabilitado o si no existe.
-DROP PROCEDURE IF EXISTS USP_GET_USER_STATUS_BY_EMAIL;
-DELIMITER //
-CREATE PROCEDURE USP_GET_USER_STATUS_BY_EMAIL (P_EMAIL VARCHAR(200))
-BEGIN
-SELECT
-	EXISTS ( SELECT id FROM USERS WHERE email = P_EMAIL ) AS 'exists',
-	EXISTS ( SELECT id FROM USERS WHERE email = P_EMAIL AND active = 1 ) AS 'active'; 
-END; //
-DELIMITER ;
-
--- Registro un usuario
-DROP PROCEDURE IF EXISTS USP_REGISTER_USER;
-DELIMITER //
-CREATE PROCEDURE USP_REGISTER_USER (P_FNAME VARCHAR(200), P_LNAME VARCHAR(200), P_EMAIL VARCHAR(200), P_FOLLOW_NAME VARCHAR(200))
-BEGIN
-	INSERT INTO USERS VALUES (DEFAULT, P_EMAIL, 0, NULL, P_FNAME, P_LNAME, NULL, NULL, NULL, NULL, P_FOLLOW_NAME, DEFAULT, DEFAULT, DEFAULT, NULL, NULL, NULL, DEFAULT, 'BASIC', 1, DEFAULT, DEFAULT);
-END; //
-DELIMITER ;
-
--- Obtiene los servicios de una editorial. El segundo parámetro es para incluir o excluir subservicios
-DROP PROCEDURE IF EXISTS USP_GET_EDITORIAL_SERVICES;
-DELIMITER //
-CREATE PROCEDURE USP_GET_EDITORIAL_SERVICES (P_EDITORIAL_ID INT, P_INCLUDE_SUBSERVICES BOOLEAN)
-BEGIN
-	SELECT SBE.serviceId, SBE.subserviceId, S.name, SBE.urlBg
-    FROM SERVICES_BY_EDITORIAL SBE
-    JOIN SERVICES S
-    ON S.id = SBE.serviceId
-    LEFT JOIN SUBSERVICES SS -- Left join porque debo traer todos los servicios, tengan o no un subservicio
-    ON SS.id = SBE.subserviceId
-    WHERE SBE.editorialId <=> P_EDITORIAL_ID
-    AND (
-		CASE
-			WHEN P_INCLUDE_SUBSERVICES = 0 THEN
-				SBE.subserviceId IS NULL
-			ELSE TRUE
-		END
-        );   
-END; //
-DELIMITER ;
-
--- Obtiene los servicios que el miembro de una editorial brinda (Ejemplo: X miembro hace críticas y diseños)
-DROP PROCEDURE IF EXISTS USP_GET_EDITORIAL_SERVICES_BY_EDITORIAL_MEMBER;
-DELIMITER //
-CREATE PROCEDURE USP_GET_EDITORIAL_SERVICES_BY_EDITORIAL_MEMBER (P_USER_ID INT, P_EDITORIAL_ID INT, P_INCLUDE_SUBSERVICES BOOLEAN)
-BEGIN
-	SELECT EMS.serviceId, EMS.subserviceId, S.name as 'serviceName', S.name as 'subserviceName', SBE.urlBg
-    FROM EDITORIAL_MEMBER_SERVICES EMS
-    JOIN SERVICES S
-    ON S.id = EMS.serviceId
-    LEFT JOIN SUBSERVICES SS -- Left join porque debo traer todos los servicios, tengan o no un subservicio
-    ON SS.id = EMS.subserviceId
-	JOIN SERVICES_BY_EDITORIAL SBE -- Solo para asegurarnos de que la editorial tiene habilitado ese servicio
-    ON SBE.editorialId = EMS.editorialId AND SBE.serviceId = EMS.serviceId
-    JOIN EDITORIAL_MEMBERS EM -- Solo para asegurarnos de que la editorial tiene a ese miembro registrado
-    ON EMS.userId = EM.userId    
-	WHERE
-		EMS.userId = P_USER_ID
-		AND EMS.editorialId <=> P_EDITORIAL_ID
-        AND EM.active = 1 -- El miembro de la editorial está activo
-        AND (
-			CASE
-				WHEN P_INCLUDE_SUBSERVICES = 0 THEN
-					EMS.subserviceId IS NULL
-				ELSE TRUE
-			END
-			)
-	GROUP BY EMS.editorialId, EMS.serviceId, EMS.subserviceId;    
-END; //
-DELIMITER ;
-
--- Obtiene TODOS los servicios que un usuario brinda, ya sea dentro de una editorial o por si mismo
-DROP PROCEDURE IF EXISTS USP_GET_ALL_SERVICES_BY_USER;
-DELIMITER //
-CREATE PROCEDURE USP_GET_ALL_SERVICES_BY_USER (P_USER_ID INT, P_INCLUDE_SUBSERVICES BOOLEAN)
-BEGIN
-	SELECT EMS.serviceId, EMS.subserviceId, S.name as 'serviceName', S.name as 'subserviceName' -- Representa los servicios que un miembro ofrece dentro de una editorial
-    FROM EDITORIAL_MEMBER_SERVICES EMS
-    JOIN SERVICES S
-    ON S.id = EMS.serviceId
-    LEFT JOIN SUBSERVICES SS -- Left join porque debo traer todos los servicios, tengan o no un subservicio
-    ON SS.id = EMS.subserviceId
-	WHERE
-		EMS.userId = P_USER_ID
-        AND (
-			CASE
-				WHEN P_INCLUDE_SUBSERVICES = 0 THEN
-					EMS.subserviceId IS NULL
-				ELSE TRUE
-			END
-			)
-	GROUP BY EMS.editorialId, EMS.serviceId, EMS.subserviceId
-    UNION -- Uno con los resultados de esta tabla, que representa los servicios por usuario (no requieren editorial)
-    SELECT SBY.serviceId, SBY.subserviceId, S.name as 'serviceName', S.name as 'subserviceName'
-    FROM SERVICES_BY_USER SBY
-    JOIN SERVICES S
-    ON S.id = SBY.serviceId
-    LEFT JOIN SUBSERVICES SS -- Left join porque debo traer todos los servicios, tengan o no un subservicio
-    ON SS.id = SBY.subserviceId
-    WHERE
-		SBY.userId = P_USER_ID
-        AND (
-			CASE
-				WHEN P_INCLUDE_SUBSERVICES = 0 THEN
-					SBY.subserviceId IS NULL
-				ELSE TRUE
-			END
-			);	
-END; //
-DELIMITER ;
-
--- Obtiene los pedidos PRIVADOS por editorial: Estado (disponible, tomado, listo), servicio (crítica, diseño, etc), subservicio (nullable), usuario (nullable, esto si ha sido tomado por él), por última fecha (nullable, para el scroll infinito) y si es público o no
-DROP PROCEDURE IF EXISTS USP_GET_PRIVATE_ORDERS_BY_EDITORIAL_ID;
-DELIMITER //
-CREATE PROCEDURE USP_GET_PRIVATE_ORDERS_BY_EDITORIAL_ID (P_EDITORIAL_ID INT, P_STATUS_ID VARCHAR(50), P_SERVICE_ID VARCHAR(50), P_SUBSERVICE_ID VARCHAR(50), P_WORKER_USER_ID INT, P_LAST_TIMESTAMP TIMESTAMP, P_PUBLIC BOOLEAN, P_LIMIT INT)
-BEGIN
-DECLARE V_LAST_TIMESTAMP TIMESTAMP;
-	IF (P_LAST_TIMESTAMP IS NULL) THEN
-		BEGIN
-			SET V_LAST_TIMESTAMP = TIMESTAMPADD(HOUR, 1, (SELECT MAX(O.createdAt) FROM ORDERS O));
-		END;
-	ELSE
-		BEGIN
-			SET V_LAST_TIMESTAMP = P_LAST_TIMESTAMP;    
-		END;
-END IF;
-
-SELECT
-	O.id,
-	O.clientUserId, -- Si clientUserId es nulo, significa que los datos están en la tabla actual. Caso contrario, debo consultarlo desde la tabla USERS. TODO: Cambiar el email por contactEmail del usuario
-	CASE WHEN O.clientUserId IS NULL THEN O.clientEmail ELSE (SELECT email FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientEmail,
-	CASE WHEN O.clientUserId IS NULL THEN O.clientNames ELSE (SELECT CONCAT(fName, " ", lName) FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientNames,
-	CASE WHEN O.clientUserId IS NULL THEN O.clientPhone ELSE (SELECT phone FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientPhone,
-	CASE WHEN O.clientUserId IS NULL THEN O.clientAppId ELSE (SELECT appId FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientAppId,
-	O.workerUserId,
-	U.fName as 'workerFName',
-    U.lName as 'workerLName',
-    U.networks as 'workerNetworks',
-    U.contactEmail as 'workerContactEmail',
-    U.urlProfileImg as 'workerUrlProfileImg',
-	O.serviceId,
-	O.subserviceId,
-	O.statusId,
-	O.titleWork,
-	O.linkWork,
-	O.pseudonym,
-	O.synopsis,
-	O.details,
-	O.intention,
-	O.mainPhrase,
-	O.imgUrlData,
-	O.priority,
-	O.extraData,
-	O.resultUrl,
-	O.numHearts,
-	O.numComments,
-	O.numViews,
-    O.numDownloads,
-    O.takenAt,
-    O.publicLink,
-    O.public,
-    O.version,
-    O.expiresAt,
-	O.createdAt
-FROM ORDERS O
-JOIN SERVICES_BY_EDITORIAL SBE -- Solo para asegurarnos de que la editorial tiene habilitado ese servicio
-ON SBE.editorialId = O.editorialId AND SBE.serviceId = O.serviceId
-JOIN EDITORIAL_MEMBERS EM -- Solo para asegurarnos de que la editorial tiene a ese miembro registrado
-ON EM.userId = P_WORKER_USER_ID
-LEFT JOIN `USERS` U -- Para que traiga todo, así los campos sean NULL
-ON U.id = O.workerUserId
-WHERE O.editorialId <=> P_EDITORIAL_ID
-AND O.statusId = P_STATUS_ID
-AND O.createdAt < V_LAST_TIMESTAMP
-AND O.serviceId = P_SERVICE_ID
-AND (
-	CASE
-		WHEN P_SUBSERVICE_ID IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
-			TRUE
-		ELSE O.subserviceId <=> P_SUBSERVICE_ID
-	END
-	)
-AND (
-	CASE
-		WHEN P_PUBLIC IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
-			TRUE
-		ELSE O.public = P_PUBLIC
-	END
-	)
-AND (
-	CASE
-		WHEN O.statusId = 'DISPONIBLE' THEN -- Por regla de negocio, si el estado de un pedido es DISPONIBLE, es porque aún no tiene un workerUserId asignado. Por lo tanto, no se debe validar en ese caso
-			TRUE
-		ELSE O.workerUserId = P_WORKER_USER_ID
-	END
-	)
-GROUP BY O.id -- Que los ids no se repitan
-ORDER BY O.createdAt DESC
-LIMIT P_LIMIT;
-END; //
-DELIMITER ;
-
--- Obtiene todos los datos PÚBLICOS de los pedidos según usuario y servicio. Esto sirve para verlos en un perfil ajeno
-DROP PROCEDURE IF EXISTS USP_GET_ALL_PUBLIC_ORDERS_BY_WORKER_USER_ID;
-DELIMITER //
-CREATE PROCEDURE USP_GET_ALL_PUBLIC_ORDERS_BY_WORKER_USER_ID (P_SERVICE_ID VARCHAR(50), P_SUBSERVICE_ID VARCHAR(50), P_WORKER_USER_ID INT, P_LAST_TIMESTAMP TIMESTAMP, P_LIMIT INT)
-BEGIN
-DECLARE V_LAST_TIMESTAMP TIMESTAMP;
-	IF (P_LAST_TIMESTAMP IS NULL) THEN
-		BEGIN
-			SET V_LAST_TIMESTAMP = TIMESTAMPADD(HOUR, 1, (SELECT MAX(O.createdAt) FROM ORDERS O));
-		END;
-	ELSE
-		BEGIN
-			SET V_LAST_TIMESTAMP = P_LAST_TIMESTAMP;    
-		END;
-END IF;
-
-SELECT
-	O.id,
-	CASE
-		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
-        ELSE O.clientUserId
-	END as clientUserId,
-	O.workerUserId,
-	U.fName as 'workerFName',
-    U.lName as 'workerLName',
-    U.networks as 'workerNetworks',
-    U.contactEmail as 'workerContactEmail',
-    U.urlProfileImg as 'workerUrlProfileImg',
-	O.serviceId,
-	O.subserviceId,
-	O.statusId,
-	O.titleWork,
-    O.editorialId,
-    CASE
-		WHEN O.public != 1 THEN ''  -- Si está privado, no se puede ver públicamente
-        ELSE E.name
-	END as editorialName,
-    CASE
-		WHEN O.public != 1 THEN ''  -- Si está privado, no se puede ver públicamente
-        ELSE E.bgColor
-	END as editorialBgColor,
-    CASE
-		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
-        ELSE O.numHearts
-	END as numHearts,
-    CASE
-		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
-        ELSE O.numComments
-	END as numComments,
-    CASE
-		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
-        ELSE O.numViews
-	END as numViews,
-    CASE
-		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
-        ELSE O.numDownloads
-	END as numDownloads,
-	CASE
-		WHEN O.public != 1 THEN ''
-		ELSE O.resultUrl
-	END as resultUrl, -- Solo se va a mostrar el link públicamente si el solicitante lo ha elegido así
-    CASE
-		WHEN O.public = 1 AND O.publicLink = 1 THEN O.linkWork
-		ELSE ''
-	END as linkWork, -- Solo se va a mostrar el link públicamente si el solicitante lo ha elegido así
-    O.publicLink,
-    O.public, -- Esto significa que no se puede acceder a ningún dato crítico públicamente, solo al título
-    O.version
-FROM ORDERS O
-LEFT JOIN `USERS` U -- Para que traiga todo, así los campos sean NULL
-ON U.id = O.workerUserId
-LEFT JOIN EDITORIALS E -- Para que traiga todo, así la editorial sea NULL
-ON E.id = O.editorialId
-WHERE O.statusId = 'HECHO'
-AND U.id = P_WORKER_USER_ID
-AND O.createdAt < V_LAST_TIMESTAMP
-AND O.serviceId = P_SERVICE_ID
-AND (
-	CASE
-		WHEN P_SUBSERVICE_ID IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
-			TRUE
-		ELSE O.subserviceId <=> P_SUBSERVICE_ID
-	END
-	)
-GROUP BY O.id -- Que los ids no se repitan
-ORDER BY O.createdAt DESC
-LIMIT P_LIMIT;
-END; //
-DELIMITER ;
-
--- Obtiene todos los datos PRIVADOS de los pedidos según usuario y servicio. Esto sirve para verlos en el perfil propio
-DROP PROCEDURE IF EXISTS USP_GET_ALL_PRIVATE_ORDERS_BY_WORKER_USER_ID;
-DELIMITER //
-CREATE PROCEDURE USP_GET_ALL_PRIVATE_ORDERS_BY_WORKER_USER_ID (P_SERVICE_ID VARCHAR(50), P_SUBSERVICE_ID VARCHAR(50), P_WORKER_USER_ID INT, P_LAST_TIMESTAMP TIMESTAMP, P_LIMIT INT)
-BEGIN
-DECLARE V_LAST_TIMESTAMP TIMESTAMP;
-	IF (P_LAST_TIMESTAMP IS NULL) THEN
-		BEGIN
-			SET V_LAST_TIMESTAMP = TIMESTAMPADD(HOUR, 1, (SELECT MAX(O.createdAt) FROM ORDERS O));
-		END;
-	ELSE
-		BEGIN
-			SET V_LAST_TIMESTAMP = P_LAST_TIMESTAMP;    
-		END;
-END IF;
-
-SELECT
-	O.id,
-	O.clientUserId, -- Si clientUserId es nulo, significa que los datos están en la tabla actual. Caso contrario, debo consultarlo desde la tabla USERS. TODO: Cambiar el email por contactEmail del usuario
-	CASE WHEN O.clientUserId IS NULL THEN O.clientEmail ELSE (SELECT email FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientEmail,
-	CASE WHEN O.clientUserId IS NULL THEN O.clientNames ELSE (SELECT CONCAT(fName, " ", lName) FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientNames,
-	CASE WHEN O.clientUserId IS NULL THEN O.clientPhone ELSE (SELECT phone FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientPhone,
-	CASE WHEN O.clientUserId IS NULL THEN O.clientAppId ELSE (SELECT appId FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientAppId,
-	O.workerUserId,
-	U.fName as 'workerFName',
-    U.lName as 'workerLName',
-    U.networks as 'workerNetworks',
-    U.contactEmail as 'workerContactEmail',
-    U.urlProfileImg as 'workerUrlProfileImg',
-	O.serviceId,
-	O.subserviceId,
-	O.statusId,
-	O.titleWork,
-	O.linkWork,
-	O.pseudonym,
-	O.synopsis,
-	-- O.details,
-	O.intention,
-	O.mainPhrase,
-	O.imgUrlData,
-	O.priority,
-	O.extraData,
-	O.resultUrl,
-    O.editorialId,
-    E.name as 'editorialName',
-    E.bgColor as 'editorialBgColor',
-	O.numHearts,
-	O.numComments,
-	O.numViews,
-    numDownloads,
-    O.takenAt,
-	O.public,
-    O.version,
-    O.expiresAt,
-	O.createdAt
-FROM ORDERS O
-LEFT JOIN `USERS` U -- Para que traiga todo, así los campos sean NULL
-ON U.id = O.workerUserId
-LEFT JOIN EDITORIALS E -- Para que traiga todo, así la editorial sea NULL
-ON E.id = O.editorialId
-WHERE O.statusId = 'HECHO'
-AND U.id = P_WORKER_USER_ID
-AND O.createdAt < V_LAST_TIMESTAMP
-AND O.serviceId = P_SERVICE_ID
-AND (
-	CASE
-		WHEN P_SUBSERVICE_ID IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
-			TRUE
-		ELSE O.subserviceId <=> P_SUBSERVICE_ID
-	END
-	)
-GROUP BY O.id -- Que los ids no se repitan
-ORDER BY O.createdAt DESC
-LIMIT P_LIMIT;
-END; //
-DELIMITER ;
-
--- Obtiene los totales PRIVADOS de cada estado de los pedidos por editorial y workerUserId. Ejemplo: X usuario, para críticas tiene (DISPONIBLE: 3, TOMADO: 2, HECHO: 5). Se usa en las estadísticas del dashboard
-DROP PROCEDURE IF EXISTS USP_GET_ORDER_STATUS_PRIVATE_TOTALS_BY_EDITORIAL_ID;
-DELIMITER //
-CREATE PROCEDURE USP_GET_ORDER_STATUS_PRIVATE_TOTALS_BY_EDITORIAL_ID (P_EDITORIAL_ID INT, P_SERVICE_ID VARCHAR(50), P_WORKER_USER_ID INT)
-BEGIN
-SELECT
-	(SELECT COUNT(id) FROM ORDERS WHERE statusId = 'DISPONIBLE' AND editorialId <=> P_EDITORIAL_ID AND serviceId = P_SERVICE_ID) AS 'DISPONIBLE',
-	(SELECT COUNT(id) FROM ORDERS WHERE statusId = 'ANULADO' AND editorialId <=> P_EDITORIAL_ID AND serviceId = P_SERVICE_ID AND workerUserId <=> P_WORKER_USER_ID) AS 'ANULADO',
-    (SELECT COUNT(id) FROM ORDERS WHERE statusId = 'HECHO' AND editorialId <=> P_EDITORIAL_ID AND serviceId = P_SERVICE_ID AND workerUserId <=> P_WORKER_USER_ID) AS 'HECHO',
-    (SELECT COUNT(id) FROM ORDERS WHERE statusId = 'SOLICITADO' AND editorialId <=> P_EDITORIAL_ID AND serviceId = P_SERVICE_ID AND workerUserId <=> P_WORKER_USER_ID) AS 'SOLICITADO',
-    (SELECT COUNT(id) FROM ORDERS WHERE statusId = 'TOMADO' AND editorialId <=> P_EDITORIAL_ID AND serviceId = P_SERVICE_ID AND workerUserId <=> P_WORKER_USER_ID) AS 'TOMADO';
-END; //
-DELIMITER ;
-
--- Obtiene los totales PÚBLICOS de cada estado de los pedidos por usuario. Se usa para las estadísticas de los pedidos en perfil ajeno o propio
-DROP PROCEDURE IF EXISTS USP_GET_ORDER_STATUS_PUBLIC_TOTALS_BY_WORKER_USER_ID;
-DELIMITER //
-CREATE PROCEDURE USP_GET_ORDER_STATUS_PUBLIC_TOTALS_BY_WORKER_USER_ID (P_SERVICE_ID VARCHAR(50), P_WORKER_USER_ID INT)
-BEGIN
-SELECT
-    (SELECT COUNT(id) FROM ORDERS WHERE statusId = 'HECHO' AND serviceId = P_SERVICE_ID AND workerUserId <=> P_WORKER_USER_ID) AS 'HECHO';
-END; //
-DELIMITER ;
-
--- Toma un pedido (TODO: Agregar más validaciones para verificar que ese usuario pertenece a la editorial, está activo y ofrece ese servicio)
-DROP PROCEDURE IF EXISTS USP_TAKE_ORDER;
-DELIMITER //
-CREATE PROCEDURE USP_TAKE_ORDER (P_ORDER_ID INT, P_USER_ID INT, P_TAKEN_AT DATETIME, P_EXP_DAYS INT)
-BEGIN
-	DECLARE V_EXPIRES_AT DATETIME;
-    SET V_EXPIRES_AT = DATE_ADD(P_TAKEN_AT, INTERVAL P_EXP_DAYS DAY);
-	UPDATE ORDERS SET workerUserId = P_USER_ID, statusId = 'TOMADO', takenAt = P_TAKEN_AT, expiresAt = V_EXPIRES_AT WHERE id = P_ORDER_ID AND (statusId = 'DISPONIBLE' OR statusId = 'SOLICITADO');
-END; //
-DELIMITER ;
-
--- Devuelve un pedido. Valida si el userId pasado como parámetro corresponde con el mismo que lo ha tomado. Además, devuelve al statusId original pasado como parámetro
-DROP PROCEDURE IF EXISTS USP_RETURN_ORDER;
-DELIMITER //
-CREATE PROCEDURE USP_RETURN_ORDER (P_ORDER_ID INT, P_ORIGINAL_STATUS_ID VARCHAR(50), P_USER_ID INT)
-BEGIN
-	UPDATE ORDERS SET workerUserId = NULL, statusId = P_ORIGINAL_STATUS_ID, prevWorkerUserId = workerUserId WHERE id = P_ORDER_ID AND statusId = 'TOMADO' AND workerUserId = P_USER_ID;
-END; //
-DELIMITER ;
-
--- Obtiene los datos PRIVADOS de un pedido. Esto es para verlo en un dashboard o ver los detalles en el perfil propio. El parámetros P_USER_ID_FOR_ACTION puede ser null y solo sirve para ver si dicho usuario ha dejado una reacción en el pedido (tabla ACTIONS_BY_USER_ON_ITEM)
-DROP PROCEDURE IF EXISTS USP_GET_PRIVATE_ORDER;
-DELIMITER //
-CREATE PROCEDURE USP_GET_PRIVATE_ORDER (P_ORDER_ID INT, P_USER_ID_FOR_ACTION INT)
-BEGIN
-DECLARE V_USER_ID_FOR_ACTION INT;
-	IF (P_USER_ID_FOR_ACTION IS NULL) THEN
-		BEGIN
-			SET V_USER_ID_FOR_ACTION = NULL;
-		END;
-	ELSE
-		BEGIN
-			SET V_USER_ID_FOR_ACTION = P_USER_ID_FOR_ACTION;
-		END;
-END IF;
-
-SELECT
-	O.id,
-	O.clientUserId, -- Si clientUserId es nulo, significa que los datos están en la tabla actual. Caso contrario, debo consultarlo desde la tabla USERS. TODO: Cambiar el email por contactEmail del usuario (ACTIONS_BY_USER_ON_ITEM)
-	CASE WHEN O.clientUserId IS NULL THEN O.clientEmail ELSE (SELECT email FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientEmail,
-	CASE WHEN O.clientUserId IS NULL THEN O.clientNames ELSE (SELECT CONCAT(fName, " ", lName) FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientNames,
-	CASE WHEN O.clientUserId IS NULL THEN O.clientPhone ELSE (SELECT phone FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientPhone,
-	CASE WHEN O.clientUserId IS NULL THEN O.clientAppId ELSE (SELECT appId FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientAppId,
-    -- Para verificar si ha dado una reacción de corazón
-    CASE WHEN V_USER_ID_FOR_ACTION IS NULL THEN NULL ELSE (SELECT EXISTS ( SELECT userId FROM ACTIONS_BY_USER_ON_ITEM WHERE orderId = P_ORDER_ID AND active = 1 AND actionId = 'GUSTAR')) END as hasGivenLove,
-	O.workerUserId,
-    U.fName as 'workerFName',
-    U.lName as 'workerLName',
-    U.networks as 'workerNetworks',
-    U.contactEmail as 'workerContactEmail',
-    U.urlProfileImg as 'workerUrlProfileImg',
-	O.serviceId,
-	O.subserviceId,
-	O.statusId,
-	O.titleWork,
-	O.linkWork,
-	O.pseudonym,
-	O.synopsis,
-	O.details,
-	O.intention,
-	O.mainPhrase,
-	O.imgUrlData,
-	O.priority,
-	O.extraData,
-	O.resultUrl,
-	O.numHearts,
-	O.numComments,
-	O.numViews,
-    O.numDownloads,
-    O.takenAt,
-    O.version,
-    O.expiresAt,
-	O.createdAt
-FROM ORDERS O
-LEFT JOIN `USERS` U
-ON U.id = O.workerUserId
-LEFT JOIN EDITORIALS E -- Para que traiga todo, así la editorial sea NULL, dado que los pedidos pueden ser independientes de una editorial
-ON E.id = O.editorialId
-WHERE O.id = P_ORDER_ID;
-END; //
-DELIMITER ;
-
--- Obtiene los datos PÚBLICOS de un pedido. Esto es para ver el pedido de un perfil ajeno
-DROP PROCEDURE IF EXISTS USP_GET_PUBLIC_ORDER;
-DELIMITER //
-CREATE PROCEDURE USP_GET_PUBLIC_ORDER (P_ORDER_ID INT)
-BEGIN
-SELECT
-	O.id,
-    CASE
-		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
-        ELSE O.clientUserId
-	END as clientUserId,
-	O.workerUserId,
-	U.fName as 'workerFName',
-    U.lName as 'workerLName',
-    U.networks as 'workerNetworks',
-    U.contactEmail as 'workerContactEmail',
-    U.urlProfileImg as 'workerUrlProfileImg',
-    O.serviceId,
-	O.subserviceId,
-	O.statusId,
-	O.titleWork,
-    O.editorialId,
-    CASE
-		WHEN O.public != 1 THEN ''  -- Si está privado, no se puede ver públicamente
-        ELSE E.name
-	END as editorialName,
-    CASE
-		WHEN O.public != 1 THEN ''  -- Si está privado, no se puede ver públicamente
-        ELSE E.bgColor
-	END as editorialBgColor,
-    CASE
-		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
-        ELSE O.numHearts
-	END as numHearts,
-    CASE
-		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
-        ELSE O.numComments
-	END as numComments,
-    CASE
-		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
-        ELSE O.numViews
-	END as numViews,
-    CASE
-		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
-        ELSE O.numDownloads
-	END as numDownloads,
-	CASE
-		WHEN O.public != 1 THEN ''
-		ELSE O.resultUrl
-	END as resultUrl, -- Solo se va a mostrar el link públicamente si el solicitante lo ha elegido así
-    CASE
-		WHEN O.public = 1 AND O.publicLink = 1 THEN O.linkWork
-		ELSE ''
-	END as linkWork, -- Solo se va a mostrar el link públicamente si el solicitante lo ha elegido así
-    O.publicLink,
-    O.public, -- Esto significa que no se puede acceder a ningún dato crítico públicamente, solo al título
-    O.version
-FROM ORDERS O
-LEFT JOIN `USERS` U
-ON U.id = O.workerUserId
-LEFT JOIN EDITORIALS E -- Para que traiga todo, así la editorial sea NULL, dado que los pedidos pueden ser independientes de una editorial
-ON E.id = O.editorialId
-WHERE O.id = P_ORDER_ID;
-END; //
-DELIMITER ;
-
--- Establece un pedido como HECHO
-DROP PROCEDURE IF EXISTS USP_SET_ORDER_DONE;
-DELIMITER //
-CREATE PROCEDURE USP_SET_ORDER_DONE (P_ORDER_ID INT, P_RESULT_URL VARCHAR(2000))
-BEGIN
-	UPDATE ORDERS SET statusId = 'HECHO', resultUrl = P_RESULT_URL WHERE statusId = 'TOMADO' AND id = P_ORDER_ID;
 END; //
 DELIMITER ;
 
@@ -1614,170 +703,7 @@ INSERT INTO ACTIONS_ON_ITEM VALUES
 ('DESCARGAR','Descargar'),
 ('SUSCRIBIR','Suscribir');
 
--- Inserciones para producción
-
--- Generales
-
-INSERT INTO EDITORIALS VALUES
-(1,
-'Editorial Temple Luna',
-'Somos Temple Luna, la editorial de los artistas',
-'templeluna',
-'+5212721588788',
-'WSP',
-'contacto@templeluna.app',
-DEFAULT,
-DEFAULT,
-'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/editorial%2FGrupo%20195.svg?alt=media&token=782e36a5-a88b-4a52-aa9e-5d13e22ed396',
-'#1A1A1A',
-'["https://www.facebook.com/templeluna", "https://www.instagram.com/templelunaeditorial"]',
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT
-);
-
-INSERT INTO SERVICES_BY_EDITORIAL VALUES
-(DEFAULT,1,'CRITICA',NULL,DEFAULT,'Servicio de críticas','Descripción del servicio',DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,0,0,DEFAULT,NULL,DEFAULT,DEFAULT),
-(DEFAULT,1,'DISENO',NULL,DEFAULT,'Servicio de diseño','Descripción del servicio',DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,0,0,DEFAULT,NULL,DEFAULT,DEFAULT),
-(DEFAULT,1,'DISENO','BAN',DEFAULT,'Servicio de diseño','Descripción del servicio',DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,0,0,DEFAULT,NULL,DEFAULT,DEFAULT),
-(DEFAULT,1,'DISENO','POR',DEFAULT,'Servicio de diseño','Descripción del servicio',DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,0,0,DEFAULT,NULL,DEFAULT,DEFAULT),
-(DEFAULT,1,'ESCUCHA',NULL,DEFAULT,'Servicio de escucha','Descripción del servicio',DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,DEFAULT,0,0,DEFAULT,NULL,DEFAULT,DEFAULT);
-
-INSERT INTO USERS VALUES (1,'gricardov@gmail.com',1,'gricardov@templeluna.app','Giovanni','Ricardo',NULL,'+51999999999',NULL,'Corazón de melón','corazondemelon',DEFAULT,DEFAULT,DEFAULT,'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Flindo.jpg?alt=media&token=177bb113-efb9-4e15-9291-743a525a2420',DEFAULT,DEFAULT,'["https://www.facebook.com/gricardov/", "https://www.instagram.com/", "https://www.instagram.com/gricardov/"]','ADMIN',DEFAULT,DEFAULT,DEFAULT);
-
--- Desde firebase
-
-INSERT INTO USERS VALUES 
-(49, 'escritos.oswaldo.ortiz@gmail.com', 1, 'escritos.oswaldo.ortiz@gmail.com', 'Ángel', 'Ortiz', NULL, NULL, NULL, NULL, 'OswaldoOrtiz', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fchamo.jpg?alt=media&token=468f6551-b903-4223-b647-c5cc892039d8', DEFAULT, DEFAULT, '["instagram.com/escritos_ortiz","https://www.wattpad.com/user/oswald85"]', 'COLAB', 1, DEFAULT, DEFAULT),
-(50, 'sayrabaylon41@gmail.com', 1, 'sayrabaylon41@gmail.com', 'Sayra', 'Baylon', NULL, NULL, NULL, NULL, 'SayraBaylon', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fsayrih.jpg?alt=media&token=6a770c21-f3c9-475b-ae03-8423f1876c45', DEFAULT, DEFAULT, '["https://instagram.com/sayrabaylon_2321","https://www.wattpad.com/user/SayraBaylon"]', 'COLAB', 1, DEFAULT, DEFAULT),
-(51, 'irisadk94@gmail.com', 1, 'irisadk94@gmail.com', 'Erendira', 'León', NULL, NULL, NULL, NULL, 'ErendiraLeon', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Ferendira.jpg?alt=media&token=5c35bb61-131c-4d8b-a9dc-79958ed273d0', DEFAULT, DEFAULT, '["https://instagram.com/irisadk94","https://iristomandoelcontrol.blogspot.com/","http://www.tusrelatos.com/autores/pajarita-enamorada"]', 'COLAB', 1, DEFAULT, DEFAULT),
-(52, 'miadurant4@gmail.com', 1, 'miadurant4@gmail.com', 'Mia', 'Victoria', NULL, NULL, NULL, NULL, 'MiaDurant4', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fmia.jpg?alt=media&token=c2da3ac5-18f4-4967-9c20-e01374e5fe03', DEFAULT, DEFAULT, '["https://instagram.com/gianna_g.durant_l.04","https://www.wattpad.com/user/Gianna04G02DL"]', 'COLAB', 1, DEFAULT, DEFAULT),
-(53, 'mila_enorriz_luna@tfbnw.net', 0, 'mila_enorriz_luna@tfbnw.net', 'Nuevo', 'Usuario', NULL, NULL, NULL, NULL, 'followName53', 0, 0, 0, '', DEFAULT, DEFAULT, '[]', 'COLAB', 1, DEFAULT, DEFAULT),
-(54, 'marimercado922@gmail.com', 1, 'marimercado922@gmail.com', 'Maria', 'Mercado', NULL, NULL, NULL, NULL, 'PrincesaDeFresa', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fmarim1.jpg?alt=media&token=692c003a-17cf-4825-9f76-15c3c09a0f7f', DEFAULT, DEFAULT, '["instagram.com/marimer.25","https://www.wattpad.com/user/MariMercado8"]', 'COLAB', 1, DEFAULT, DEFAULT),
-(55, 'marthariveraantequera@outlook.com', 1, 'marthariveraantequera@outlook.com', 'Martha', 'Rivera', NULL, NULL, NULL, NULL, 'MarthaRivera', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fmartharivera.jpg?alt=media&token=4a0289d4-5d4b-4fd6-a288-3ae4f261cbc7', DEFAULT, DEFAULT, '["https://www.instagram.com/lrservicioseditoriales","https://www.fiverr.com/lrserviciosedit/correccion-edicion-y-maquetacion","https://linktr.ee/mlbradleyescritora"]', 'COLAB', 1, DEFAULT, DEFAULT),
-(56, 'lacarodelreal@gmail.com', 1, 'lacarodelreal@gmail.com', 'Carolina', 'Morales', NULL, NULL, NULL, NULL, 'LaCaroDelReal', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fcaro.jpg?alt=media&token=329c34cd-ca44-41f1-9355-37084d0dd0e5', DEFAULT, DEFAULT, '["https://instagram.com/carodepenarol","https://www.wattpad.com/user/CaroDePearolMorales"]', 'COLAB', 1, DEFAULT, DEFAULT),
-(57, 'templelunalye@gmail.com', 1, 'templelunalye@gmail.com', 'Nuevo', 'Usuario', NULL, NULL, NULL, NULL, 'followName57', 0, 0, 0, '', DEFAULT, DEFAULT, '[]', 'COLAB', 1, DEFAULT, DEFAULT),
-(58, 'natalyacalderonh@gmail.com', 1, 'natalyacalderonh@gmail.com', 'Nataly', 'Calderón', NULL, NULL, NULL, NULL, 'NatalyCalderonH', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fnataly.jpg?alt=media&token=2c8c19ab-0b00-4e7f-b657-6f3ac0b0d674', DEFAULT, DEFAULT, '["https://instagram.com/soytatyautor/"]', 'COLAB', 1, DEFAULT, DEFAULT),
-(59, 'siranaulavaleria@gmail.com', 1, 'siranaulavaleria@gmail.com', 'Valeria', 'Siranaula', NULL, NULL, NULL, NULL, 'ValeriaSiranaula', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fvalesina.jpg?alt=media&token=0ac8e523-972b-490f-9061-68d289f7e0f9', DEFAULT, DEFAULT, '["https://www.instagram.com/vale.designs/","https://twitter.com/ValeSiranaula"]', 'COLAB', 1, DEFAULT, DEFAULT),
-(60, 'zariuxluna@gmail.com', 1, 'zariuxluna@gmail.com', 'Zariux', 'Luna', NULL, NULL, NULL, NULL, 'ZariuxLuna', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fzariux.jpg?alt=media&token=16e2777e-e149-4cd3-baaf-84600116cbdc', DEFAULT, DEFAULT, '["https://instagram.com/zariux_luna/","https://www.zariuxluna.com/","https://www.wattpad.com/user/ZariuxLuna","https://www.facebook.com/cronicasdelunita"]', 'COLAB', 1, DEFAULT, DEFAULT),
-(61, 'dani.rod.2402@gmail.com', 1, 'dani.rod.2402@gmail.com', 'Daniel', 'Rodriguez', NULL, NULL, NULL, NULL, 'DanielRodriguez', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fdanielrodriguez.jpg?alt=media&token=699ebe7d-35d6-4480-8a3f-8beff3177b7b', DEFAULT, DEFAULT, '["https://www.instagram.com/Bo.ok_addicts/","https://www.facebook.com/elvisdaniel.rodriguezmorillo.3"]', 'COLAB', 1, DEFAULT, DEFAULT),
-(62, 'zhazirt123@gmail.com', 1, 'zhazirt123@gmail.com', 'Zhazirt', 'Flores', NULL, NULL, NULL, NULL, 'ZhazirtFlores', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fzhazirt.jpg?alt=media&token=6b0bf0b7-1189-4cab-818a-a725d6f09d47', DEFAULT, DEFAULT, '["https://jackdreamer99.blogspot.com/","https://www.wattpad.com/user/zhazirt"]', 'COLAB', 1, DEFAULT, DEFAULT),
-(63, 'zulpecristo@gmail.com', 1, 'zulpecristo@gmail.com', 'Luz', 'Cespedes', NULL, NULL, NULL, NULL, 'LuzCespedesMartinez', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fluz.jpg?alt=media&token=4314d1f6-7660-40b4-8eb6-054d7fc729d4', DEFAULT, DEFAULT, '["https://instagram.com/luzcespedesmartinez/"]', 'COLAB', 1, DEFAULT, DEFAULT),
-(64, 'feelingss.023@gmail.com', 1, 'feelingss.023@gmail.com', 'Pilar', 'Melgarejo', NULL, NULL, NULL, NULL, 'Pilyy', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fcrushhh.jpg?alt=media&token=251f510a-71a5-46a3-a746-165d07f96c64', DEFAULT, DEFAULT, '["https://www.facebook.com/PiccoloScrittore26 ","https://www.wattpad.com/user/PiccolaScrittrice17","https://www.wattpad.com/user/PiccolaScrittrice23"]', 'COLAB', 1, DEFAULT, DEFAULT),
-(65, 'academiatemple@gmail.com', 1, 'academiatemple@gmail.com', 'Nuevo', 'Usuario', NULL, NULL, NULL, NULL, 'followName65', 0, 0, 0, '', DEFAULT, DEFAULT, '[]', 'COLAB', 1, DEFAULT, DEFAULT),
-(66, 'reds.words@outlook.es', 1, 'reds.words@outlook.es', 'Redin', 'Mendez', NULL, NULL, NULL, NULL, 'RedsLetters', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fredinmendez2.jpg?alt=media&token=c68806eb-bf73-4c3f-9a43-94a9b0c02ac5', DEFAULT, DEFAULT, '["https://www.instagram.com/reds.letters/","https://www.facebook.com/reds.letters"]', 'COLAB', 1, DEFAULT, DEFAULT),
-(67, 'efrainapazabustamante@gmail.com', 1, 'efrainapazabustamante@gmail.com', 'Ricardo', 'Apaza', NULL, NULL, NULL, NULL, 'Chamo', 0, 0, 0, 'undefined', DEFAULT, DEFAULT, '["https://instagram.com/ricardoab0","https://www.wattpad.com/user/RickRock02"]', 'COLAB', 1, DEFAULT, DEFAULT),
-(68, 'monica.ruiz@nauta.cu', 0, 'monica.ruiz@nauta.cu', 'Amanda', 'Torres', NULL, NULL, NULL, NULL, 'Morena', 0, 0, 0, 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Famanda.jpg?alt=media&token=6fed5baf-c4f9-4799-b2b9-f448d3b55b6e', DEFAULT, DEFAULT, '["https://www.wattpad.com/user/Titania2408"]', 'COLAB', 1, DEFAULT, DEFAULT);
-
-
-INSERT INTO EDITORIAL_MEMBERS VALUES 
-(49, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
-(50, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
-(51, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
-(52, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
-(53, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
-(54, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
-(55, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
-(56, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
-(57, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
-(58, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
-(59, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
-(60, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
-(61, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
-(62, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
-(63, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
-(64, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
-(65, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
-(66, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
-(67, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT),
-(68, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
-
-
-INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
-(49, 1, 'CRITICA', NULL, 'Artista', 1),
-(50, 1, 'CRITICA', NULL, 'Artista', 1),
-(50, 1, 'CORRECCION', NULL, 'Artista', 1),
-(51, 1, 'CRITICA', NULL, 'Artista', 1),
-(52, 1, 'DISENO', NULL, 'Artista', 1),
-(54, 1, 'CORRECCION', NULL, 'Artista', 1),
-(54, 1, 'CRITICA', NULL, 'Artista', 1),
-(55, 1, 'CRITICA', NULL, 'Artista', 1),
-(55, 1, 'DISENO', NULL, 'Artista', 1),
-(56, 1, 'CRITICA', NULL, 'Artista', 1),
-(56, 1, 'CORRECCION', NULL, 'Artista', 1),
-(58, 1, 'CRITICA', NULL, 'Artista', 1),
-(59, 1, 'DISENO', NULL, 'Artista', 1),
-(60, 1, 'CRITICA', NULL, 'Artista', 1),
-(60, 1, 'CORRECCION', NULL, 'Artista', 1),
-(61, 1, 'DISENO', NULL, 'Artista', 1),
-(62, 1, 'CRITICA', NULL, 'Artista', 1),
-(63, 1, 'CRITICA', NULL, 'Artista', 1),
-(64, 1, 'CRITICA', NULL, 'Artista', 1),
-(64, 1, 'CORRECCION', NULL, 'Artista', 1),
-(66, 1, 'CRITICA', NULL, 'Artista', 1),
-(66, 1, 'DISENO', NULL, 'Artista', 1),
-(67, 1, 'CORRECCION', NULL, 'Artista', 1),
-(68, 1, 'CRITICA', NULL, 'Artista', 1);
-
--- Temporales para iniciar
-INSERT INTO EVENTS VALUES
-(1,
-'Gran inauguración de Temple Luna',
-'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/miscelanea%2FTemple%20Luna.png?alt=media&token=33f2e8c4-b35e-47d7-8435-e7965b104750',
-'',
-'["Amar la lectura y la escritura"]',
-'["Asistir a la inauguración de la plataforma Temple Luna"]',
-'["Podrás ser el primero en disfrutar los beneficios de la plataforma"]',
-'["Inauguración"]',
-0,
-NULL,
-'Google Meets',
-NULL,
-NULL,
-NULL,
-'Gran inauguración de Temple Luna',
-'¡Bienvenido(a)! Asiste y podrás ser parte de la gran iniciativa Temple Luna, que busca acerca los mejores servicios a lectores y escritores',
-'10 inscritos como mínimo',
-NULL,
-NULL,
-NULL,
-'GRAN-INAUGURACION-TEMPLE-LUNA-2021',
-'https://chat.whatsapp.com/Gxm48ky5Ein9qwkK7FkAC7',
-DEFAULT,
-DEFAULT,
-DEFAULT
-);
-
-INSERT INTO EVENT_DATES VALUES
-(DEFAULT, 1, '2021-10-09 01:00:00','2021-10-09 02:00:00', 0, DEFAULT, DEFAULT, DEFAULT);
-
-INSERT INTO INSTRUCTORS_BY_EVENT VALUES
-(DEFAULT, 1, 1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'Creador y fundador de Temple Luna',NULL,NULL,NULL,DEFAULT,DEFAULT);
-
-INSERT INTO MAGAZINES VALUES 
-(DEFAULT,
-'Amor en tiempos de pandemia',
-'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2Fpreview-revista-1.PNG?alt=media&token=1a8fcf71-afc2-4d77-b8d1-d9b58e6d7950',
-'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2FRevista-TL-1_compressed.pdf?alt=media&token=f6e957ab-0361-4913-81b8-4c8f792135fa',
-'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2FTL1JPG.pdf?alt=media&token=940b3eb9-7187-4d5d-bb6d-525b45282c7b',
-22,
-1,
-10,
-2021,
-1,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-DEFAULT,
-'AMOR-EN-TIEMPOS-DE-PANDEMIA-1-2021',
-DEFAULT, -- activo
-DEFAULT,
-DEFAULT
-);
-
--- ¡¡¡INSERCIONES PARA TESTING!!!!
+-- Inserciones no maestras
 
 -- Eventos
 INSERT INTO EVENTS VALUES
@@ -1836,13 +762,37 @@ DEFAULT);
 
 -- Fechas de los eventos
 INSERT INTO EVENT_DATES VALUES
-(DEFAULT, 1, DATE_ADD(NOW(), INTERVAL 10 DAY), DATE_ADD(NOW(), INTERVAL 11 DAY), 1, DEFAULT, DEFAULT, DEFAULT),
-(DEFAULT, 1, DATE_ADD(NOW(), INTERVAL 13 DAY), DATE_ADD(NOW(), INTERVAL 14 DAY), 0, DEFAULT, DEFAULT, DEFAULT),
-(DEFAULT, 2, DATE_ADD(NOW(), INTERVAL 1 HOUR), DATE_ADD(NOW(), INTERVAL 2 HOUR), 1, DEFAULT, DEFAULT, DEFAULT);
+(DEFAULT, 0000000001, DATE_ADD(NOW(), INTERVAL 10 DAY), DATE_ADD(NOW(), INTERVAL 11 DAY), 1, DEFAULT, DEFAULT, DEFAULT),
+(DEFAULT, 0000000001, DATE_ADD(NOW(), INTERVAL 13 DAY), DATE_ADD(NOW(), INTERVAL 14 DAY), 0, DEFAULT, DEFAULT, DEFAULT),
+(DEFAULT, 0000000002, DATE_ADD(NOW(), INTERVAL 1 HOUR), DATE_ADD(NOW(), INTERVAL 2 HOUR), 1, DEFAULT, DEFAULT, DEFAULT);
 
 -- Usuarios
 INSERT INTO USERS VALUES
-(2,
+(DEFAULT,
+'gricardov@gmail.com',
+1,
+'gricardov@templeluna.app',
+'Giovanni',
+'Ricardo',
+'1995-04-20',
+'+51999999999',
+'WSP',
+'Corazón de melón',
+'corazondemelon',
+DEFAULT,
+DEFAULT,
+DEFAULT,
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Flindo.jpg?alt=media&token=177bb113-efb9-4e15-9291-743a525a2420',
+DEFAULT,
+DEFAULT,
+'["https://www.facebook.com/", "https://www.instagram.com/", "https://www.wattpad.com/story/262132830?utm_medium=link&utm_source=android&utm_content=story_info"]',
+'ADMIN',
+DEFAULT,
+DEFAULT,
+DEFAULT
+),
+
+(DEFAULT,
 'corazon@gmail.com',
 1,
 'contacto@gmail.com',
@@ -1860,13 +810,13 @@ DEFAULT,
 DEFAULT,
 DEFAULT,
 '["https://www.facebook.com/", "https://www.instagram.com/"]',
-'COLAB',
+'BASIC',
 DEFAULT,
 DEFAULT,
 DEFAULT
 ),
 
-(3,
+(DEFAULT,
 'pilyy@gmail.com',
 1,
 'contactopilyy@gmail.com',
@@ -1884,13 +834,13 @@ DEFAULT,
 DEFAULT,
 DEFAULT,
 '["https://www.facebook.com/", "https://www.instagram.com/"]',
-'COLAB',
+'BASIC',
 DEFAULT,
 DEFAULT,
 DEFAULT
 ),
 
-(4,
+(DEFAULT,
 'maricucha@gmail.com',
 1,
 'contactomaricucha@gmail.com',
@@ -1908,21 +858,161 @@ DEFAULT,
 DEFAULT,
 DEFAULT,
 '["https://www.facebook.com/", "https://www.instagram.com/"]',
-'COLAB',
+'BASIC',
 DEFAULT,
 DEFAULT,
 DEFAULT
 );
 
+/*-- Roles por usuario
+INSERT INTO ROLES_BY_USER VALUES
+(1,'BASIC',DEFAULT,DEFAULT),
+(1,'ADMIN',DEFAULT,DEFAULT),
+(2,'BASIC',DEFAULT,DEFAULT),
+(2,'COLAB',DEFAULT,DEFAULT),
+(2,'MOD',DEFAULT,DEFAULT);*/
+
 -- Inscripciones
 INSERT INTO INSCRIPTIONS VALUES
-(DEFAULT, 1, 1, NULL, NULL, NULL, 'WSP', NULL, DEFAULT, NULL, NULL, 1, DEFAULT, DEFAULT),
-(DEFAULT, 1, NULL, 'Tipito Enojado', 26, '+519999999', 'TLG', 'tipitoenojada@gmail.com', 1, NULL, NULL, 1, DEFAULT, DEFAULT);
+(DEFAULT, 0000000001, 0000000001, NULL, NULL, NULL, 'WSP', NULL, DEFAULT, NULL, NULL, 1, DEFAULT, DEFAULT),
+(DEFAULT, 0000000001, NULL, 'Tipito Enojado', 26, '+519999999', 'TLG', 'tipitoenojada@gmail.com', 1, NULL, NULL, 1, DEFAULT, DEFAULT);
 
 -- Instructores por evento
 INSERT INTO INSTRUCTORS_BY_EVENT VALUES
 (DEFAULT, 2, 1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'Soy escritor y poeta amateur',NULL,NULL,NULL,DEFAULT,DEFAULT),
 (DEFAULT,1,NULL,'Cosme','Fulanito',NOW(),'+519999999','TLG','cosme@gmail.com', 'https://i.ytimg.com/vi/xnoummdS3DA/maxresdefault.jpg','Escritor y poeta','Lo siento nene vas a morir. Me quitaste lo que más quería y volverá conmigo, volverá algún día.','["https://www.facebook.com"]',NULL,DEFAULT,DEFAULT);
+
+-- Editoriales
+INSERT INTO EDITORIALS VALUES
+(1,
+'Editorial Temple Luna',
+'Somos Temple Luna, la editorial de los artistas',
+'templeluna',
+'+5212721588788',
+'WSP',
+'contacto@templeluna.app',
+DEFAULT,
+DEFAULT,
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/editorial%2FGrupo%20195.svg?alt=media&token=782e36a5-a88b-4a52-aa9e-5d13e22ed396',
+'#1A1A1A',
+'["https://www.facebook.com/templeluna", "https://www.instagram.com/templelunaeditorial"]',
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT
+);
+
+-- Servicios por editorial
+INSERT INTO SERVICES_BY_EDITORIAL VALUES
+(DEFAULT,
+1,
+'CRITICA',
+NULL,
+DEFAULT,
+'Servicio de críticas',
+'Descripción del servicio',
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+0,
+0,
+DEFAULT,
+NULL,
+DEFAULT,
+DEFAULT
+),
+
+(DEFAULT,
+1,
+'DISENO',
+NULL,
+DEFAULT,
+'Servicio de diseño',
+'Descripción del servicio',
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+0,
+0,
+DEFAULT,
+NULL,
+DEFAULT,
+DEFAULT
+),
+
+(DEFAULT,
+1,
+'DISENO',
+'BAN',
+DEFAULT,
+'Servicio de diseño',
+'Descripción del servicio',
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+0,
+0,
+DEFAULT,
+NULL,
+DEFAULT,
+DEFAULT
+),
+
+(DEFAULT,
+1,
+'DISENO',
+'POR',
+DEFAULT,
+'Servicio de diseño',
+'Descripción del servicio',
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+0,
+0,
+DEFAULT,
+NULL,
+DEFAULT,
+DEFAULT
+),
+
+(DEFAULT,
+1,
+'ESCUCHA',
+NULL,
+DEFAULT,
+'Servicio de escucha',
+'Descripción del servicio',
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+0,
+0,
+DEFAULT,
+NULL,
+DEFAULT,
+DEFAULT
+);
 
 -- Miembros de una editorial
 INSERT INTO EDITORIAL_MEMBERS VALUES
@@ -2273,3 +1363,1007 @@ NULL,
 TIMESTAMPADD(HOUR, 8, CURRENT_TIMESTAMP()),
 TIMESTAMPADD(HOUR, 8, CURRENT_TIMESTAMP())
 );
+
+-- Procedimientos
+
+-- Obtiene los suscriptores a la revista TL. Si el nombre es anónimo (TL_ANONYMOUS_HP), entonces que devuelva "artista" para que el usuario vea ese nombre
+DROP PROCEDURE IF EXISTS USP_GET_MAGAZINE_SUBSCRIBERS;
+DELIMITER //
+CREATE PROCEDURE USP_GET_MAGAZINE_SUBSCRIBERS ()
+BEGIN
+SELECT
+	CASE
+		WHEN S.userId IS NULL THEN
+			CASE
+				WHEN S.names = 'TL_ANONYMOUS_HP' THEN 'artista'
+			ELSE
+				CONCAT(UCASE(LEFT(SUBSTRING_INDEX(SUBSTRING_INDEX(S.names, ' ', 1), ' ', -1), 1)),
+				LCASE(SUBSTRING(SUBSTRING_INDEX(SUBSTRING_INDEX(S.names, ' ', 1), ' ', -1), 2))) -- La primera letra siempre en mayúscula y las siguientes en minúscula, y solo extrae el primer nombre
+			END
+    ELSE
+		(SELECT CONCAT(UCASE(LEFT(SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING_INDEX(fName, ' ', 1), ' ', -1), ' ', 1), ' ', -1), 1)), 
+				LCASE(SUBSTRING(SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING_INDEX(fName, ' ', 1), ' ', -1), ' ', 1), ' ', -1), 2))) -- La primera letra siempre en mayúscula y las siguientes en minúscula, y solo extrae el primer nombre
+         FROM USERS WHERE id = S.userId LIMIT 1)
+	END as name,
+    S.email
+FROM SUBSCRIBERS S WHERE magazine = 1;
+END; //
+DELIMITER ;
+
+-- Obtiene la data privada estrictamente necesaria de un usuario si se encuentra activo
+DROP PROCEDURE IF EXISTS USP_GET_PRIVATE_USER_BY_EMAIL;
+DELIMITER //
+CREATE PROCEDURE USP_GET_PRIVATE_USER_BY_EMAIL (P_EMAIL VARCHAR(200))
+BEGIN
+	SELECT id, email, emailVerified, fName, lName, followName, urlProfileImg, roleId FROM USERS WHERE email = P_EMAIL AND active = 1;
+END; //
+DELIMITER ;
+
+-- Obtiene la data privada de un perfil
+DROP PROCEDURE IF EXISTS USP_GET_PRIVATE_PROFILE_BY_ID;
+DELIMITER //
+CREATE PROCEDURE USP_GET_PRIVATE_PROFILE_BY_ID (P_USER_ID INT)
+BEGIN
+	SELECT id, email, emailVerified, contactEmail, fName, lName, birthday, phone, appId, pseudonym, followName, numFollowers, numComments, numHearts, urlProfileImg, occupation, about, networks, roleId, createdAt FROM USERS WHERE id = P_USER_ID AND active = 1;
+END; //
+DELIMITER ;
+
+-- Obtiene la data pública de un perfil
+DROP PROCEDURE IF EXISTS USP_GET_PUBLIC_PROFILE_BY_ID;
+DELIMITER //
+CREATE PROCEDURE USP_GET_PUBLIC_PROFILE_BY_ID (P_USER_ID INT)
+BEGIN
+	SELECT id, contactEmail, fName, lName, followName, numFollowers, numComments, numHearts, urlProfileImg, about, networks, createdAt FROM USERS WHERE id = P_USER_ID AND active = 1;
+END; //
+DELIMITER ;
+
+-- Obtiene los eventos más cercanos a iniciar
+DROP PROCEDURE IF EXISTS USP_GET_LATEST_EVENTS;
+DELIMITER //
+CREATE PROCEDURE USP_GET_LATEST_EVENTS (P_LIMIT INT, P_LAST_DATE DATETIME)
+BEGIN
+DECLARE V_LAST_DATE DATETIME;
+IF (P_LAST_DATE IS NULL) THEN
+BEGIN
+	SET V_LAST_DATE = DATE_ADD((SELECT MAX(ED.from) FROM EVENT_DATES ED), INTERVAL 1 HOUR);
+END;
+ELSE
+BEGIN
+	SET V_LAST_DATE = P_LAST_DATE;    
+END;
+END IF;
+
+SELECT 
+    E.id,
+    E.name,
+    E.urlBg,
+    E.price,
+    E.currency,
+    E.platform,
+    E.title,
+    E.about,
+    E.timezoneText,
+    E.alias,
+    ED.from,
+    ED.until,
+    ED.weekly
+FROM
+    EVENTS E
+        JOIN
+    EVENT_DATES ED ON E.id = ED.eventId
+WHERE
+    ED.from < V_LAST_DATE AND ED.active = 1
+        AND E.active = 1
+GROUP BY E.id
+ORDER BY ED.from DESC
+LIMIT P_LIMIT;
+END; //
+DELIMITER ;
+
+-- Obtiene los eventos
+DROP PROCEDURE IF EXISTS USP_GET_EVENT_BY_ALIAS;
+DELIMITER //
+CREATE PROCEDURE USP_GET_EVENT_BY_ALIAS (P_ALIAS VARCHAR(200))
+BEGIN
+SELECT E.id, E.name, E.urlBg, E.urlPresentation, E.requisites, E.objectives, E.benefits, E.topics, E.price, E.currency, E.platform, E.paymentLink, E.paymentMethod, E.paymentFacilities, E.recordings, E.title, E.about, E.condition, E.timezoneText, E.whatsappGroup, E.alias, E.extraData
+FROM EVENTS E
+WHERE E.alias = P_ALIAS AND E.active = 1
+LIMIT 1;
+END; //
+DELIMITER ;
+
+-- Obtiene las fechas de los eventos
+DROP PROCEDURE IF EXISTS USP_GET_DATES_BY_EVENT_ALIAS;
+DELIMITER //
+CREATE PROCEDURE USP_GET_DATES_BY_EVENT_ALIAS (P_ALIAS VARCHAR(200))
+BEGIN
+SELECT ED.from, ED.until, ED.weekly
+FROM EVENT_DATES ED
+JOIN EVENTS E
+ON E.id = ED.eventId
+WHERE E.alias=P_ALIAS AND E.active = 1 AND ED.active = 1;
+END; //
+DELIMITER ;
+
+-- Obtiene los instructores de los eventos
+DROP PROCEDURE IF EXISTS USP_GET_INSTRUCTORS_BY_EVENT_ALIAS;
+DELIMITER //
+CREATE PROCEDURE USP_GET_INSTRUCTORS_BY_EVENT_ALIAS (P_ALIAS VARCHAR(200))
+BEGIN
+SELECT -- Si userId es nulo, significa que los datos están en la tabla actual. Caso contrario, debo consultarlo desde la tabla USERS
+IBE.userId,
+CASE WHEN IBE.userId IS NULL THEN IBE.fName ELSE (SELECT fName FROM USERS WHERE id = IBE.userId LIMIT 1) END as fName,
+CASE WHEN IBE.userId IS NULL THEN IBE.lName ELSE (SELECT lName FROM USERS WHERE id = IBE.userId LIMIT 1) END as lName,
+CASE WHEN IBE.userId IS NULL THEN IBE.urlProfileImg ELSE (SELECT urlProfileImg FROM USERS WHERE id = IBE.userId LIMIT 1) END as urlProfileImg,
+CASE WHEN IBE.userId IS NULL THEN IBE.occupation ELSE (SELECT occupation FROM USERS WHERE id = IBE.userId LIMIT 1) END as occupation,
+CASE WHEN IBE.userId IS NULL THEN IBE.about ELSE (SELECT about FROM USERS WHERE id = IBE.userId LIMIT 1) END as about,
+CASE WHEN IBE.userId IS NULL THEN IBE.networks ELSE (SELECT networks FROM USERS WHERE id = IBE.userId LIMIT 1) END as networks
+FROM INSTRUCTORS_BY_EVENT IBE
+JOIN EVENTS E
+ON E.id = IBE.eventId
+WHERE E.alias = P_ALIAS;
+END; //
+DELIMITER ;
+
+-- Registra inscripción a un evento
+DROP PROCEDURE IF EXISTS USP_INSERT_INSCRIPTION;
+DELIMITER //
+CREATE PROCEDURE USP_INSERT_INSCRIPTION (P_EVENT_ID INT(10), P_USER_ID INT(10), P_NAMES VARCHAR(200), P_AGE TINYINT, P_PHONE VARCHAR(50), P_APP VARCHAR(50), P_EMAIL VARCHAR(200), P_NOTIFY BOOLEAN, P_PAYMENT_DATA JSON, P_EXTRA_DATA JSON)
+BEGIN
+INSERT INTO INSCRIPTIONS VALUES (DEFAULT, P_EVENT_ID, P_USER_ID, P_NAMES, P_AGE, P_PHONE, P_APP, P_EMAIL, P_NOTIFY, P_PAYMENT_DATA, P_EXTRA_DATA, DEFAULT, DEFAULT, DEFAULT);
+END; //
+DELIMITER ;
+
+-- Verifica si un correo ya se registró en un evento. Si se registró con userId, verifica el email en la tabla Users también
+DROP PROCEDURE IF EXISTS USP_EXISTS_INSCRIPTION;
+DELIMITER //
+CREATE PROCEDURE USP_EXISTS_IN_INSCRIPTION (P_EVENT_ID INT(10), P_USER_ID INT(10), P_EMAIL VARCHAR(200)) -- Si paso P_USER_ID, se supone que no debo pasar el email, porque la info ya es suficiente. Viceversa con P_EMAIL
+BEGIN
+SELECT EXISTS (
+SELECT id FROM INSCRIPTIONS WHERE eventId=P_EVENT_ID AND (email=P_EMAIL OR userId=P_USER_ID)
+UNION
+SELECT I.id FROM INSCRIPTIONS I
+JOIN
+USERS U
+ON U.id = I.userId
+WHERE I.eventId=P_EVENT_ID AND (U.email=P_EMAIL OR U.id=P_USER_ID)
+) AS 'exists';
+END; //
+DELIMITER ;
+
+-- Realiza la suscripción a un servicio
+DROP PROCEDURE IF EXISTS USP_SUBSCRIBE;
+DELIMITER //
+CREATE PROCEDURE USP_SUBSCRIBE (P_USER_ID INT(10), P_SUB_COURSES BOOLEAN, P_SUB_MAGAZINE BOOLEAN, P_SUB_NOVELTIES BOOLEAN, P_NAMES VARCHAR(200), P_EMAIL VARCHAR(200))
+BEGIN
+IF EXISTS (SELECT id FROM SUBSCRIBERS WHERE userId = P_USER_ID OR email = P_EMAIL) THEN -- Si ..._COURSES, ..._MAGAZINE o ..._NOVELTIES es NULL, significa que esos valores no se deben actualizar
+	IF P_SUB_COURSES IS NOT NULL THEN
+		UPDATE SUBSCRIBERS SET courses = P_SUB_COURSES WHERE userId = P_USER_ID OR email = P_EMAIL;
+    END IF;
+    
+    IF P_SUB_MAGAZINE IS NOT NULL THEN
+		UPDATE SUBSCRIBERS SET magazine = P_SUB_MAGAZINE WHERE userId = P_USER_ID OR email = P_EMAIL;
+    END IF;
+			
+	IF P_SUB_NOVELTIES IS NOT NULL THEN
+		UPDATE SUBSCRIBERS SET novelties = P_SUB_NOVELTIES WHERE userId = P_USER_ID OR email = P_EMAIL;
+    END IF;
+ELSE
+	INSERT INTO SUBSCRIBERS VALUES (DEFAULT, P_USER_ID, P_SUB_COURSES, P_SUB_MAGAZINE, P_SUB_NOVELTIES, P_NAMES, P_EMAIL, 1, DEFAULT, DEFAULT);
+END IF;
+END; //
+DELIMITER ;
+
+-- Para insertar las estadísticas SI ES QUE NO HAY UNA IGUAL. Caso contrario, que solo la actualice
+DROP PROCEDURE IF EXISTS USP_ADD_STATISTICS;
+DELIMITER //
+CREATE PROCEDURE USP_ADD_STATISTICS (P_USER_ID INT(10), P_EMAIL VARCHAR(200), P_SOCIAL_NETWORK_NAME VARCHAR(50), P_ORDER_ID INT(10), P_MAGAZINE_ID INT(10), P_ACTION_ID VARCHAR(50), P_ACTIVE BOOLEAN)
+BEGIN
+	DECLARE STATISTIC_ID INT;
+        
+    SELECT id INTO STATISTIC_ID FROM ACTIONS_BY_USER_ON_ITEM WHERE userId <=> P_USER_ID AND email <=> P_EMAIL AND orderId <=> P_ORDER_ID AND magazineId <=> P_MAGAZINE_ID AND actionId <=> P_ACTION_ID LIMIT 1;
+    
+    IF STATISTIC_ID IS NOT NULL THEN
+		BEGIN
+			-- El único campo permitido para actualizarse tiene que ser active, para saber si esa reacción se quitó o se activo. Esto se hace para asegurarse de que cada acción es única
+            UPDATE ACTIONS_BY_USER_ON_ITEM SET active = P_ACTIVE WHERE id = STATISTIC_ID;
+        END;
+	ELSE
+		BEGIN
+			-- Insertar nuevo. La primera estadística de cada tipo, se supone que siempre tiene el estado active por DEFAULT, por eso no se pasa aquí
+			INSERT INTO ACTIONS_BY_USER_ON_ITEM VALUES (DEFAULT, P_USER_ID, P_EMAIL, P_SOCIAL_NETWORK_NAME, P_ORDER_ID, P_MAGAZINE_ID, P_ACTION_ID, DEFAULT, DEFAULT, DEFAULT);    
+        END;
+    END IF;
+	
+END; //
+DELIMITER ;
+
+-- Para insertar un pedido. La creación no requiere todos los campos de la tabla
+DROP PROCEDURE IF EXISTS USP_CREATE_ORDER;
+DELIMITER //
+CREATE PROCEDURE USP_CREATE_ORDER (P_CLIENT_USER_ID INT(10), P_CLIENT_EMAIL VARCHAR(200), P_CLIENT_NAMES VARCHAR(200), P_CLIENT_AGE TINYINT, P_CLIENT_PHONE VARCHAR(50), P_CLIENT_APP VARCHAR(50), P_WORKER_ID INT(10),  P_EDITORIAL_ID INT(10), P_SERVICE_ID VARCHAR(50), P_SUBSERVICE_ID VARCHAR(50), P_STATUS_ID VARCHAR(50), P_TITLE_WORK VARCHAR(200), P_LINK_WORK VARCHAR(500), P_PSEUDONYM VARCHAR(200), P_SYNOPSIS VARCHAR(500), P_DETAILS VARCHAR(500), P_INTENTION VARCHAR(500), P_MAIN_PHRASE VARCHAR(200), P_NOTIFY BOOLEAN, P_IMG_URL_DATA JSON, P_PRIORITY VARCHAR(50), P_EXTRA_DATA JSON, P_PUBLIC_RESULT BOOLEAN, P_VERSION VARCHAR(100))
+BEGIN
+	INSERT INTO ORDERS VALUES (DEFAULT, P_CLIENT_USER_ID, P_CLIENT_EMAIL, P_CLIENT_NAMES, P_CLIENT_AGE, P_CLIENT_PHONE, P_CLIENT_APP, P_WORKER_ID, NULL, NULL, NULL, P_EDITORIAL_ID, P_SERVICE_ID, P_SUBSERVICE_ID, P_STATUS_ID, NULL, NULL, P_TITLE_WORK, P_LINK_WORK, P_PSEUDONYM, P_SYNOPSIS, P_DETAILS, P_INTENTION, P_MAIN_PHRASE, NULL, P_NOTIFY, P_IMG_URL_DATA, P_PRIORITY, P_EXTRA_DATA, P_PUBLIC_RESULT, NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, P_VERSION, DEFAULT, DEFAULT);    
+END; //
+DELIMITER ;
+
+-- Para obtener a las personas que dan X servicio de Z editorial
+DROP PROCEDURE IF EXISTS USP_GET_MEMBERS_BY_EDITORIAL_SERVICE;
+DELIMITER //
+CREATE PROCEDURE USP_GET_MEMBERS_BY_EDITORIAL_SERVICE (P_EDITORIAL_ID INT, P_SERVICE_ID VARCHAR(50))
+BEGIN
+SELECT EMS.userId as 'id', CONCAT(U.fName, " ", U.lName) as 'name', U.urlProfileImg as 'imgUrl', EMS.description, EM.availability FROM EDITORIAL_MEMBER_SERVICES EMS
+JOIN EDITORIAL_MEMBERS EM
+ON EM.userId = EMS.userId
+AND EM.editorialId = EMS.editorialId
+JOIN USERS U
+ON U.id = EMS.userId
+WHERE EMS.editorialId = P_EDITORIAL_ID
+AND EMS.serviceId = P_SERVICE_ID
+GROUP BY EMS.userId; -- Para que este campo sea único, porque hay campos como serviceId que tienen subServices null y not null, y ahí se pueden repetir los resultados
+END; //
+DELIMITER ;
+
+-- Para obtener las revistas por año
+DROP PROCEDURE IF EXISTS USP_GET_MAGAZINES_BY_YEAR;
+DELIMITER //
+CREATE PROCEDURE USP_GET_MAGAZINES_BY_YEAR (P_YEAR INT)
+BEGIN
+	SELECT M.id, M.title, M.urlPortrait, M.numPag, M.edition, M.year, M.numHearts, M.numComments, M.numViews, M.numDownloads, M.numSubscribers, M.alias, E.id as editorialId, E.name as editorialName, E.bgColor as editorialBgColor, E.networks as editorialNetworks
+    FROM MAGAZINES M
+    JOIN EDITORIALS E
+    ON M.editorialId = E.id
+    WHERE M.active = 1 AND M.year = P_YEAR ORDER BY M.createdAt DESC;
+END; //
+DELIMITER ;
+
+-- Para obtener una revista por alias. El parámetros P_USER_ID_FOR_ACTION puede ser null y solo sirve para ver si dicho usuario ha dejado una reacción en la revista (tabla ACTIONS_BY_USER_ON_ITEM)
+DROP PROCEDURE IF EXISTS USP_GET_MAGAZINE_BY_ALIAS;
+DELIMITER //
+CREATE PROCEDURE USP_GET_MAGAZINE_BY_ALIAS (P_ALIAS VARCHAR(200), P_USER_ID_FOR_ACTION INT)
+BEGIN
+	DECLARE V_USER_ID_FOR_ACTION INT;
+		IF (P_USER_ID_FOR_ACTION IS NULL) THEN
+			BEGIN
+				SET V_USER_ID_FOR_ACTION = NULL;
+			END;
+		ELSE
+			BEGIN
+				SET V_USER_ID_FOR_ACTION = P_USER_ID_FOR_ACTION;
+			END;
+	END IF;
+
+	SELECT
+    M.id,
+    M.title,
+    M.urlPortrait,
+    M.displayUrl,
+    M.url,
+    M.numPag,
+    M.edition,
+    M.year,
+    M.numHearts,
+    M.numComments,
+    M.numViews,
+    M.numDownloads,
+    M.numSubscribers,
+    M.alias,
+    E.id as editorialId,
+    E.name as editorialName,
+    E.bgColor as editorialBgColor,
+    E.networks as editorialNetworks,
+      -- Para verificar si ha dado una reacción de corazón
+    CASE
+		WHEN V_USER_ID_FOR_ACTION IS NULL THEN
+			NULL
+		ELSE
+			(SELECT EXISTS ( SELECT ABU.userId FROM ACTIONS_BY_USER_ON_ITEM ABU JOIN MAGAZINES M ON ABU.magazineId = M.id WHERE M.alias = P_ALIAS AND ABU.active = 1 AND ABU.actionId = 'GUSTAR'))
+	END as hasGivenLove
+    FROM MAGAZINES M
+    JOIN EDITORIALS E
+    ON M.editorialId = E.id
+    WHERE M.active = 1 AND M.alias = P_ALIAS;
+END; //
+DELIMITER ;
+
+-- Para obtener comentarios de una revista, según su id. Esto sirve cuando el id no está disponible o no es bonito pasarlo. Por ejemplo, al postear un comentario y usar esos mismos datos para obtenerlos actualizados
+DROP PROCEDURE IF EXISTS USP_GET_OLDER_COMMENTS_BY_MAGAZINE_ID;
+DELIMITER //
+CREATE PROCEDURE USP_GET_OLDER_COMMENTS_BY_MAGAZINE_ID (P_MAGAZINE_ID INT, P_LIMIT INT, P_LAST_TIMESTAMP TIMESTAMP)
+BEGIN
+DECLARE V_LAST_TIMESTAMP TIMESTAMP;
+	IF (P_LAST_TIMESTAMP IS NULL) THEN
+		BEGIN
+			SET V_LAST_TIMESTAMP = TIMESTAMPADD(HOUR, 1, (SELECT MAX(C.createdAt) FROM COMMENTS C));
+		END;
+	ELSE
+		BEGIN
+			SET V_LAST_TIMESTAMP = P_LAST_TIMESTAMP;    
+		END;
+END IF;
+
+SELECT C.id, C.userId, CONCAT(U.fName, ' ', U.lName) as names, U.urlProfileImg as urlImg, C.content, C.createdAt FROM COMMENTS C
+JOIN MAGAZINES M
+ON C.magazineId = M.id
+JOIN USERS U
+ON U.id = C.userId
+WHERE C.statusId = 'APROBADO' AND M.id = P_MAGAZINE_ID AND C.createdAt < V_LAST_TIMESTAMP
+ORDER BY C.createdAt DESC
+LIMIT P_LIMIT;
+END; //
+DELIMITER ;
+
+-- Para obtener comentarios de una revista, según su alias. Dado que se obtienen los más actuales primero, el parámetro P_LAST_TIMESTAMP debe obtener los más antiguos que le siguen. Esto se usa para obtener la revista con una URL
+DROP PROCEDURE IF EXISTS USP_GET_OLDER_COMMENTS_BY_MAGAZINE_ALIAS;
+DELIMITER //
+CREATE PROCEDURE USP_GET_OLDER_COMMENTS_BY_MAGAZINE_ALIAS (P_ALIAS VARCHAR(200), P_LIMIT INT, P_LAST_TIMESTAMP TIMESTAMP)
+BEGIN
+DECLARE V_LAST_TIMESTAMP TIMESTAMP;
+	IF (P_LAST_TIMESTAMP IS NULL) THEN
+		BEGIN
+			SET V_LAST_TIMESTAMP = TIMESTAMPADD(HOUR, 1, (SELECT MAX(C.createdAt) FROM COMMENTS C));
+		END;
+	ELSE
+		BEGIN
+			SET V_LAST_TIMESTAMP = P_LAST_TIMESTAMP;    
+		END;
+END IF;
+
+SELECT C.id, C.userId, CONCAT(U.fName, ' ', U.lName) as names, U.urlProfileImg as urlImg, C.content, C.createdAt FROM COMMENTS C
+JOIN MAGAZINES M
+ON C.magazineId = M.id
+JOIN USERS U
+ON U.id = C.userId
+WHERE C.statusId = 'APROBADO' AND M.alias = P_ALIAS AND C.createdAt < V_LAST_TIMESTAMP
+ORDER BY C.createdAt DESC
+LIMIT P_LIMIT;
+END; //
+DELIMITER ;
+
+-- Para obtener comentarios de un pedido, según su id. Dado que se obtienen los más actuales primero, el parámetro P_LAST_TIMESTAMP debe obtener los más antiguos que le siguen
+DROP PROCEDURE IF EXISTS USP_GET_OLDER_COMMENTS_BY_ORDER_ID;
+DELIMITER //
+CREATE PROCEDURE USP_GET_OLDER_COMMENTS_BY_ORDER_ID (P_ORDER_ID INT, P_LIMIT INT, P_LAST_TIMESTAMP TIMESTAMP)
+BEGIN
+DECLARE V_LAST_TIMESTAMP TIMESTAMP;
+	IF (P_LAST_TIMESTAMP IS NULL) THEN
+		BEGIN
+			SET V_LAST_TIMESTAMP = TIMESTAMPADD(HOUR, 1, (SELECT MAX(C.createdAt) FROM COMMENTS C));
+		END;
+	ELSE
+		BEGIN
+			SET V_LAST_TIMESTAMP = P_LAST_TIMESTAMP;    
+		END;
+END IF;
+
+SELECT C.id, C.userId, CONCAT(U.fName, ' ', U.lName) as names, U.urlProfileImg as urlImg, C.content, C.createdAt FROM COMMENTS C
+JOIN ORDERS O
+ON O.id = C.orderId
+JOIN USERS U
+ON U.id = C.userId
+WHERE C.statusId = 'APROBADO' AND O.id = P_ORDER_ID AND C.createdAt < V_LAST_TIMESTAMP
+ORDER BY C.createdAt DESC
+LIMIT P_LIMIT;
+END; //
+DELIMITER ;
+
+-- Postea un comentario
+DROP PROCEDURE IF EXISTS USP_POST_COMMENT;
+DELIMITER //
+CREATE PROCEDURE USP_POST_COMMENT (P_USER_ID INT, P_ORDER_ID INT, P_MAGAZINE_ID INT, P_CONTENT VARCHAR(1000))
+BEGIN
+	INSERT INTO COMMENTS VALUES (DEFAULT, P_USER_ID, P_ORDER_ID, P_MAGAZINE_ID, P_CONTENT, NULL, 'APROBADO', DEFAULT, DEFAULT);
+END; //
+DELIMITER ;
+
+-- Verifica 1) si el usuario existe, y 2) si el usuario está activo o ha sido inhabilitado; ambos por email. Esto sirve para validar el login y enviar mensajes de error dependiendo si el usuario está inhabilitado o si no existe.
+DROP PROCEDURE IF EXISTS USP_GET_USER_STATUS_BY_EMAIL;
+DELIMITER //
+CREATE PROCEDURE USP_GET_USER_STATUS_BY_EMAIL (P_EMAIL VARCHAR(200))
+BEGIN
+SELECT
+	EXISTS ( SELECT id FROM USERS WHERE email = P_EMAIL ) AS 'exists',
+	EXISTS ( SELECT id FROM USERS WHERE email = P_EMAIL AND active = 1 ) AS 'active'; 
+END; //
+DELIMITER ;
+
+-- Registro un usuario
+DROP PROCEDURE IF EXISTS USP_REGISTER_USER;
+DELIMITER //
+CREATE PROCEDURE USP_REGISTER_USER (P_FNAME VARCHAR(200), P_LNAME VARCHAR(200), P_EMAIL VARCHAR(200), P_FOLLOW_NAME VARCHAR(200))
+BEGIN
+	INSERT INTO USERS VALUES (DEFAULT, P_EMAIL, 0, NULL, P_FNAME, P_LNAME, NULL, NULL, NULL, NULL, P_FOLLOW_NAME, DEFAULT, DEFAULT, DEFAULT, NULL, NULL, NULL, DEFAULT, 'BASIC', 1, DEFAULT, DEFAULT);
+END; //
+DELIMITER ;
+
+-- Obtiene los servicios de una editorial. El segundo parámetro es para incluir o excluir subservicios
+DROP PROCEDURE IF EXISTS USP_GET_EDITORIAL_SERVICES;
+DELIMITER //
+CREATE PROCEDURE USP_GET_EDITORIAL_SERVICES (P_EDITORIAL_ID INT, P_INCLUDE_SUBSERVICES BOOLEAN)
+BEGIN
+	SELECT SBE.serviceId, SBE.subserviceId, S.name, SBE.urlBg
+    FROM SERVICES_BY_EDITORIAL SBE
+    JOIN SERVICES S
+    ON S.id = SBE.serviceId
+    LEFT JOIN SUBSERVICES SS -- Left join porque debo traer todos los servicios, tengan o no un subservicio
+    ON SS.id = SBE.subserviceId
+    WHERE SBE.editorialId <=> P_EDITORIAL_ID
+    AND (
+		CASE
+			WHEN P_INCLUDE_SUBSERVICES = 0 THEN
+				SBE.subserviceId IS NULL
+			ELSE TRUE
+		END
+        );   
+END; //
+DELIMITER ;
+
+-- Obtiene los servicios que el miembro de una editorial brinda (Ejemplo: X miembro hace críticas y diseños)
+DROP PROCEDURE IF EXISTS USP_GET_EDITORIAL_SERVICES_BY_EDITORIAL_MEMBER;
+DELIMITER //
+CREATE PROCEDURE USP_GET_EDITORIAL_SERVICES_BY_EDITORIAL_MEMBER (P_USER_ID INT, P_EDITORIAL_ID INT, P_INCLUDE_SUBSERVICES BOOLEAN)
+BEGIN
+	SELECT EMS.serviceId, EMS.subserviceId, S.name as 'serviceName', S.name as 'subserviceName', SBE.urlBg
+    FROM EDITORIAL_MEMBER_SERVICES EMS
+    JOIN SERVICES S
+    ON S.id = EMS.serviceId
+    LEFT JOIN SUBSERVICES SS -- Left join porque debo traer todos los servicios, tengan o no un subservicio
+    ON SS.id = EMS.subserviceId
+	JOIN SERVICES_BY_EDITORIAL SBE -- Solo para asegurarnos de que la editorial tiene habilitado ese servicio
+    ON SBE.editorialId = EMS.editorialId AND SBE.serviceId = EMS.serviceId
+    JOIN EDITORIAL_MEMBERS EM -- Solo para asegurarnos de que la editorial tiene a ese miembro registrado
+    ON EMS.userId = EM.userId    
+	WHERE
+		EMS.userId = P_USER_ID
+		AND EMS.editorialId <=> P_EDITORIAL_ID
+        AND EM.active = 1 -- El miembro de la editorial está activo
+        AND (
+			CASE
+				WHEN P_INCLUDE_SUBSERVICES = 0 THEN
+					EMS.subserviceId IS NULL
+				ELSE TRUE
+			END
+			)
+	GROUP BY EMS.editorialId, EMS.serviceId, EMS.subserviceId;    
+END; //
+DELIMITER ;
+
+-- Obtiene TODOS los servicios que un usuario brinda, ya sea dentro de una editorial o por si mismo
+DROP PROCEDURE IF EXISTS USP_GET_ALL_SERVICES_BY_USER;
+DELIMITER //
+CREATE PROCEDURE USP_GET_ALL_SERVICES_BY_USER (P_USER_ID INT, P_INCLUDE_SUBSERVICES BOOLEAN)
+BEGIN
+	SELECT EMS.serviceId, EMS.subserviceId, S.name as 'serviceName', S.name as 'subserviceName' -- Representa los servicios que un miembro ofrece dentro de una editorial
+    FROM EDITORIAL_MEMBER_SERVICES EMS
+    JOIN SERVICES S
+    ON S.id = EMS.serviceId
+    LEFT JOIN SUBSERVICES SS -- Left join porque debo traer todos los servicios, tengan o no un subservicio
+    ON SS.id = EMS.subserviceId
+	WHERE
+		EMS.userId = P_USER_ID
+        AND (
+			CASE
+				WHEN P_INCLUDE_SUBSERVICES = 0 THEN
+					EMS.subserviceId IS NULL
+				ELSE TRUE
+			END
+			)
+	GROUP BY EMS.editorialId, EMS.serviceId, EMS.subserviceId
+    UNION -- Uno con los resultados de esta tabla, que representa los servicios por usuario (no requieren editorial)
+    SELECT SBY.serviceId, SBY.subserviceId, S.name as 'serviceName', S.name as 'subserviceName'
+    FROM SERVICES_BY_USER SBY
+    JOIN SERVICES S
+    ON S.id = SBY.serviceId
+    LEFT JOIN SUBSERVICES SS -- Left join porque debo traer todos los servicios, tengan o no un subservicio
+    ON SS.id = SBY.subserviceId
+    WHERE
+		SBY.userId = P_USER_ID
+        AND (
+			CASE
+				WHEN P_INCLUDE_SUBSERVICES = 0 THEN
+					SBY.subserviceId IS NULL
+				ELSE TRUE
+			END
+			);	
+END; //
+DELIMITER ;
+
+-- Obtiene los pedidos PRIVADOS por editorial: Estado (disponible, tomado, listo), servicio (crítica, diseño, etc), subservicio (nullable), usuario (nullable, esto si ha sido tomado por él), por última fecha (nullable, para el scroll infinito) y si es público o no
+DROP PROCEDURE IF EXISTS USP_GET_PRIVATE_ORDERS_BY_EDITORIAL_ID;
+DELIMITER //
+CREATE PROCEDURE USP_GET_PRIVATE_ORDERS_BY_EDITORIAL_ID (P_EDITORIAL_ID INT, P_STATUS_ID VARCHAR(50), P_SERVICE_ID VARCHAR(50), P_SUBSERVICE_ID VARCHAR(50), P_WORKER_USER_ID INT, P_LAST_TIMESTAMP TIMESTAMP, P_PUBLIC BOOLEAN, P_LIMIT INT)
+BEGIN
+DECLARE V_LAST_TIMESTAMP TIMESTAMP;
+	IF (P_LAST_TIMESTAMP IS NULL) THEN
+		BEGIN
+			SET V_LAST_TIMESTAMP = TIMESTAMPADD(HOUR, 1, (SELECT MAX(O.createdAt) FROM ORDERS O));
+		END;
+	ELSE
+		BEGIN
+			SET V_LAST_TIMESTAMP = P_LAST_TIMESTAMP;    
+		END;
+END IF;
+
+SELECT
+	O.id,
+	O.clientUserId, -- Si clientUserId es nulo, significa que los datos están en la tabla actual. Caso contrario, debo consultarlo desde la tabla USERS. TODO: Cambiar el email por contactEmail del usuario
+	CASE WHEN O.clientUserId IS NULL THEN O.clientEmail ELSE (SELECT email FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientEmail,
+	CASE WHEN O.clientUserId IS NULL THEN O.clientNames ELSE (SELECT CONCAT(fName, " ", lName) FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientNames,
+	CASE WHEN O.clientUserId IS NULL THEN O.clientPhone ELSE (SELECT phone FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientPhone,
+	CASE WHEN O.clientUserId IS NULL THEN O.clientAppId ELSE (SELECT appId FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientAppId,
+	O.workerUserId,
+	U.fName as 'workerFName',
+    U.lName as 'workerLName',
+    U.networks as 'workerNetworks',
+    U.contactEmail as 'workerContactEmail',
+    U.urlProfileImg as 'workerUrlProfileImg',
+	O.serviceId,
+	O.subserviceId,
+	O.statusId,
+	O.titleWork,
+	O.linkWork,
+	O.pseudonym,
+	O.synopsis,
+	O.details,
+	O.intention,
+	O.mainPhrase,
+	O.imgUrlData,
+	O.priority,
+	O.extraData,
+	O.resultUrl,
+	O.numHearts,
+	O.numComments,
+	O.numViews,
+    O.numDownloads,
+    O.takenAt,
+    O.publicLink,
+    O.public,
+    O.version,
+    O.expiresAt,
+	O.createdAt
+FROM ORDERS O
+JOIN SERVICES_BY_EDITORIAL SBE -- Solo para asegurarnos de que la editorial tiene habilitado ese servicio
+ON SBE.editorialId = O.editorialId AND SBE.serviceId = O.serviceId
+JOIN EDITORIAL_MEMBERS EM -- Solo para asegurarnos de que la editorial tiene a ese miembro registrado
+ON EM.userId = P_WORKER_USER_ID
+LEFT JOIN `USERS` U -- Para que traiga todo, así los campos sean NULL
+ON U.id = O.workerUserId
+WHERE O.editorialId <=> P_EDITORIAL_ID
+AND O.statusId = P_STATUS_ID
+AND O.createdAt < V_LAST_TIMESTAMP
+AND O.serviceId = P_SERVICE_ID
+AND (
+	CASE
+		WHEN P_SUBSERVICE_ID IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+			TRUE
+		ELSE O.subserviceId <=> P_SUBSERVICE_ID
+	END
+	)
+AND (
+	CASE
+		WHEN P_PUBLIC IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+			TRUE
+		ELSE O.public = P_PUBLIC
+	END
+	)
+AND (
+	CASE
+		WHEN O.statusId = 'DISPONIBLE' THEN -- Por regla de negocio, si el estado de un pedido es DISPONIBLE, es porque aún no tiene un workerUserId asignado. Por lo tanto, no se debe validar en ese caso
+			TRUE
+		ELSE O.workerUserId = P_WORKER_USER_ID
+	END
+	)
+GROUP BY O.id -- Que los ids no se repitan
+ORDER BY O.createdAt DESC
+LIMIT P_LIMIT;
+END; //
+DELIMITER ;
+
+-- Obtiene todos los datos PÚBLICOS de los pedidos según usuario y servicio. Esto sirve para verlos en un perfil ajeno
+DROP PROCEDURE IF EXISTS USP_GET_ALL_PUBLIC_ORDERS_BY_WORKER_USER_ID;
+DELIMITER //
+CREATE PROCEDURE USP_GET_ALL_PUBLIC_ORDERS_BY_WORKER_USER_ID (P_SERVICE_ID VARCHAR(50), P_SUBSERVICE_ID VARCHAR(50), P_WORKER_USER_ID INT, P_LAST_TIMESTAMP TIMESTAMP, P_LIMIT INT)
+BEGIN
+DECLARE V_LAST_TIMESTAMP TIMESTAMP;
+	IF (P_LAST_TIMESTAMP IS NULL) THEN
+		BEGIN
+			SET V_LAST_TIMESTAMP = TIMESTAMPADD(HOUR, 1, (SELECT MAX(O.createdAt) FROM ORDERS O));
+		END;
+	ELSE
+		BEGIN
+			SET V_LAST_TIMESTAMP = P_LAST_TIMESTAMP;    
+		END;
+END IF;
+
+SELECT
+	O.id,
+	CASE
+		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
+        ELSE O.clientUserId
+	END as clientUserId,
+	O.workerUserId,
+	U.fName as 'workerFName',
+    U.lName as 'workerLName',
+    U.networks as 'workerNetworks',
+    U.contactEmail as 'workerContactEmail',
+    U.urlProfileImg as 'workerUrlProfileImg',
+	O.serviceId,
+	O.subserviceId,
+	O.titleWork,
+    O.editorialId,
+    CASE
+		WHEN O.public != 1 THEN ''  -- Si está privado, no se puede ver públicamente
+        ELSE E.name
+	END as editorialName,
+    CASE
+		WHEN O.public != 1 THEN ''  -- Si está privado, no se puede ver públicamente
+        ELSE E.bgColor
+	END as editorialBgColor,
+    CASE
+		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
+        ELSE O.numHearts
+	END as numHearts,
+    CASE
+		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
+        ELSE O.numComments
+	END as numComments,
+    CASE
+		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
+        ELSE O.numViews
+	END as numViews,
+    CASE
+		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
+        ELSE O.numDownloads
+	END as numDownloads,
+	CASE
+		WHEN O.public != 1 THEN ''
+		ELSE O.resultUrl
+	END as resultUrl, -- Solo se va a mostrar el link públicamente si el solicitante lo ha elegido así
+    CASE
+		WHEN O.public = 1 AND O.publicLink = 1 THEN O.linkWork
+		ELSE ''
+	END as linkWork, -- Solo se va a mostrar el link públicamente si el solicitante lo ha elegido así
+    O.publicLink,
+    O.public, -- Esto significa que no se puede acceder a ningún dato crítico públicamente, solo al título
+    O.version
+FROM ORDERS O
+LEFT JOIN `USERS` U -- Para que traiga todo, así los campos sean NULL
+ON U.id = O.workerUserId
+LEFT JOIN EDITORIALS E -- Para que traiga todo, así la editorial sea NULL
+ON E.id = O.editorialId
+WHERE O.statusId = 'HECHO'
+AND U.id = P_WORKER_USER_ID
+AND O.createdAt < V_LAST_TIMESTAMP
+AND O.serviceId = P_SERVICE_ID
+AND (
+	CASE
+		WHEN P_SUBSERVICE_ID IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+			TRUE
+		ELSE O.subserviceId <=> P_SUBSERVICE_ID
+	END
+	)
+GROUP BY O.id -- Que los ids no se repitan
+ORDER BY O.createdAt DESC
+LIMIT P_LIMIT;
+END; //
+DELIMITER ;
+
+-- Obtiene todos los datos PRIVADOS de los pedidos según usuario y servicio. Esto sirve para verlos en el perfil propio
+DROP PROCEDURE IF EXISTS USP_GET_ALL_PRIVATE_ORDERS_BY_WORKER_USER_ID;
+DELIMITER //
+CREATE PROCEDURE USP_GET_ALL_PRIVATE_ORDERS_BY_WORKER_USER_ID (P_SERVICE_ID VARCHAR(50), P_SUBSERVICE_ID VARCHAR(50), P_WORKER_USER_ID INT, P_LAST_TIMESTAMP TIMESTAMP, P_LIMIT INT)
+BEGIN
+DECLARE V_LAST_TIMESTAMP TIMESTAMP;
+	IF (P_LAST_TIMESTAMP IS NULL) THEN
+		BEGIN
+			SET V_LAST_TIMESTAMP = TIMESTAMPADD(HOUR, 1, (SELECT MAX(O.createdAt) FROM ORDERS O));
+		END;
+	ELSE
+		BEGIN
+			SET V_LAST_TIMESTAMP = P_LAST_TIMESTAMP;    
+		END;
+END IF;
+
+SELECT
+	O.id,
+	O.clientUserId, -- Si clientUserId es nulo, significa que los datos están en la tabla actual. Caso contrario, debo consultarlo desde la tabla USERS. TODO: Cambiar el email por contactEmail del usuario
+	CASE WHEN O.clientUserId IS NULL THEN O.clientEmail ELSE (SELECT email FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientEmail,
+	CASE WHEN O.clientUserId IS NULL THEN O.clientNames ELSE (SELECT CONCAT(fName, " ", lName) FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientNames,
+	CASE WHEN O.clientUserId IS NULL THEN O.clientPhone ELSE (SELECT phone FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientPhone,
+	CASE WHEN O.clientUserId IS NULL THEN O.clientAppId ELSE (SELECT appId FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientAppId,
+	O.workerUserId,
+	U.fName as 'workerFName',
+    U.lName as 'workerLName',
+    U.networks as 'workerNetworks',
+    U.contactEmail as 'workerContactEmail',
+    U.urlProfileImg as 'workerUrlProfileImg',
+	O.serviceId,
+	O.subserviceId,
+	O.statusId,
+	O.titleWork,
+	O.linkWork,
+	O.pseudonym,
+	O.synopsis,
+	-- O.details,
+	O.intention,
+	O.mainPhrase,
+	O.imgUrlData,
+	O.priority,
+	O.extraData,
+	O.resultUrl,
+    O.editorialId,
+    E.name as 'editorialName',
+    E.bgColor as 'editorialBgColor',
+	O.numHearts,
+	O.numComments,
+	O.numViews,
+    numDownloads,
+    O.takenAt,
+	O.public,
+    O.version,
+    O.expiresAt,
+	O.createdAt
+FROM ORDERS O
+LEFT JOIN `USERS` U -- Para que traiga todo, así los campos sean NULL
+ON U.id = O.workerUserId
+LEFT JOIN EDITORIALS E -- Para que traiga todo, así la editorial sea NULL
+ON E.id = O.editorialId
+WHERE O.statusId = 'HECHO'
+AND U.id = P_WORKER_USER_ID
+AND O.createdAt < V_LAST_TIMESTAMP
+AND O.serviceId = P_SERVICE_ID
+AND (
+	CASE
+		WHEN P_SUBSERVICE_ID IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+			TRUE
+		ELSE O.subserviceId <=> P_SUBSERVICE_ID
+	END
+	)
+GROUP BY O.id -- Que los ids no se repitan
+ORDER BY O.createdAt DESC
+LIMIT P_LIMIT;
+END; //
+DELIMITER ;
+
+-- Obtiene los totales PRIVADOS de cada estado de los pedidos por editorial y workerUserId. Ejemplo: X usuario, para críticas tiene (DISPONIBLE: 3, TOMADO: 2, HECHO: 5). Se usa en las estadísticas del dashboard
+DROP PROCEDURE IF EXISTS USP_GET_ORDER_STATUS_PRIVATE_TOTALS_BY_EDITORIAL_ID;
+DELIMITER //
+CREATE PROCEDURE USP_GET_ORDER_STATUS_PRIVATE_TOTALS_BY_EDITORIAL_ID (P_EDITORIAL_ID INT, P_SERVICE_ID VARCHAR(50), P_WORKER_USER_ID INT)
+BEGIN
+SELECT
+	(SELECT COUNT(id) FROM ORDERS WHERE statusId = 'DISPONIBLE' AND editorialId <=> P_EDITORIAL_ID AND serviceId = P_SERVICE_ID) AS 'DISPONIBLE',
+	(SELECT COUNT(id) FROM ORDERS WHERE statusId = 'ANULADO' AND editorialId <=> P_EDITORIAL_ID AND serviceId = P_SERVICE_ID AND workerUserId <=> P_WORKER_USER_ID) AS 'ANULADO',
+    (SELECT COUNT(id) FROM ORDERS WHERE statusId = 'HECHO' AND editorialId <=> P_EDITORIAL_ID AND serviceId = P_SERVICE_ID AND workerUserId <=> P_WORKER_USER_ID) AS 'HECHO',
+    (SELECT COUNT(id) FROM ORDERS WHERE statusId = 'SOLICITADO' AND editorialId <=> P_EDITORIAL_ID AND serviceId = P_SERVICE_ID AND workerUserId <=> P_WORKER_USER_ID) AS 'SOLICITADO',
+    (SELECT COUNT(id) FROM ORDERS WHERE statusId = 'TOMADO' AND editorialId <=> P_EDITORIAL_ID AND serviceId = P_SERVICE_ID AND workerUserId <=> P_WORKER_USER_ID) AS 'TOMADO';
+END; //
+DELIMITER ;
+
+-- Obtiene los totales PÚBLICOS de cada estado de los pedidos por usuario. Se usa para las estadísticas de los pedidos en perfil ajeno o propio
+DROP PROCEDURE IF EXISTS USP_GET_ORDER_STATUS_PUBLIC_TOTALS_BY_WORKER_USER_ID;
+DELIMITER //
+CREATE PROCEDURE USP_GET_ORDER_STATUS_PUBLIC_TOTALS_BY_WORKER_USER_ID (P_SERVICE_ID VARCHAR(50), P_WORKER_USER_ID INT)
+BEGIN
+SELECT
+    (SELECT COUNT(id) FROM ORDERS WHERE statusId = 'HECHO' AND serviceId = P_SERVICE_ID AND workerUserId <=> P_WORKER_USER_ID) AS 'HECHO';
+END; //
+DELIMITER ;
+
+-- Toma un pedido (TODO: Agregar más validaciones para verificar que ese usuario pertenece a la editorial, está activo y ofrece ese servicio)
+DROP PROCEDURE IF EXISTS USP_TAKE_ORDER;
+DELIMITER //
+CREATE PROCEDURE USP_TAKE_ORDER (P_ORDER_ID INT, P_USER_ID INT, P_TAKEN_AT DATETIME, P_EXP_DAYS INT)
+BEGIN
+	DECLARE V_EXPIRES_AT DATETIME;
+    SET V_EXPIRES_AT = DATE_ADD(P_TAKEN_AT, INTERVAL P_EXP_DAYS DAY);
+	UPDATE ORDERS SET workerUserId = P_USER_ID, statusId = 'TOMADO', takenAt = P_TAKEN_AT, expiresAt = V_EXPIRES_AT WHERE id = P_ORDER_ID AND (statusId = 'DISPONIBLE' OR statusId = 'SOLICITADO');
+END; //
+DELIMITER ;
+
+-- Devuelve un pedido. Valida si el userId pasado como parámetro corresponde con el mismo que lo ha tomado. Además, devuelve al statusId original pasado como parámetro
+DROP PROCEDURE IF EXISTS USP_RETURN_ORDER;
+DELIMITER //
+CREATE PROCEDURE USP_RETURN_ORDER (P_ORDER_ID INT, P_ORIGINAL_STATUS_ID VARCHAR(50), P_USER_ID INT)
+BEGIN
+	UPDATE ORDERS SET workerUserId = NULL, statusId = P_ORIGINAL_STATUS_ID, prevWorkerUserId = workerUserId WHERE id = P_ORDER_ID AND statusId = 'TOMADO' AND workerUserId = P_USER_ID;
+END; //
+DELIMITER ;
+
+-- Obtiene los datos PRIVADOS de un pedido. Esto es para verlo en un dashboard o ver los detalles en el perfil propio. El parámetros P_USER_ID_FOR_ACTION puede ser null y solo sirve para ver si dicho usuario ha dejado una reacción en el pedido (tabla ACTIONS_BY_USER_ON_ITEM)
+DROP PROCEDURE IF EXISTS USP_GET_PRIVATE_ORDER;
+DELIMITER //
+CREATE PROCEDURE USP_GET_PRIVATE_ORDER (P_ORDER_ID INT, P_USER_ID_FOR_ACTION INT)
+BEGIN
+DECLARE V_USER_ID_FOR_ACTION INT;
+	IF (P_USER_ID_FOR_ACTION IS NULL) THEN
+		BEGIN
+			SET V_USER_ID_FOR_ACTION = NULL;
+		END;
+	ELSE
+		BEGIN
+			SET V_USER_ID_FOR_ACTION = P_USER_ID_FOR_ACTION;
+		END;
+END IF;
+
+SELECT
+	O.id,
+	O.clientUserId, -- Si clientUserId es nulo, significa que los datos están en la tabla actual. Caso contrario, debo consultarlo desde la tabla USERS. TODO: Cambiar el email por contactEmail del usuario (ACTIONS_BY_USER_ON_ITEM)
+	CASE WHEN O.clientUserId IS NULL THEN O.clientEmail ELSE (SELECT email FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientEmail,
+	CASE WHEN O.clientUserId IS NULL THEN O.clientNames ELSE (SELECT CONCAT(fName, " ", lName) FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientNames,
+	CASE WHEN O.clientUserId IS NULL THEN O.clientPhone ELSE (SELECT phone FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientPhone,
+	CASE WHEN O.clientUserId IS NULL THEN O.clientAppId ELSE (SELECT appId FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientAppId,
+    -- Para verificar si ha dado una reacción de corazón
+    CASE WHEN V_USER_ID_FOR_ACTION IS NULL THEN NULL ELSE (SELECT EXISTS ( SELECT userId FROM ACTIONS_BY_USER_ON_ITEM WHERE orderId = P_ORDER_ID AND active = 1 AND actionId = 'GUSTAR')) END as hasGivenLove,
+	O.workerUserId,
+    U.fName as 'workerFName',
+    U.lName as 'workerLName',
+    U.networks as 'workerNetworks',
+    U.contactEmail as 'workerContactEmail',
+    U.urlProfileImg as 'workerUrlProfileImg',
+	O.serviceId,
+	O.subserviceId,
+	O.statusId,
+	O.titleWork,
+	O.linkWork,
+	O.pseudonym,
+	O.synopsis,
+	O.details,
+	O.intention,
+	O.mainPhrase,
+	O.imgUrlData,
+	O.priority,
+	O.extraData,
+	O.resultUrl,
+	O.numHearts,
+	O.numComments,
+	O.numViews,
+    O.numDownloads,
+    O.takenAt,
+    O.version,
+    O.expiresAt,
+	O.createdAt
+FROM ORDERS O
+LEFT JOIN `USERS` U
+ON U.id = O.workerUserId
+LEFT JOIN EDITORIALS E -- Para que traiga todo, así la editorial sea NULL, dado que los pedidos pueden ser independientes de una editorial
+ON E.id = O.editorialId
+WHERE O.id = P_ORDER_ID;
+END; //
+DELIMITER ;
+
+-- Obtiene los datos PÚBLICOS de un pedido. Esto es para ver el pedido de un perfil ajeno
+DROP PROCEDURE IF EXISTS USP_GET_PUBLIC_ORDER;
+DELIMITER //
+CREATE PROCEDURE USP_GET_PUBLIC_ORDER (P_ORDER_ID INT)
+BEGIN
+SELECT
+	O.id,
+    CASE
+		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
+        ELSE O.clientUserId
+	END as clientUserId,
+	O.workerUserId,
+	U.fName as 'workerFName',
+    U.lName as 'workerLName',
+    U.networks as 'workerNetworks',
+    U.contactEmail as 'workerContactEmail',
+    U.urlProfileImg as 'workerUrlProfileImg',
+    O.serviceId,
+	O.subserviceId,
+	O.titleWork,
+    O.editorialId,
+    CASE
+		WHEN O.public != 1 THEN ''  -- Si está privado, no se puede ver públicamente
+        ELSE E.name
+	END as editorialName,
+    CASE
+		WHEN O.public != 1 THEN ''  -- Si está privado, no se puede ver públicamente
+        ELSE E.bgColor
+	END as editorialBgColor,
+    CASE
+		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
+        ELSE O.numHearts
+	END as numHearts,
+    CASE
+		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
+        ELSE O.numComments
+	END as numComments,
+    CASE
+		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
+        ELSE O.numViews
+	END as numViews,
+    CASE
+		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
+        ELSE O.numDownloads
+	END as numDownloads,
+	CASE
+		WHEN O.public != 1 THEN ''
+		ELSE O.resultUrl
+	END as resultUrl, -- Solo se va a mostrar el link públicamente si el solicitante lo ha elegido así
+    CASE
+		WHEN O.public = 1 AND O.publicLink = 1 THEN O.linkWork
+		ELSE ''
+	END as linkWork, -- Solo se va a mostrar el link públicamente si el solicitante lo ha elegido así
+    O.publicLink,
+    O.public, -- Esto significa que no se puede acceder a ningún dato crítico públicamente, solo al título
+    O.version
+FROM ORDERS O
+LEFT JOIN `USERS` U
+ON U.id = O.workerUserId
+LEFT JOIN EDITORIALS E -- Para que traiga todo, así la editorial sea NULL, dado que los pedidos pueden ser independientes de una editorial
+ON E.id = O.editorialId
+WHERE O.id = P_ORDER_ID;
+END; //
+DELIMITER ;
+
+-- Establece un pedido como HECHO
+DROP PROCEDURE IF EXISTS USP_SET_ORDER_DONE;
+DELIMITER //
+CREATE PROCEDURE USP_SET_ORDER_DONE (P_ORDER_ID INT, P_RESULT_URL VARCHAR(2000))
+BEGIN
+	UPDATE ORDERS SET statusId = 'HECHO', resultUrl = P_RESULT_URL WHERE statusId = 'TOMADO' AND id = P_ORDER_ID;
+END; //
+DELIMITER ;
+
+-- select*from users;
+-- SELECT*FROM ORDERS WHERE statusId = 'DISPONIBLE' AND EDITORIALID = 1 AND SERVICEID = 'DISENO' AND SUBSERVICEID IS NULL
+-- UPDATE ORDERS SET workerUserID = null, statusId = 'DISPONIBLE' WHERE id = 1;
+-- call USP_GET_ORDER_STATUS_TOTALS (1, 'DISENO', 1);
+-- SELECT*FROM ORDERS;
+-- SELECT*FROM ORDER_STATUS;
+-- select*from event_dates;
+-- Ejemplos
+-- CALL USP_ORDERS (1,'DISPONIBLE','DISENO',NULL,1,NULL,NULL,5);
+-- CALL USP_GET_ORDER_STATUS_TOTALS(1,'ESCUCHA',NULL,1)
+-- select*from orders where serviceid='CRITICA'
+-- CALL USP_GET_ORDERS (1,'DISPONIBLE','CRITICA',NULL,1,NULL,NULL,5);
+-- CALL USP_GET_ORDERS (1, 'DISPONIBLE', 'ESCUCHA', NULL, 1, NULL, NULL, 5);
+-- SELECT*FROM ORDERS WHERE subserviceId <=> null;
+-- CALL USP_GET_EDITORIAL_SERVICES_BY_EDITORIAL_MEMBER (2, 1, 0);
+-- SELECT*FROM EDITORIAL_MEMBERS;
+-- SELECT*FROM EDITORIAL_MEMBER_SERVICES;
+-- SELECT*FROM SERVICES_BY_EDITORIAL;
+-- select*from services;
+-- select*from services_by_editorial;
+-- CALL USP_GET_EDITORIAL_SERVICES(1,1);
+-- CALL USP_GET_COMMENTS_BY_MAGAZINE_ALIAS('AMOR-EN-TIEMPOS-DE-PANDEMIA-2021-1-123456789',1,NULL);
+-- CALL USP_GET_MAGAZINE_BY_ALIAS('AMOR-EN-TIEMPOS-DE-PANDEMIA-2021-1-123456789');
+-- CALL USP_GET_MAGAZINES_BY_YEAR(2020);
+-- CALL USP_CREATE_ORDER (NULL, NULL, 'Mila', 54, '987654321', 'WSP', 2, NULL, 1, 'CRITICA', NULL, NULL, NULL, NULL, NULL, '', NULL, NULL, NULL, NULL, 'NORMAL', '{"modality":"LMD"}', NULL);
+-- CALL USP_GET_MEMBERS_BY_EDITORIAL_SERVICE (1,'DISENO')
+-- call usp_add_statistics (NULL, 'gricardov@gmail.com','FACEBOOK',NULL,NULL,'VER');
+-- call USP_EXISTS_IN_INSCRIPTION(1 null, 'corazon@gmail.com');
+-- CALL USP_SUBSCRIBE(NULL, 'Mila','g,ricardov@gmail.com',NULL, TRUE, NULL);
+-- UPDATE MAGAZINES SET numComments = 23, numHearts = 12 where id = 2;
+-- select * from comments where createdAt > '2021-08-07T16:05:56.000Z';
+-- call USP_GET_USER_STATUS_BY_EMAIL('gricardov@gmail.com');
+-- update orders set takenAt = '2021-09-02 05:31:02' expiresAt = '2021-09-05 05:31:02' where id = 1;
+-- update users set active = 0 where email = 'gricardov@gmail.com';
+SELECT*FROM EDITORIAL_MEMBER_SERVICES;
+SELECT*FROM COMMENTS;
+SELECT*FROM MAGAZINES;
+SELECT*FROM EDITORIAL_MEMBER_SERVICES;
+select*from services_by_editorial;
+select*from actions_on_item;
+SELECT*FROM ACTIONS_BY_USER_ON_ITEM;
+select*from editorials;
+select*from services;
+select*from subservices;
+select*from actions_by_user_on_item;
+SELECT*FROM SUBSCRIBERS;
+select*from event_dates;
+SELECT*FROM USERS;
+SELECT*FROM INSCRIPTIONS;
+SELECT*FROM ORDERS;
+select*from order_status;
+select*from subscribers;
+SELECT*FROM EVENTS;
+
+-- USE TL_TEST;
+
+-- update orders set expiresAt = '2021-08-31 23:40:52' where id = 1;
+-- update orders set expiresAt = '2021-09-05 20:50:52' where id = 2;
+
+-- INSERT INTO events VALUES (DEFAULT,'Evento 1',DEFAULT,'https://www.youtube.com/watch?v=cD2bQH8-pos&t=424s&ab_channel=Ra%C3%BAlValverde',DEFAULT,'["Objetivo1", "Objetivo2"]','["Beneficio1", "Beneficio2"]','["Tema1","Tema2"]',0,NULL,DEFAULT,DEFAULT,DEFAULT,DEFAULT,'Título del evento','Cuéntame que es de tu vida y trataré de quererte todavía',DEFAULT,DEFAULT,'[{"name":"Obras llevadas al teatro","link":{"name":"Leer aquí","href":"https://www.google.com"}}]','GRAN-TEXTO-GUION-TEXTO-Y-NOVELA-CCADENA-1',DEFAULT,DEFAULT,DEFAULT);
+
+-- INSERT INTO EVENT_DATES VALUES (DEFAULT, 0000000001,NOW(),NOW(),DEFAULT,DEFAULT, DEFAULT, DEFAULT);

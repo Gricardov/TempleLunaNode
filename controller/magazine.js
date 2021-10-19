@@ -1,4 +1,5 @@
 const { queryDB } = require('../database/pool');
+const { notifySubscriptionMagazine } = require('../mail/sender');
 
 const getMagazineWithToken = async (req, res) => {
     const { alias } = req.params;
@@ -44,8 +45,23 @@ const getMagazinesByYear = async (req, res) => {
     }
 };
 
+const sendToSubscribers = async (req, res) => {
+    const { alias } = req.params;
+    try {
+        const [magRes, susRes] = await Promise.all([queryDB('CALL USP_GET_MAGAZINE_BY_ALIAS(?,?)', [alias, null]), queryDB('CALL USP_GET_MAGAZINE_SUBSCRIBERS()', [])]);
+        const magazine = magRes[0][0];
+        const subscribers = susRes[0];
+        await notifySubscriptionMagazine(subscribers, magazine);
+        res.json({ ok: 'ok' });
+    } catch (error) {
+        console.log(error)
+        res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
+    }
+};
+
 module.exports = {
     getMagazineWithoutToken,
     getMagazineWithToken,
-    getMagazinesByYear
+    getMagazinesByYear,
+    sendToSubscribers
 }
