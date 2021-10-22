@@ -14,9 +14,13 @@ const sendTestOrderTemplate = async (req, res) => {
     const testOrder = { titleWork: 'Título de prueba', id: 'id de prueba', serviceId: 'CRITICA' }
 
     // Send test email
-    await notifyOrderDone(testClient, testOrder);
+    const res = await notifyOrderDone(testClient, testOrder);
 
-    res.json({ ok: 'ok' });
+    if (res) {
+      res.json({ ok: 'ok' });
+    } else {
+      res.json({ error: 'Error' });
+    }
 
   } catch (error) {
     console.log(error);
@@ -32,9 +36,14 @@ const sendTestMagazineTemplate = async (req, res) => {
     const magazine = { title: 'Revista de prueba', edition: '1', alias: 'REVISTA-DE-PRUEBAS' }
 
     // Send test email
-    await notifySubscriptionMagazine(subscribers, magazine);
+    const res = await notifySubscriptionMagazine(subscribers, magazine);
 
-    res.json({ ok: 'ok' });
+    if (res) {
+      res.json({ ok: 'ok' });
+    } else {
+      res.json({ error: 'Error' });
+    }
+
   } catch (error) {
     console.log(error);
     res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });

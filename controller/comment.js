@@ -1,4 +1,5 @@
 const { queryDB } = require('../database/pool');
+const { notifyCommentOnOrder } = require('../mail/sender');
 const { isNullOrUndefined } = require('../utils/functions');
 
 // Reutilizable, para decidir qué tipo de comentarios se deben obtener.
@@ -36,6 +37,15 @@ const postComment = async (req, res) => {
         const inserted = comRes[0][0];
         if (inserted) {
             res.json(inserted);
+            // Si se trata de un pedido, se debe notificar por correo al trabajador
+            if (orderId) {
+                const affectedOrderRes = await queryDB('CALL USP_GET_PRIVATE_ORDER(?,?)', [orderId, null]);
+                const affectedOrder = affectedOrderRes[0][0];
+                // Siempre y cuando el comentario no sea del mismo que lo atendió jaja
+                if (userId !== Number(affectedOrder.workerUserId)) {
+                    notifyCommentOnOrder(affectedOrder, affectedOrder, comment);
+                }
+            }
         } else {
             throw { msg: 'Error al crear el comentario. Intente nuevamente', statusCode: 500 };
         }

@@ -2044,5 +2044,8 @@ INSERT INTO SUBSCRIBERS VALUES
 
 -- Actualizo el nombre de un suscriptor
 UPDATE SUBSCRIBERS SET names = 'Alyoh', courses = 1 where id = 2;
+
+--
 USE TL_PROD;
-call USP_GET_MAGAZINE_SUBSCRIBERS
+call USP_GET_MAGAZINE_SUBSCRIBERS;
+SELECT*FROM MAGAZINES;

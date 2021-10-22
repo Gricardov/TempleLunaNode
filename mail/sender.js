@@ -19,7 +19,6 @@ const transporter = nodemailer.createTransport({
 
 const getTemplate = async (fileName) => {
     return new Promise((resolve, reject) => {
-
         fs.readFile(__dirname + '/../templates/' + fileName, async (err, data) => {
             if (err) {
                 reject(err);
@@ -48,7 +47,7 @@ exports.notifyOrderDone = async (receiver, order) => {
     try {
         const mailTemplate = await getTemplate('order-done-template.html');
 
-        const { titleWork, id, serviceId } = order;
+        const { titleWork, id, serviceId, version } = order;
         const { clientNames, clientEmail } = receiver;
 
         let subject = '';
@@ -68,9 +67,13 @@ exports.notifyOrderDone = async (receiver, order) => {
         let linkTo = `${process.env.PRODUCTION_URL_FRONT}pedido/${id}`;
         let altText = `Hola ${clientNames}.\nTu trabajo final puede ser encontrado aquí:\n${linkTo}\nTe esperamos en la mejor comunidad literaria del mundo: ${process.env.URL_GROUP_FB}\nEquipo Temple Luna.`;
         let htmlText = mailTemplate.toString()
-            .replace(/{{title}}/g, subject)
-            .replace(/{{bodyText}}/g, `¡Hola, ${clientNames}!<br/>Uno de nuestros artistas ha tomado tu pedido '${titleWork}'. Recuerda dejar un comentario, eso nos ayuda a trabajar mejor.`)
-            .replace(/{{linkto}}/g, linkTo);
+            .replace(/{{name}}/g, clientNames)
+            .replace(/{{mainText}}/g, subject)
+            .replace(/{{workTitle}}/g, "\"" + titleWork + "\"")
+            .replace(/{{secondaryText}}/g, 'Recuerda dejar un comentario. Esperamos que te guste.')
+            .replace(/{{serviceId}}/g, serviceId)
+            .replace(/{{version}}/g, version)
+            .replace(/{{orderHref}}/g, linkTo);
 
         const mailOptions = {
             from: `"${process.env.TEMP_Z_SENDER}" <${process.env.TEMP_Z_USER}>`,
@@ -81,22 +84,112 @@ exports.notifyOrderDone = async (receiver, order) => {
         };
 
         await sendMail(mailOptions);
-        return;
+        return true;
 
     } catch (error) {
         console.log(error);
-        return;
+        return false;
     }
 }
 
 // Notifica cuando un colaborador recibe un comentario en uno de los pedidos que ha realizado
 exports.notifyCommentOnOrder = async (receiver, order, comment) => {
+    try {
+        const mailTemplate = await getTemplate('order-done-template.html');
 
+        const { titleWork, id, serviceId, version } = order;
+        const { workerFName, workerContactEmail } = receiver;
+
+        let subject = '';
+
+        switch (serviceId) {
+            case 'CRITICA':
+                subject = '¡Has recibido un comentario en tu crítica!';
+                break;
+            case 'DISENO':
+                subject = '¡Has recibido un comentario en tu diseño!';
+                break;
+            // En teoría, nunca debería entrar a ESCUCHA
+            case 'ESCUCHA':
+                subject = '¡Has recibido un comentario en tu servicio de escucha!';
+                break;
+        }
+
+        let linkTo = `${process.env.PRODUCTION_URL_FRONT}pedido/${id}`;
+        let altText = `Hola ${workerFName}.\nTu trabajo en la obra "${titleWork}" ha recibido un comentario. Machuca aquí para verlo: \n${linkTo}\nEquipo Temple Luna.`;
+        let htmlText = mailTemplate.toString()
+            .replace(/{{name}}/g, workerFName)
+            .replace(/{{mainText}}/g, subject)
+            .replace(/{{workTitle}}/g, "\"" + titleWork + "\"")
+            .replace(/{{secondaryText}}/g, 'Gracias por ser parte.')
+            .replace(/{{serviceId}}/g, serviceId)
+            .replace(/{{version}}/g, version)
+            .replace(/{{orderHref}}/g, linkTo);
+
+        const mailOptions = {
+            from: `"${process.env.TEMP_Z_SENDER}" <${process.env.TEMP_Z_USER}>`,
+            to: workerContactEmail,
+            subject,
+            text: altText,
+            html: htmlText
+        };
+
+        await sendMail(mailOptions);
+        return true;
+
+    } catch (error) {
+        console.log(error);
+        return false;
+    }
 }
 
 // Notifica cuando un colaborador recibe una reacción en uno de los pedidos que ha realizado
-exports.notifyReactionOnOrder = async (receiver, order, reaction) => {
+exports.notifyReactionOnOrder = async (receiver, order, actionId) => {
+    try {
+        const mailTemplate = await getTemplate('order-done-template.html');
 
+        const { titleWork, id, serviceId, version } = order;
+        const { workerFName, workerContactEmail } = receiver;
+
+        let subject = '';
+
+        switch (actionId) {
+            case 'GUSTAR':
+                subject = '¡Alguien te ha dejado un corazón!';
+                break;
+            case 'DESCARGAR':
+                subject = '¡Alguien ha descargado tu pedido!';
+                break;
+            default:
+                return true;
+        }
+
+        let linkTo = `${process.env.PRODUCTION_URL_FRONT}pedido/${id}`;
+        let altText = `Hola ${workerFName}.\nTu trabajo en la obra "${titleWork}" ha sido descargado. ¡Felicitaciones!\nEquipo Temple Luna.`;
+        let htmlText = mailTemplate.toString()
+            .replace(/{{name}}/g, workerFName)
+            .replace(/{{mainText}}/g, subject)
+            .replace(/{{workTitle}}/g, "\"" + titleWork + "\"")
+            .replace(/{{secondaryText}}/g, '¡Felicitaciones!')
+            .replace(/{{serviceId}}/g, serviceId)
+            .replace(/{{version}}/g, version)
+            .replace(/{{orderHref}}/g, linkTo);
+
+        const mailOptions = {
+            from: `"${process.env.TEMP_Z_SENDER}" <${process.env.TEMP_Z_USER}>`,
+            to: workerContactEmail,
+            subject,
+            text: altText,
+            html: htmlText
+        };
+
+        await sendMail(mailOptions);
+        return true;
+
+    } catch (error) {
+        console.log(error);
+        return false;
+    }
 }
 
 // Envía una revista por suscripción
@@ -135,7 +228,7 @@ exports.notifySubscriptionMagazine = async (subscribers, magazine) => {
 
     } catch (error) {
         console.log(error);
-        return;
+        return false;
     }
 }
 
