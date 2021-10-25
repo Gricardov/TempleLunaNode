@@ -1,5 +1,5 @@
 const { queryDB } = require('../database/pool');
-const { generateRequestTemplate } = require('../utils/template-generator');
+const { generateTemplate } = require('../utils/template-creator');
 const stream = require('stream');
 const moment = require('moment');
 const { v4: uuidv4 } = require('uuid');
@@ -175,7 +175,7 @@ const developOrder = async (req, res) => {
 
       switch (order.serviceId) {
         case 'CRITICA':
-          fileBuffer = await generateRequestTemplate(order.serviceId, { fName: order.workerFName, lName: order.workerLName, contactEmail: order.workerContactEmail, networks: order.workerNetworks }, order.id, order.titleWork, INTENCION, ENGANCHE, ORTOGRAFIA, CONSEJO);
+          fileBuffer = await generateTemplate(order.serviceId, { id: order.workerUserId, fName: order.workerFName, lName: order.workerLName, contactEmail: order.workerContactEmail, networks: order.workerNetworks }, { ...order, intention: INTENCION, hook: ENGANCHE, ortography: ORTOGRAFIA, advice: CONSEJO });
           url = await uploadResultRequest(fileBuffer, 'solicitud-critica', uuidv4());
           await queryDB('CALL USP_SET_ORDER_DONE(?,?)', [order.id, url]);
           break;

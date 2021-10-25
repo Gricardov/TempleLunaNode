@@ -1,19 +1,34 @@
 const { queryDB } = require('../database/pool');
-const { generateRequestTemplate } = require('../utils/template-generator');
+const { generateTemplate } = require('../utils/template-creator');
 const stream = require('stream');
 const moment = require('moment');
 const { v4: uuidv4 } = require('uuid');
 const { uploadResultRequest } = require('../utils/functions');
 const { notifyOrderDone, notifySubscriptionMagazine } = require('../mail/sender');
 
-const sendTestOrderTemplate = async (req, res) => {
+// Generate test pdf order
+const generateTestPdfOrder = async (req, res) => {
+  try {
+    const { orderId = 1, artistId = 1, urlImg = '', titleWork = 'Título de prueba', serviceId = 'CRITICA', fName = 'Alyoh', lName = 'Mascarita', contactEmail = 'prueba@prueba.com', networks = ['https://facebook.com', 'https://templeluna.app'], intention = 'INTENTION', hook = 'HOOK', ortography = 'ORTOGRAPHY', advice = 'ADVICE' } = req.body;
+
+    const fileBuffer = await generateTemplate(serviceId, { id: artistId, fName, lName, contactEmail, networks }, { id: orderId, titleWork, intention, hook, ortography, advice });
+    var bufferStream = new stream.PassThrough();
+    bufferStream.end(Buffer.from(fileBuffer));
+    bufferStream.pipe(res);
+  } catch (error) {
+    console.log(error);
+    res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
+  }
+}
+
+// Send test email
+const sendTestOrderEmail = async (req, res) => {
   try {
     const order = req.body;
 
     const testClient = { clientNames: 'Prueba', clientEmail: 'gricardov@gmail.com' };
     const testOrder = { titleWork: 'Título de prueba', id: 'id de prueba', serviceId: 'CRITICA' }
 
-    // Send test email
     const res = await notifyOrderDone(testClient, testOrder);
 
     if (res) {
@@ -28,7 +43,8 @@ const sendTestOrderTemplate = async (req, res) => {
   }
 };
 
-const sendTestMagazineTemplate = async (req, res) => {
+// Send test magazine
+const sendTestMagazineEmail = async (req, res) => {
   try {
     const order = req.body;
 
@@ -51,6 +67,7 @@ const sendTestMagazineTemplate = async (req, res) => {
 }
 
 module.exports = {
-  sendTestOrderTemplate,
-  sendTestMagazineTemplate
+  generateTestPdfOrder,
+  sendTestMagazineEmail,
+  sendTestOrderEmail
 }

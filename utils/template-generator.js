@@ -6,8 +6,8 @@ require('custom-env').env();
 
 const DEFAULT_BACKGROUND_COLOR = rgb(243 / 255, 241 / 255, 255 / 255);
 
-const eversonMono = fs.readFileSync(__dirname + '/../fonts/Roboto-Regular.ttf');
-const eversonMonoBold = fs.readFileSync(__dirname + '/../fonts/Roboto-Bold.ttf');
+const roboto = fs.readFileSync(__dirname + '/../fonts/Roboto-Regular.ttf');
+const robotoBold = fs.readFileSync(__dirname + '/../fonts/Roboto-Bold.ttf');
 
 exports.generateRequestTemplate = async (type, artist, requestId, title, intention, hook, ortography, improvement, correctedText = '') => {
     return new Promise((resolve, reject) => {
@@ -54,8 +54,8 @@ const processCritique = async (artist, requestId, title, intention, hook, ortogr
 
     // Fuentes
 
-    const helveticaBold = await pdf.embedFont(eversonMonoBold, { subset: true });
-    const helvetica = await pdf.embedFont(eversonMono, { subset: true });
+    const helveticaBold = await pdf.embedFont(robotoBold, { subset: true });
+    const helvetica = await pdf.embedFont(roboto, { subset: true });
 
     const pages = pdf.getPages();
 
@@ -325,8 +325,8 @@ const processCorrection = async (artist, requestId, title, improvement, correcte
 
     //const segoeUI = await pdf.embedFont(segoeUIFont, { subset: true });
     //const segoeUIBold = await pdf.embedFont(segoeUIBoldFont, { subset: true });
-    const helveticaBold = await pdf.embedFont(eversonMonoBold, { subset: true });
-    const helvetica = await pdf.embedFont(eversonMono, { subset: true });
+    const helveticaBold = await pdf.embedFont(robotoBold, { subset: true });
+    const helvetica = await pdf.embedFont(roboto, { subset: true });
 
     const pages = pdf.getPages();
 
@@ -538,7 +538,6 @@ const processCorrection = async (artist, requestId, title, improvement, correcte
     return fileBuffer;
 
 }
-
 
 const setParagraph = (doc, page, { text, font, size, color = rgb(0, 0, 0), totalWidth, totalHeight, marginH, marginV, mode, lastCoordinates, lineHeight = 10 }) => {
     let fontHeight = font.heightAtSize(size);

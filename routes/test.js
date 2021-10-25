@@ -1,7 +1,8 @@
 const { Router } = require("express");
 const {
-  sendTestMagazineTemplate,
-  sendTestOrderTemplate
+  sendTestMagazineEmail,
+  sendTestOrderEmail,
+  generateTestPdfOrder
 } = require("../controller/test");
 
 const {
@@ -12,15 +13,19 @@ const {
 const router = Router();
 
 // Envía por correo un pedido de prueba
-router.post("/order", [
+router.post("/order/mail", [
   //validateToken(), // Verifica si el token es válido
   //validateField('body', getOrderVal),
-], sendTestOrderTemplate);
+], sendTestOrderEmail);
 
 // Envía por correo revistas de prueba
-router.post("/magazine", [
+router.post("/magazine/mail", [
   //validateToken(), // Verifica si el token es válido
   //validateField('body', getOrderVal),
-], sendTestMagazineTemplate);
+], sendTestMagazineEmail);
+
+// Genera un pdf de pedido de prueba
+router.post("/order/template", [
+], generateTestPdfOrder);
 
 module.exports = router;
