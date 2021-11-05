@@ -70,6 +70,21 @@ const getOrdersWithoutToken = async (req, res) => {
   }
 }
 
+const getRandomOrders = async (req, res) => {
+  try {
+    const limit = 10;
+    // Obtengo el pedido al azar
+    let orderRes = await queryDB('CALL USP_GET_RANDOM_PUBLIC_ORDERS(?)', [limit]);
+
+    let orders = orderRes[0];
+
+    res.json(orders);
+  } catch (error) {
+    console.log(error);
+    res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
+  }
+}
+
 const getOrderWithToken = async (req, res) => {
 
   const { orderId, claims } = req.body;
@@ -266,6 +281,7 @@ module.exports = {
   getOrdersWithoutToken,
   getOrderWithToken,
   getOrderWithoutToken,
+  getRandomOrders,
   postOrder,
   developOrder,
   takeOrder,

@@ -1609,7 +1609,7 @@ DROP PROCEDURE IF EXISTS USP_GET_MAGAZINES_BY_YEAR;
 DELIMITER //
 CREATE PROCEDURE USP_GET_MAGAZINES_BY_YEAR (P_YEAR INT)
 BEGIN
-	SELECT M.id, M.title, M.urlPortrait, M.numPag, M.edition, M.year, M.numHearts, M.numComments, M.numViews, M.numDownloads, M.numSubscribers, M.alias, E.id as editorialId, E.name as editorialName, E.bgColor as editorialBgColor, E.networks as editorialNetworks
+	SELECT M.id, M.title, M.urlPortrait, M.numPag, M.edition, M.month, M.year, M.numHearts, M.numComments, M.numViews, M.numDownloads, M.numSubscribers, M.alias, E.id as editorialId, E.name as editorialName, E.bgColor as editorialBgColor, E.networks as editorialNetworks
     FROM MAGAZINES M
     JOIN EDITORIALS E
     ON M.editorialId = E.id
@@ -1955,6 +1955,76 @@ AND (
 	)
 GROUP BY O.id -- Que los ids no se repitan
 ORDER BY O.createdAt DESC
+LIMIT P_LIMIT;
+END; //
+DELIMITER ;
+
+-- Obtiene datos PÚBLICOS de pedidos al azar. No obtiene ESCUCHA. Sirve para el home
+DROP PROCEDURE IF EXISTS USP_GET_RANDOM_PUBLIC_ORDERS;
+DELIMITER //
+CREATE PROCEDURE USP_GET_RANDOM_PUBLIC_ORDERS (P_LIMIT INT)
+BEGIN
+
+SELECT
+	O.id,
+	CASE
+		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
+        ELSE O.clientUserId
+	END as clientUserId,
+	O.workerUserId,
+	U.fName as 'workerFName',
+    U.lName as 'workerLName',
+    U.networks as 'workerNetworks',
+    U.contactEmail as 'workerContactEmail',
+    U.urlProfileImg as 'workerUrlProfileImg',
+	O.serviceId,
+	O.subserviceId,
+	O.titleWork,
+    O.editorialId,
+    CASE
+		WHEN O.public != 1 THEN ''  -- Si está privado, no se puede ver públicamente
+        ELSE E.name
+	END as editorialName,
+    CASE
+		WHEN O.public != 1 THEN ''  -- Si está privado, no se puede ver públicamente
+        ELSE E.bgColor
+	END as editorialBgColor,
+    CASE
+		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
+        ELSE O.numHearts
+	END as numHearts,
+    CASE
+		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
+        ELSE O.numComments
+	END as numComments,
+    CASE
+		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
+        ELSE O.numViews
+	END as numViews,
+    CASE
+		WHEN O.public != 1 THEN NULL  -- Si está privado, no se puede ver públicamente
+        ELSE O.numDownloads
+	END as numDownloads,
+	CASE
+		WHEN O.public != 1 THEN ''
+		ELSE O.resultUrl
+	END as resultUrl, -- Solo se va a mostrar el link públicamente si el solicitante lo ha elegido así
+    CASE
+		WHEN O.public = 1 AND O.publicLink = 1 THEN O.linkWork
+		ELSE ''
+	END as linkWork, -- Solo se va a mostrar el link públicamente si el solicitante lo ha elegido así
+    O.publicLink,
+    O.public, -- Esto significa que no se puede acceder a ningún dato crítico públicamente, solo al título
+    O.version
+FROM ORDERS O
+LEFT JOIN `USERS` U -- Para que traiga todo, así los campos sean NULL
+ON U.id = O.workerUserId
+LEFT JOIN EDITORIALS E -- Para que traiga todo, así la editorial sea NULL
+ON E.id = O.editorialId
+WHERE O.statusId = 'HECHO'
+AND O.serviceId != 'ESCUCHA'
+GROUP BY O.id -- Que los ids no se repitan
+ORDER BY RAND()
 LIMIT P_LIMIT;
 END; //
 DELIMITER ;
@@ -2305,6 +2375,49 @@ BEGIN
 END; //
 DELIMITER ;
 
+-- Inserto los nuevos subservicios
+INSERT INTO SUBSERVICES VALUES
+('CR', 'DISENO','Cuenta regresiva'),
+('BAN-WSP','DISENO','Estado de Whatsapp'),
+('BAN-FB','DISENO','Banner para Facebook'),
+('BAN-INS','DISENO','Banner para Instagram'),
+('BAN-WTT','DISENO','Banner para Wattpad');
+
+-- Modifico la tabla de pedidos para que acepte más caracteres
+ALTER TABLE ORDERS MODIFY synopsis VARCHAR(1000) NULL;
+ALTER TABLE ORDERS MODIFY details VARCHAR(1000) NULL;
+ALTER TABLE ORDERS MODIFY intention VARCHAR(1000) NULL;
+
+-- Inserto la revista de octubre 2021
+INSERT INTO MAGAZINES VALUES 
+(DEFAULT,
+'Para los que ya no están',
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2Fpreview-revista-2.PNG?alt=media&token=f47222f9-5565-40d9-b1e5-d93caf8907cc',
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2FRevista-TL-2_compressed.pdf?alt=media&token=4e94b6cc-b997-46d1-ba7c-e7f233e3bb44',
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2FRevista-TL-2.pdf?alt=media&token=fa0a51bd-3f8b-49b3-ae6c-257a500ad3b5',
+27,
+1,
+11,
+2021,
+1,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+DEFAULT,
+'PARA-LOS-QUE-YA-NO-ESTAN-1-2021',
+DEFAULT, -- activo
+DEFAULT,
+DEFAULT
+);
+
+UPDATE MAGAZINES
+SET displayUrl = 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2FRevista-TL-2_compressed.pdf?alt=media&token=de30ff12-891a-4a56-bf73-fa65b4e682e3',
+url = 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/revista%2FRevista-TL-2.pdf?alt=media&token=f7326ad1-50a5-4764-a913-e7d2f5634a67'
+WHERE id = 2;
+
+--
+USE TL_TEST;
 -- select*from users;
 -- SELECT*FROM ORDERS WHERE statusId = 'DISPONIBLE' AND EDITORIALID = 1 AND SERVICEID = 'DISENO' AND SUBSERVICEID IS NULL
 -- UPDATE ORDERS SET workerUserID = null, statusId = 'DISPONIBLE' WHERE id = 1;
@@ -2358,6 +2471,8 @@ SELECT*FROM ORDERS;
 select*from order_status;
 select*from subscribers;
 SELECT*FROM EVENTS;
+SELECT*FROM ORDERS;
+SELECT*FROM USERS;
 
 -- USE TL_TEST;
 
@@ -2367,5 +2482,3 @@ SELECT*FROM EVENTS;
 -- INSERT INTO events VALUES (DEFAULT,'Evento 1',DEFAULT,'https://www.youtube.com/watch?v=cD2bQH8-pos&t=424s&ab_channel=Ra%C3%BAlValverde',DEFAULT,'["Objetivo1", "Objetivo2"]','["Beneficio1", "Beneficio2"]','["Tema1","Tema2"]',0,NULL,DEFAULT,DEFAULT,DEFAULT,DEFAULT,'Título del evento','Cuéntame que es de tu vida y trataré de quererte todavía',DEFAULT,DEFAULT,'[{"name":"Obras llevadas al teatro","link":{"name":"Leer aquí","href":"https://www.google.com"}}]','GRAN-TEXTO-GUION-TEXTO-Y-NOVELA-CCADENA-1',DEFAULT,DEFAULT,DEFAULT);
 
 -- INSERT INTO EVENT_DATES VALUES (DEFAULT, 0000000001,NOW(),NOW(),DEFAULT,DEFAULT, DEFAULT, DEFAULT);
-SELECT*FROM ORDERS;
-SELECT*FROM USERS;

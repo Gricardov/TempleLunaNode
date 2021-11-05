@@ -5,6 +5,7 @@ const {
   getOrdersWithoutToken,
   getOrderWithToken,
   getOrderWithoutToken,
+  getRandomOrders,
   getOrdersTotals,
   postOrder,
   takeOrder,
@@ -43,6 +44,10 @@ router.post("/filter", [
   validateToken(), // Verifica si el token es válido
   validateField('body', getOrdersByEditorialVal),
 ], getOrdersByEditorialWithToken);
+
+// Obtiene pedidos al azar. Se usa para la pantalla de home
+router.get("/random", [
+], getRandomOrders);
 
 // Agregar /filterWithoutToken
 

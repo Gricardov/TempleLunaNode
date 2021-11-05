@@ -29,9 +29,9 @@ const sendTestOrderEmail = async (req, res) => {
     const testClient = { clientNames: 'Prueba', clientEmail: 'gricardov@gmail.com' };
     const testOrder = { titleWork: 'Título de prueba', id: 'id de prueba', serviceId: 'CRITICA' }
 
-    const res = await notifyOrderDone(testClient, testOrder);
+    const ok = await notifyOrderDone(testClient, testOrder);
 
-    if (res) {
+    if (ok) {
       res.json({ ok: 'ok' });
     } else {
       res.json({ error: 'Error' });
