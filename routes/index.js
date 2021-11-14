@@ -9,6 +9,7 @@ const orderRoutes = require("./order");
 const editorialRoutes = require("./editorial");
 const magazineRoutes = require("./magazine");
 const commentRoutes = require("./comment");
+const adminRoutes = require("./admin");
 const testRoutes = require("./test");
 
 module.exports = {
@@ -23,5 +24,6 @@ module.exports = {
     editorialRoutes,
     magazineRoutes,
     commentRoutes,
+    adminRoutes,
     testRoutes
 }

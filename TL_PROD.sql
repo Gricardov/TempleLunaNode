@@ -1652,6 +1652,230 @@ BEGIN
 END; //
 DELIMITER ;
 
+-- Procedimientos para admin
+
+-- Obtener pedidos
+DROP PROCEDURE IF EXISTS ASP_GET_ORDERS;
+DELIMITER //
+CREATE PROCEDURE ASP_GET_ORDERS (P_RANGE_START INT, P_RANGE_END INT, P_TITLE_WORK_FILTER VARCHAR(200), P_WORKER_USER_ID_FILTER INT, P_STATUS_ID_FILTER VARCHAR(50), P_SERVICE_ID_FILTER VARCHAR(50), P_EDITORIAL_ID_FILTER INT, P_CLIENT_NAMES_FILTER VARCHAR(200), P_CLIENT_PHONE_FILTER VARCHAR(50), P_SORT_ID VARCHAR(20), P_SORT_CREATED_AT VARCHAR(20))
+BEGIN
+	SELECT
+	O.id,
+	O.clientUserId, -- Si clientUserId es nulo, significa que los datos están en la tabla actual. Caso contrario, debo consultarlo desde la tabla USERS. TODO: Cambiar el email por contactEmail del usuario
+	CASE WHEN O.clientUserId IS NULL THEN O.clientEmail ELSE (SELECT email FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientEmail,
+	CASE WHEN O.clientUserId IS NULL THEN O.clientNames ELSE (SELECT CONCAT(fName, " ", lName) FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientNames,
+	CASE WHEN O.clientUserId IS NULL THEN O.clientPhone ELSE (SELECT phone FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientPhone,
+	CASE WHEN O.clientUserId IS NULL THEN O.clientAppId ELSE (SELECT appId FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientAppId,
+	O.workerUserId,
+	O.prevWorkerUserId,
+    CASE WHEN O.prevWorkerUserId IS NULL THEN NULL ELSE (SELECT CONCAT(fName, " ", lName) FROM USERS WHERE id = O.prevWorkerUserId LIMIT 1) END as prevWorkerUserNames,
+	U.fName as 'workerFName',
+    U.lName as 'workerLName',
+    U.networks as 'workerNetworks',
+    U.contactEmail as 'workerContactEmail',
+    U.urlProfileImg as 'workerUrlProfileImg',
+	O.serviceId,
+	O.subserviceId,
+	O.statusId,
+	O.titleWork,
+	O.linkWork,
+	O.pseudonym,
+	O.synopsis,
+	O.intention,
+	O.mainPhrase,
+	O.imgUrlData,
+	O.priority,
+	O.extraData,
+	O.resultUrl,
+    O.editorialId,
+    E.name as 'editorialName',
+    E.bgColor as 'editorialBgColor',
+	O.numHearts,
+	O.numComments,
+	O.numViews,
+    numDownloads,
+    O.takenAt,
+    O.publicLink,
+	O.public,
+    O.version,
+    O.expiresAt,
+	O.createdAt,
+    COUNT(O.id) as total
+FROM ORDERS O
+LEFT JOIN `USERS` U -- Para que traiga todo, así los campos sean NULL
+ON U.id = O.workerUserId
+LEFT JOIN EDITORIALS E -- Para que traiga todo, así la editorial sea NULL
+ON E.id = O.editorialId
+WHERE (
+	CASE
+		WHEN P_TITLE_WORK_FILTER IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+			TRUE
+		ELSE O.titleWork LIKE CONCAT('%', P_TITLE_WORK_FILTER, '%')
+	END
+	)
+AND (
+	CASE
+		WHEN P_WORKER_USER_ID_FILTER IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+			TRUE
+		ELSE O.workerUserId = P_WORKER_USER_ID_FILTER
+	END
+    )
+AND (
+	CASE
+		WHEN P_STATUS_ID_FILTER IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+			TRUE
+		ELSE O.statusId = P_STATUS_ID_FILTER
+	END
+    )
+AND (
+	CASE
+		WHEN P_SERVICE_ID_FILTER IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+			TRUE
+		ELSE O.serviceId = P_SERVICE_ID_FILTER
+	END
+    )
+AND (
+	CASE
+		WHEN P_EDITORIAL_ID_FILTER IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+			TRUE
+		ELSE O.editorialId = P_EDITORIAL_ID_FILTER
+	END
+    )
+AND (
+	CASE
+		WHEN P_CLIENT_NAMES_FILTER IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+			TRUE
+		ELSE O.clientNames LIKE CONCAT('%', P_CLIENT_NAMES_FILTER, '%')
+	END
+    )
+AND (
+	CASE
+		WHEN P_CLIENT_PHONE_FILTER IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+			TRUE
+		ELSE O.clientPhone LIKE CONCAT('%', P_CLIENT_PHONE_FILTER, '%')
+	END
+    )    
+GROUP BY O.id -- Que los ids no se repitan
+-- Ordenamientos
+ORDER BY
+(CASE WHEN P_SORT_ID IS NULL THEN O.id END) ASC,
+(CASE WHEN P_SORT_ID = 'ASC' THEN O.id END) ASC,
+(CASE WHEN P_SORT_ID = 'DESC' THEN O.id END) DESC,
+(CASE WHEN P_SORT_CREATED_AT IS NULL THEN O.createdAt END) ASC,
+(CASE WHEN P_SORT_CREATED_AT = 'ASC' THEN O.createdAt END) ASC,
+(CASE WHEN P_SORT_CREATED_AT = 'DESC' THEN O.createdAt END) DESC
+LIMIT P_RANGE_START, P_RANGE_END;
+END; //
+DELIMITER ;
+
+-- Obtener un pedido
+DROP PROCEDURE IF EXISTS ASP_GET_ORDER;
+DELIMITER //
+CREATE PROCEDURE ASP_GET_ORDER (P_ORDER_ID INT)
+BEGIN
+	SELECT
+	O.id,
+	O.clientUserId, -- Si clientUserId es nulo, significa que los datos están en la tabla actual. Caso contrario, debo consultarlo desde la tabla USERS. TODO: Cambiar el email por contactEmail del usuario
+	CASE WHEN O.clientUserId IS NULL THEN O.clientEmail ELSE (SELECT email FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientEmail,
+	CASE WHEN O.clientUserId IS NULL THEN O.clientNames ELSE (SELECT CONCAT(fName, " ", lName) FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientNames,
+	CASE WHEN O.clientUserId IS NULL THEN O.clientPhone ELSE (SELECT phone FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientPhone,
+	CASE WHEN O.clientUserId IS NULL THEN O.clientAppId ELSE (SELECT appId FROM USERS WHERE id = O.clientUserId LIMIT 1) END as clientAppId,
+	O.workerUserId,
+	O.prevWorkerUserId,
+    CASE WHEN O.prevWorkerUserId IS NULL THEN NULL ELSE (SELECT CONCAT(fName, " ", lName) FROM USERS WHERE id = O.prevWorkerUserId LIMIT 1) END as prevWorkerUserNames,
+	U.fName as 'workerFName',
+    U.lName as 'workerLName',
+    U.networks as 'workerNetworks',
+    U.contactEmail as 'workerContactEmail',
+    U.urlProfileImg as 'workerUrlProfileImg',
+	O.serviceId,
+	O.subserviceId,
+	O.statusId,
+	O.titleWork,
+	O.linkWork,
+	O.pseudonym,
+	O.synopsis,
+	O.intention,
+	O.mainPhrase,
+	O.imgUrlData,
+	O.priority,
+	O.extraData,
+	O.resultUrl,
+    O.editorialId,
+    E.name as 'editorialName',
+    E.bgColor as 'editorialBgColor',
+	O.numHearts,
+	O.numComments,
+	O.numViews,
+    numDownloads,
+    O.takenAt,
+    O.publicLink,
+	O.public,
+    O.version,
+    O.expiresAt,
+	O.createdAt
+FROM ORDERS O
+LEFT JOIN `USERS` U -- Para que traiga todo, así los campos sean NULL
+ON U.id = O.workerUserId
+LEFT JOIN EDITORIALS E -- Para que traiga todo, así la editorial sea NULL
+ON E.id = O.editorialId
+WHERE O.id = P_ORDER_ID
+GROUP BY O.id; -- Que los ids no se repitan
+END; //
+DELIMITER ;
+
+-- Actualizar campos permitidos de un pedido
+DROP PROCEDURE IF EXISTS ASP_UPDATE_ORDER;
+DELIMITER //
+CREATE PROCEDURE ASP_UPDATE_ORDER (P_ID INT, P_STATUS_ID VARCHAR(50), P_TITLE_WORK VARCHAR(200), P_PUBLIC BOOLEAN, P_PUBLIC_LINK BOOLEAN)
+BEGIN
+	UPDATE ORDERS SET
+    statusId = P_STATUS_ID,
+	titleWork = P_TITLE_WORK,
+    public = P_PUBLIC,
+    publicLink = P_PUBLIC_LINK
+    WHERE id = P_ID;
+END; //
+DELIMITER ;
+
+-- Obtener los tipos de pedido
+DROP PROCEDURE IF EXISTS ASP_GET_ORDER_SERVICES;
+DELIMITER //
+CREATE PROCEDURE ASP_GET_ORDER_SERVICES ()
+BEGIN
+	SELECT id, name, COUNT(id) as total FROM SERVICES;
+END; //
+DELIMITER ;
+
+-- Obtener varios servicios por ids
+DROP PROCEDURE IF EXISTS ASP_GET_MANY_ORDER_SERVICES_BY_IDS;
+DELIMITER //
+CREATE PROCEDURE ASP_GET_MANY_ORDER_SERVICES_BY_IDS (P_IDS_ARRAY JSON)
+BEGIN
+   SELECT S.id, S.name FROM SERVICES S
+   WHERE JSON_CONTAINS(P_IDS_ARRAY, CONCAT('"', S.id, '"'));
+END; //
+DELIMITER ;
+
+-- Obtener los estados de pedido
+DROP PROCEDURE IF EXISTS ASP_GET_ORDER_STATUSES;
+DELIMITER //
+CREATE PROCEDURE ASP_GET_ORDER_STATUSES ()
+BEGIN
+	SELECT id, name, COUNT(id) as total FROM ORDER_STATUS;
+END; //
+DELIMITER ;
+
+-- Obtener varios estados de un pedido por ids
+DROP PROCEDURE IF EXISTS ASP_GET_MANY_ORDER_STATUSES_BY_IDS;
+DELIMITER //
+CREATE PROCEDURE ASP_GET_MANY_ORDER_STATUSES_BY_IDS (P_IDS_ARRAY JSON)
+BEGIN
+   SELECT OS.id, OS.name FROM ORDER_STATUS OS
+   WHERE JSON_CONTAINS(P_IDS_ARRAY, CONCAT('"', OS.id, '"'));
+END; //
+DELIMITER ;
+
 -- Inserciones
 
 -- Inserciones maestras
@@ -2508,8 +2732,28 @@ DEFAULT
 --
 
 -- call USP_GET_MAGAZINE_SUBSCRIBERS;
+SELECT*FROM USER_ROLES;
 SELECT*FROM USERS WHERE roleId = 'COLAB';
-SELECT*FROM USERS WHERE email = 'shanydubi@gmail.com';
-SELECT*FROM ORDERS;
+SELECT*FROM USERS WHERE email = 'axsvonn@gmail.com';
+SELECT * FROM ORDERS WHERE workerUserId = 60;
+SELECT * FROM ORDERS WHERE statusId = 'DISPONIBLE';
+-- UPDATE ORDERS SET titleWork = 'La séptima ley' WHERE id = 383;
+SELECT * FROM ORDERS WHERE clientEmail LIKE '%marthariveraantequera@outlook.com%';
+SELECT * FROM ORDERS WHERE titleWork LIKE '%Mi coraz%';
+
+SELECT*FROM EVENTS;
+-- UPDATE EVENT_DATES SET `from` = '2021-11-14 00:00:00', `until` = '2021-11-15 02:00:00' WHERE eventId = 2;
+-- UPDATE EVENTS SET about = '¡Bienvenido(a)! Si te interesa hablar sobre obras y amas escuchar autores nuevos, este es tu lugar. Te invitamos a este grupo de tertulia literaria. Nos unimos todos los sábados de 7pm a 9pm (Hora Colombia - Lima) para aprender y debatir. ¡Te encantará!' WHERE id = 2;
+
 SELECT*FROM MAGAZINES;
 USE TL_PROD;
+
+SELECT convert(cast(convert(titleWork using utf8) as binary) using utf8) from ORDERS AS content;
+
+SHOW TABLE STATUS where name like 'ORDERS';
+
+SELECT CCSA.character_set_name FROM information_schema.`TABLES` T,
+       information_schema.`COLLATION_CHARACTER_SET_APPLICABILITY` CCSA
+WHERE CCSA.collation_name = T.table_collation
+  AND T.table_schema = "TL_PROD"
+  AND T.table_name = "ORDERS";

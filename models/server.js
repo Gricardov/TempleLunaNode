@@ -13,6 +13,7 @@ const {
     editorialRoutes,
     magazineRoutes,
     commentRoutes,
+    adminRoutes,
     testRoutes
 } = require("../routes");
 const admin = require("firebase-admin");
@@ -38,7 +39,8 @@ class Server {
             magazine: '/api/magazines',
             comment: '/api/comments',
             service: '/api/services',
-            test:'/api/test'
+            test:'/api/test',
+            admin:'/api/admin'
         };
 
         // Firebase
@@ -95,6 +97,7 @@ class Server {
         this.app.use(this.apiPaths.editorial, editorialRoutes);
         this.app.use(this.apiPaths.magazine, magazineRoutes);
         this.app.use(this.apiPaths.comment, commentRoutes);
+        this.app.use(this.apiPaths.admin, adminRoutes);
         this.app.use(this.apiPaths.test, testRoutes);
     }
 
