@@ -1654,11 +1654,92 @@ DELIMITER ;
 
 -- Procedimientos para admin
 
+-- Obtener el total de pedidos sin tomar en cuenta el rango (para la paginación). Debe tener los mismos filtros que el procedimiento ASP_GET_ORDERS
+DROP PROCEDURE IF EXISTS AFN_GET_ORDERS_TOTAL_FOR_PAGINATION;
+DELIMITER //
+CREATE FUNCTION AFN_GET_ORDERS_TOTAL_FOR_PAGINATION (P_TITLE_WORK_FILTER VARCHAR(200), P_WORKER_NAMES_FILTER VARCHAR(400), P_STATUS_ID_FILTER VARCHAR(50), P_SERVICE_ID_FILTER VARCHAR(50), P_EDITORIAL_ID_FILTER INT, P_CLIENT_NAMES_FILTER VARCHAR(200), P_CLIENT_PHONE_FILTER VARCHAR(50), P_SORT_ID VARCHAR(20), P_SORT_CREATED_AT VARCHAR(20))
+RETURNS INT
+BEGIN 
+  DECLARE TOTAL INT;
+  SET TOTAL = (
+	SELECT COUNT(*)	
+	FROM ORDERS O
+	LEFT JOIN `USERS` U -- Para que traiga todo, así los campos sean NULL
+	ON U.id = O.workerUserId
+	LEFT JOIN EDITORIALS E -- Para que traiga todo, así la editorial sea NULL
+	ON E.id = O.editorialId
+	WHERE (
+		CASE
+			WHEN P_TITLE_WORK_FILTER IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+				TRUE
+			ELSE O.titleWork LIKE CONCAT('%', P_TITLE_WORK_FILTER, '%')
+		END
+		)
+	AND (
+		CASE
+			WHEN P_WORKER_NAMES_FILTER IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+				TRUE
+			ELSE CONCAT(U.fName, ' ', U.lName) LIKE CONCAT('%', P_WORKER_NAMES_FILTER, '%')
+		END
+		)
+	AND (
+		CASE
+			WHEN P_STATUS_ID_FILTER IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+				TRUE
+			ELSE O.statusId = P_STATUS_ID_FILTER
+		END
+		)
+	AND (
+		CASE
+			WHEN P_SERVICE_ID_FILTER IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+				TRUE
+			ELSE O.serviceId = P_SERVICE_ID_FILTER
+		END
+		)
+	AND (
+		CASE
+			WHEN P_EDITORIAL_ID_FILTER IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+				TRUE
+			ELSE O.editorialId = P_EDITORIAL_ID_FILTER
+		END
+		)
+	AND (
+		CASE
+			WHEN P_CLIENT_NAMES_FILTER IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+				TRUE
+			ELSE O.clientNames LIKE CONCAT('%', P_CLIENT_NAMES_FILTER, '%')
+		END
+		)
+	AND (
+		CASE
+			WHEN P_CLIENT_PHONE_FILTER IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+				TRUE
+			ELSE O.clientPhone LIKE CONCAT('%', P_CLIENT_PHONE_FILTER, '%')
+		END
+		)
+	  );
+  RETURN TOTAL;
+END //
+DELIMITER ;
+
 -- Obtener pedidos
 DROP PROCEDURE IF EXISTS ASP_GET_ORDERS;
 DELIMITER //
-CREATE PROCEDURE ASP_GET_ORDERS (P_RANGE_START INT, P_RANGE_END INT, P_TITLE_WORK_FILTER VARCHAR(200), P_WORKER_USER_ID_FILTER INT, P_STATUS_ID_FILTER VARCHAR(50), P_SERVICE_ID_FILTER VARCHAR(50), P_EDITORIAL_ID_FILTER INT, P_CLIENT_NAMES_FILTER VARCHAR(200), P_CLIENT_PHONE_FILTER VARCHAR(50), P_SORT_ID VARCHAR(20), P_SORT_CREATED_AT VARCHAR(20))
+CREATE PROCEDURE ASP_GET_ORDERS (P_RANGE_START INT, P_RANGE_END INT, P_TITLE_WORK_FILTER VARCHAR(200), P_WORKER_NAMES_FILTER VARCHAR(400), P_STATUS_ID_FILTER VARCHAR(50), P_SERVICE_ID_FILTER VARCHAR(50), P_EDITORIAL_ID_FILTER INT, P_CLIENT_NAMES_FILTER VARCHAR(200), P_CLIENT_PHONE_FILTER VARCHAR(50), P_SORT_ID VARCHAR(20), P_SORT_CREATED_AT VARCHAR(20))
 BEGIN
+	DECLARE V_RANGE_START INT;
+    DECLARE V_RANGE_END INT;
+    
+	-- Reviso si me están enviando rangos (para la paginación). Ambos deben ser diferentes de NULL para que se apliquen esos límites
+    IF P_RANGE_START IS NOT NULL AND P_RANGE_END IS NOT NULL THEN    
+		SET V_RANGE_START = P_RANGE_START;
+        SET V_RANGE_END = P_RANGE_END;
+	ELSE
+		-- Si no envío rangos, entonces el mínimo es 0 y el máximo es el número de registros
+        SET V_RANGE_START = 0;
+        SET V_RANGE_END = (SELECT COUNT(id) FROM ORDERS);
+	END IF;
+    
 	SELECT
 	O.id,
 	O.clientUserId, -- Si clientUserId es nulo, significa que los datos están en la tabla actual. Caso contrario, debo consultarlo desde la tabla USERS. TODO: Cambiar el email por contactEmail del usuario
@@ -1693,14 +1774,14 @@ BEGIN
 	O.numHearts,
 	O.numComments,
 	O.numViews,
-    numDownloads,
+    O.numDownloads,
     O.takenAt,
     O.publicLink,
 	O.public,
     O.version,
     O.expiresAt,
 	O.createdAt,
-    COUNT(O.id) as total
+    AFN_GET_ORDERS_TOTAL_FOR_PAGINATION(P_TITLE_WORK_FILTER, P_WORKER_NAMES_FILTER, P_STATUS_ID_FILTER, P_SERVICE_ID_FILTER, P_EDITORIAL_ID_FILTER, P_CLIENT_NAMES_FILTER, P_CLIENT_PHONE_FILTER, P_SORT_ID, P_SORT_CREATED_AT) as totalForPagination
 FROM ORDERS O
 LEFT JOIN `USERS` U -- Para que traiga todo, así los campos sean NULL
 ON U.id = O.workerUserId
@@ -1715,9 +1796,9 @@ WHERE (
 	)
 AND (
 	CASE
-		WHEN P_WORKER_USER_ID_FILTER IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+		WHEN P_WORKER_NAMES_FILTER IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
 			TRUE
-		ELSE O.workerUserId = P_WORKER_USER_ID_FILTER
+		ELSE CONCAT(U.fName, ' ', U.lName) LIKE CONCAT('%', P_WORKER_NAMES_FILTER, '%')
 	END
     )
 AND (
@@ -1754,8 +1835,8 @@ AND (
 			TRUE
 		ELSE O.clientPhone LIKE CONCAT('%', P_CLIENT_PHONE_FILTER, '%')
 	END
-    )    
-GROUP BY O.id -- Que los ids no se repitan
+    )
+GROUP BY O.id
 -- Ordenamientos
 ORDER BY
 (CASE WHEN P_SORT_ID IS NULL THEN O.id END) ASC,
@@ -1764,7 +1845,7 @@ ORDER BY
 (CASE WHEN P_SORT_CREATED_AT IS NULL THEN O.createdAt END) ASC,
 (CASE WHEN P_SORT_CREATED_AT = 'ASC' THEN O.createdAt END) ASC,
 (CASE WHEN P_SORT_CREATED_AT = 'DESC' THEN O.createdAt END) DESC
-LIMIT P_RANGE_START, P_RANGE_END;
+LIMIT V_RANGE_START, V_RANGE_END;
 END; //
 DELIMITER ;
 
