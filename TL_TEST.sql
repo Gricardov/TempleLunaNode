@@ -2376,22 +2376,74 @@ END; //
 DELIMITER ;
 
 -- Procedimientos para admin
-CALL ASP_GET_ORDERS (0,5,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'ASC',NULL);
-SELECT COUNT(id) FROM ORDERS GROUP BY createdAt;
 
-
--- Obtener el total de pedidos sin tomar en cuenta el rango (para la paginación)
-DROP PROCEDURE IF EXISTS ASP_GET_ORDERS_TOTAL;
+-- Obtener el total de pedidos sin tomar en cuenta el rango (para la paginación). Debe tener los mismos filtros que el procedimiento ASP_GET_ORDERS
+DROP FUNCTION IF EXISTS AFN_GET_ORDERS_TOTAL_FOR_PAGINATION;
 DELIMITER //
-CREATE FUNCTION ASP_GET_ORDERS_TOTAL (P_TITLE_WORK_FILTER VARCHAR(200), P_WORKER_NAMES_FILTER VARCHAR(400), P_STATUS_ID_FILTER VARCHAR(50), P_SERVICE_ID_FILTER VARCHAR(50), P_EDITORIAL_ID_FILTER INT, P_CLIENT_NAMES_FILTER VARCHAR(200), P_CLIENT_PHONE_FILTER VARCHAR(50), P_SORT_ID VARCHAR(20), P_SORT_CREATED_AT VARCHAR(20))
+CREATE FUNCTION AFN_GET_ORDERS_TOTAL_FOR_PAGINATION (P_TITLE_WORK_FILTER VARCHAR(200), P_WORKER_NAMES_FILTER VARCHAR(400), P_STATUS_ID_FILTER VARCHAR(50), P_SERVICE_ID_FILTER VARCHAR(50), P_EDITORIAL_ID_FILTER INT, P_CLIENT_NAMES_FILTER VARCHAR(200), P_CLIENT_PHONE_FILTER VARCHAR(50), P_SORT_ID VARCHAR(20), P_SORT_CREATED_AT VARCHAR(20))
 RETURNS INT
 BEGIN 
   DECLARE TOTAL INT;
-  SET TOTAL = (SELECT COUNT(*) FROM ORDERS);
+  SET TOTAL = (
+	SELECT COUNT(*)	
+	FROM ORDERS O
+	LEFT JOIN `USERS` U -- Para que traiga todo, así los campos sean NULL
+	ON U.id = O.workerUserId
+	LEFT JOIN EDITORIALS E -- Para que traiga todo, así la editorial sea NULL
+	ON E.id = O.editorialId
+	WHERE (
+		CASE
+			WHEN P_TITLE_WORK_FILTER IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+				TRUE
+			ELSE O.titleWork LIKE CONCAT('%', P_TITLE_WORK_FILTER, '%')
+		END
+		)
+	AND (
+		CASE
+			WHEN P_WORKER_NAMES_FILTER IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+				TRUE
+			ELSE CONCAT(U.fName, ' ', U.lName) LIKE CONCAT('%', P_WORKER_NAMES_FILTER, '%')
+		END
+		)
+	AND (
+		CASE
+			WHEN P_STATUS_ID_FILTER IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+				TRUE
+			ELSE O.statusId = P_STATUS_ID_FILTER
+		END
+		)
+	AND (
+		CASE
+			WHEN P_SERVICE_ID_FILTER IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+				TRUE
+			ELSE O.serviceId = P_SERVICE_ID_FILTER
+		END
+		)
+	AND (
+		CASE
+			WHEN P_EDITORIAL_ID_FILTER IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+				TRUE
+			ELSE O.editorialId = P_EDITORIAL_ID_FILTER
+		END
+		)
+	AND (
+		CASE
+			WHEN P_CLIENT_NAMES_FILTER IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+				TRUE
+			ELSE O.clientNames LIKE CONCAT('%', P_CLIENT_NAMES_FILTER, '%')
+		END
+		)
+	AND (
+		CASE
+			WHEN P_CLIENT_PHONE_FILTER IS NULL THEN -- Si esto es nulo, significa que no debe filtrar por este campo. Es indiferente
+				TRUE
+			ELSE O.clientPhone LIKE CONCAT('%', P_CLIENT_PHONE_FILTER, '%')
+		END
+		)
+	  );
   RETURN TOTAL;
 END //
 DELIMITER ;
-SELECT ASP_GET_ORDERS_TOTAL(NULL,NULL,NULL,NULL,NULL,NULL,NULL,'ASC',NULL);
 
 -- Obtener pedidos
 DROP PROCEDURE IF EXISTS ASP_GET_ORDERS;
@@ -2452,7 +2504,7 @@ BEGIN
     O.version,
     O.expiresAt,
 	O.createdAt,
-    COUNT(O.id) as total
+    AFN_GET_ORDERS_TOTAL_FOR_PAGINATION(P_TITLE_WORK_FILTER, P_WORKER_NAMES_FILTER, P_STATUS_ID_FILTER, P_SERVICE_ID_FILTER, P_EDITORIAL_ID_FILTER, P_CLIENT_NAMES_FILTER, P_CLIENT_PHONE_FILTER, P_SORT_ID, P_SORT_CREATED_AT) as totalForPagination
 FROM ORDERS O
 LEFT JOIN `USERS` U -- Para que traiga todo, así los campos sean NULL
 ON U.id = O.workerUserId
@@ -2595,7 +2647,11 @@ DROP PROCEDURE IF EXISTS ASP_GET_ORDER_SERVICES;
 DELIMITER //
 CREATE PROCEDURE ASP_GET_ORDER_SERVICES ()
 BEGIN
-	SELECT id, name, COUNT(id) as total FROM SERVICES;
+	SELECT
+	id,
+    name,
+    (SELECT COUNT(*) FROM SERVICES) as total
+    FROM SERVICES GROUP BY name;
 END; //
 DELIMITER ;
 
@@ -2614,7 +2670,11 @@ DROP PROCEDURE IF EXISTS ASP_GET_ORDER_STATUSES;
 DELIMITER //
 CREATE PROCEDURE ASP_GET_ORDER_STATUSES ()
 BEGIN
-	SELECT id, name, COUNT(id) as total FROM ORDER_STATUS;
+	SELECT
+    id,
+    name,
+    (SELECT COUNT(*) FROM ORDER_STATUS) as total
+    FROM ORDER_STATUS;
 END; //
 DELIMITER ;
 

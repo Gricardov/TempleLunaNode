@@ -32,16 +32,11 @@ const filterOrders = async (req, res) => {
 
     try {
         // Debo hacer dos llamadas. La primera, sin pasarle los rangos de paginación para obtener el total de registros. El segundo, son los datos
-        const [ordersResWithoutRange, ordersResWithRange] = await Promise.all([
-            await queryDB('CALL ASP_GET_ORDERS(?,?,?,?,?,?,?,?,?,?,?)', [null, null, filterObj.titleWork, filterObj.workerNames, filterObj.statusId, filterObj.serviceId, filterObj.editorialId, filterObj.clientNames, filterObj.clientPhone, sortObj[0] === "id" ? sortObj[1] : null, sortObj[0] === "createdAt" ? sortObj[1] : null]),
-            await queryDB('CALL ASP_GET_ORDERS(?,?,?,?,?,?,?,?,?,?,?)', [rangeObj[0], rangeObj[1], filterObj.titleWork, filterObj.workerNames, filterObj.statusId, filterObj.serviceId, filterObj.editorialId, filterObj.clientNames, filterObj.clientPhone, sortObj[0] === "id" ? sortObj[1] : null, sortObj[0] === "createdAt" ? sortObj[1] : null])
-        ]);
+        const ordersRes = await queryDB('CALL ASP_GET_ORDERS(?,?,?,?,?,?,?,?,?,?,?)', [rangeObj[0], rangeObj[1], filterObj.titleWork, filterObj.workerNames, filterObj.statusId, filterObj.serviceId, filterObj.editorialId, filterObj.clientNames, filterObj.clientPhone, sortObj[0] === "id" ? sortObj[1] : null, sortObj[0] === "createdAt" ? sortObj[1] : null]);
 
-        const ordersWithoutFilter = ordersResWithoutRange[0];
+        const orders = ordersRes[0];
 
-        const ordersWithFilter = ordersResWithRange[0];
-
-        res.json({ data: ordersWithFilter, total: ordersWithoutFilter[0] ? ordersWithoutFilter[0].totalForPagination : 0 });
+        res.json({ data: orders, total: orders[0] ? orders[0].totalForPagination : 0 });
     } catch (error) {
         console.log(error)
         res.status((error && error.statusCode) || 500).json({ msg: (error && error.msg) || 'Error de servidor' });
