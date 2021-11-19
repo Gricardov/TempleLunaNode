@@ -4,7 +4,7 @@ const stream = require('stream');
 const moment = require('moment');
 const { v4: uuidv4 } = require('uuid');
 const { uploadResultRequest } = require('../utils/functions');
-const { notifyOrderDone } = require('../mail/sender');
+const { notifyOrderDone } = require('../notifier/sender');
 
 const expirationDays = 7;
 

@@ -1,5 +1,5 @@
 const { queryDB } = require('../database/pool');
-const { notifyCommentOnOrder } = require('../mail/sender');
+const { notifyCommentOnOrder } = require('../notifier/sender');
 const { isNullOrUndefined } = require('../utils/functions');
 
 // Reutilizable, para decidir qué tipo de comentarios se deben obtener.
