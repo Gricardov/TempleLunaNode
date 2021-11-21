@@ -1,6 +1,9 @@
 const fs = require('fs');
 const nodemailer = require('nodemailer');
-// const mailTemplate = fs.readFileSync(__dirname + '/../templates/mail.html');
+const http = require('http');
+const moment = require('moment');
+const { getRandomWhatsappAssistantName, toSentence, cleanPhoneForWhatsapp } = require('../utils/functions');
+
 require('custom-env').env();
 
 // Contiene el transportador para los emails
@@ -42,34 +45,82 @@ const sendMail = async (mail) => {
     })
 }
 
+const sendWhatsapp = async (number, message) => {
+    return new Promise((resolve, reject) => {
+        const data = new TextEncoder().encode(
+            JSON.stringify({ number, message })
+        );
+
+        const options = {
+            hostname: 'localhost',
+            port: 8082,
+            path: '/whatsapp/send',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': data.length
+            }
+        };
+
+        const req = http.request(options, res => {
+            console.log(`statusCode: ${res.statusCode}`);
+            res.on('data', d => {
+                process.stdout.write(d);
+            });
+            resolve(res);
+        });
+
+        req.on('error', error => {
+            console.error(error);
+            reject(error);
+        });
+
+        req.write(data);
+        req.end();
+    })
+}
+
+const logNotificationResult = (email, promiseAllSettledResults) => {
+    console.log(`${moment().format('DD/MM/YYYY HH:mm')} - Estado de la notificación al usuario ${email}: ${promiseAllSettledResults.filter(r => r.status === 'fulfilled').length} de ${promiseAllSettledResults.length} operaciones correctas`, promiseAllSettledResults)
+};
+
 // Notifica cuando un pedido está terminado
 exports.notifyOrderDone = async (receiver, order) => {
     try {
         const mailTemplate = await getTemplate('order-done-template.html');
 
-        const { titleWork, id, serviceId, version } = order;
+        const { titleWork, id, serviceId, version, clientPhone, clientAppId, workerUserId } = order;
         const { clientNames, clientEmail } = receiver;
 
         let subject = '';
+        let nounArticle = ''; // Esto sirve para ponerle un artículo al servicio
+        let nounService = ''; // Esto sirve para escribirlo en el mensaje
 
         switch (serviceId) {
             case 'CRITICA':
                 subject = '¡Tu crítica Temple Luna está lista!';
+                nounArticle = 'la';
+                nounService = 'crítica';
                 break;
             case 'DISENO':
                 subject = '¡Tu diseño Temple Luna está listo!';
+                nounArticle = 'el';
+                nounService = 'diseño';
                 break;
             case 'ESCUCHA':
+                // En teoría, no debería entrar aquí
                 subject = '¡Tu pedido de escucha ha sido tomado!'
+                nounArticle = 'la';
+                nounService = 'escucha';
                 break;
         }
 
         let linkTo = `${process.env.PRODUCTION_URL_FRONT}pedido/${id}`;
-        let altText = `Hola ${clientNames}.\nTu trabajo final puede ser encontrado aquí:\n${linkTo}\nTe esperamos en la mejor comunidad literaria del mundo: ${process.env.URL_GROUP_FB}\nEquipo Temple Luna.`;
+        let altText = `Hola ${toSentence(clientNames.split(' ')[0])}.\nTu trabajo final puede ser encontrado aquí:\n${linkTo}\nTe esperamos en la mejor comunidad literaria del mundo: ${process.env.URL_GROUP_FB}\nEquipo Temple Luna.`;
         let htmlText = mailTemplate.toString()
-            .replace(/{{name}}/g, clientNames)
+            .replace(/{{name}}/g, toSentence(clientNames.split(' ')[0]))
             .replace(/{{mainText}}/g, subject)
-            .replace(/{{workTitle}}/g, "\"" + titleWork + "\"")
+            .replace(/{{workTitle}}/g, "\"" + toSentence(titleWork) + "\"")
             .replace(/{{secondaryText}}/g, 'Recuerda dejar un comentario. Esperamos que te guste.')
             .replace(/{{serviceId}}/g, serviceId)
             .replace(/{{version}}/g, version)
@@ -83,7 +134,23 @@ exports.notifyOrderDone = async (receiver, order) => {
             html: htmlText
         };
 
-        await sendMail(mailOptions);
+        const promises = [
+            sendMail(mailOptions) // Envía correo
+        ];
+
+        // Si tiene whatsapp, lo agrego a las promesas para enviarle un mensaje
+        if (clientAppId.trim() === 'WSP') {
+            // Remuevo los espacio en blanco y el signo "+" del teléfono
+            const cleanPhone = cleanPhoneForWhatsapp(clientPhone);
+            promises.push(sendWhatsapp(cleanPhone,
+                `Hola ${toSentence(clientNames.split(' ')[0])}, qué tal? 🤗\nTe escribe ${getRandomWhatsappAssistantName()}, asistenta de Temple Luna ☺️. Acabamos de terminar con ${nounArticle} ${nounService} de tu obra *"${toSentence(titleWork)}"*.\nUn favor, cuando termines de verla, nos puedes dejar comentarios y compartir para que más personas nos conozcan? 🥰 Te agradeceria mucho mucho si ayudas a difundir este bonito proyecto.\n\nAquí puedes ver ${nounArticle} ${nounService}: ${linkTo}\n\nEsta personita desarrolló tu ${nounService}, aquí te dejo su perfil para que le puedas agradecer y reacciones a sus demás trabajos:\nhttps://templeluna.app/perfil/${workerUserId}\n\nY por supuesto, te invito a esta bonita comunidad ☺️ aquí organizamos eventos, publicamos revistas propias y damos servicios. Es más, ya te estamos esperando:\n\nGrupo de facebook: ${process.env.URL_GROUP_FB}\n\nPágina web: ${process.env.PRODUCTION_URL_FRONT}`));
+            // Trato humano para generar interacción y compromiso con los comentarixs
+        }
+
+        const results = await Promise.allSettled(promises);
+
+        logNotificationResult(clientEmail, results);
+
         return true;
 
     } catch (error) {
@@ -98,29 +165,37 @@ exports.notifyCommentOnOrder = async (receiver, order, comment) => {
         const mailTemplate = await getTemplate('order-done-template.html');
 
         const { titleWork, id, serviceId, version } = order;
-        const { workerFName, workerContactEmail } = receiver;
+        const { workerFName, workerContactEmail, workerPhone, workerAppId } = receiver;
 
         let subject = '';
+        let nounArticle = ''; // Esto sirve para ponerle un artículo al servicio
+        let nounService = ''; // Esto sirve para escribirlo en el mensaje
 
         switch (serviceId) {
             case 'CRITICA':
                 subject = '¡Has recibido un comentario en tu crítica!';
+                nounArticle = 'la';
+                nounService = 'crítica';
                 break;
             case 'DISENO':
                 subject = '¡Has recibido un comentario en tu diseño!';
+                nounArticle = 'el';
+                nounService = 'diseño';
                 break;
             // En teoría, nunca debería entrar a ESCUCHA
             case 'ESCUCHA':
                 subject = '¡Has recibido un comentario en tu servicio de escucha!';
+                nounArticle = 'la';
+                nounService = 'escucha';
                 break;
         }
 
         let linkTo = `${process.env.PRODUCTION_URL_FRONT}pedido/${id}`;
-        let altText = `Hola ${workerFName}.\nTu trabajo en la obra "${titleWork}" ha recibido un comentario. Machuca aquí para verlo: \n${linkTo}\nEquipo Temple Luna.`;
+        let altText = `Hola ${toSentence(workerFName.split(' ')[0])}.\nTu trabajo en la obra "${titleWork}" ha recibido un comentario. Machuca aquí para verlo: \n${linkTo}\nEquipo Temple Luna.`;
         let htmlText = mailTemplate.toString()
-            .replace(/{{name}}/g, workerFName)
+            .replace(/{{name}}/g, toSentence(workerFName.split(' ')[0]))
             .replace(/{{mainText}}/g, subject)
-            .replace(/{{workTitle}}/g, "\"" + titleWork + "\"")
+            .replace(/{{workTitle}}/g, "\"" + toSentence(titleWork) + "\"")
             .replace(/{{secondaryText}}/g, 'Gracias por ser parte.')
             .replace(/{{serviceId}}/g, serviceId)
             .replace(/{{version}}/g, version)
@@ -134,7 +209,23 @@ exports.notifyCommentOnOrder = async (receiver, order, comment) => {
             html: htmlText
         };
 
-        await sendMail(mailOptions);
+        const promises = [
+            sendMail(mailOptions) // Envía correo
+        ];
+
+        // Si tiene whatsapp, lo agrego a las promesas para enviarle un mensaje
+        if (workerPhone && workerAppId?.trim() === 'WSP') {
+            // Remuevo los espacio en blanco y el signo "+" del teléfono
+            const cleanPhone = cleanPhoneForWhatsapp(workerPhone);
+            promises.push(sendWhatsapp(cleanPhone,
+                `Hola ${toSentence(workerFName.split(' ')[0])} 🤗.\nTe escribe ${getRandomWhatsappAssistantName()}, asistenta de Temple Luna ☺️. Acabas de recibir un comentario en ${nounArticle} ${nounService} que hiciste de *"${toSentence(titleWork)}"*.\n\nAquí puedes verlo: ${linkTo}\n\nGracias por ser parte, eres muy importante para nosotros 🥰.`));
+            // Trato humano para generar interacción y compromiso con los comentarixs
+        }
+
+        const results = await Promise.allSettled(promises);
+
+        logNotificationResult(workerContactEmail, results);
+
         return true;
 
     } catch (error) {
@@ -165,11 +256,11 @@ exports.notifyReactionOnOrder = async (receiver, order, actionId) => {
         }
 
         let linkTo = `${process.env.PRODUCTION_URL_FRONT}pedido/${id}`;
-        let altText = `Hola ${workerFName}.\nTu trabajo en la obra "${titleWork}" ha sido descargado. ¡Felicitaciones!\nEquipo Temple Luna.`;
+        let altText = `Hola ${toSentence(workerFName.split(' ')[0])}.\nTu trabajo en la obra "${titleWork}" ha sido descargado. ¡Felicitaciones!\nEquipo Temple Luna.`;
         let htmlText = mailTemplate.toString()
-            .replace(/{{name}}/g, workerFName)
+            .replace(/{{name}}/g, toSentence(workerFName.split(' ')[0]))
             .replace(/{{mainText}}/g, subject)
-            .replace(/{{workTitle}}/g, "\"" + titleWork + "\"")
+            .replace(/{{workTitle}}/g, "\"" + toSentence(titleWork) + "\"")
             .replace(/{{secondaryText}}/g, '¡Felicitaciones!')
             .replace(/{{serviceId}}/g, serviceId)
             .replace(/{{version}}/g, version)
@@ -205,9 +296,9 @@ exports.notifySubscriptionMagazine = async (subscribers, magazine) => {
 
         const sendPromises = subscribers.map(subscriber => {
             const { name, email } = subscriber;
-            let altText = `Hola ${name}.\nYa salió la nueva edición de la revista Temple Luna. Puedes leerla aquí:\n${linkTo}\nPara dejar comentarios, crea una cuenta. Te esperamos en la mejor comunidad literaria del mundo: ${process.env.URL_GROUP_FB}\nEquipo Temple Luna.`;
+            let altText = `Hola ${toSentence(name)}.\nYa salió la nueva edición de la revista Temple Luna. Puedes leerla aquí:\n${linkTo}\nPara dejar comentarios, crea una cuenta. Te esperamos en la mejor comunidad literaria del mundo: ${process.env.URL_GROUP_FB}\nEquipo Temple Luna.`;
             let htmlText = mailTemplate.toString()
-                .replace(/{{name}}/g, name)
+                .replace(/{{name}}/g, toSentence(name))
                 .replace(/{{magazineTitle}}/g, title)
                 .replace(/{{magazineHref}}/g, linkTo)
                 .replace(/{{unsubscribeHref}}/g, linkTo);
@@ -231,7 +322,6 @@ exports.notifySubscriptionMagazine = async (subscribers, magazine) => {
         return false;
     }
 }
-
 
 /*exports.sendEmail = async (templateFileName = 'order-template.html', receiver, receiverName, type = 'ORDER_DONE', extraData) => {
 

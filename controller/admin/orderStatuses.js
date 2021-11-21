@@ -4,7 +4,6 @@ const stream = require('stream');
 const moment = require('moment');
 const { v4: uuidv4 } = require('uuid');
 const { uploadResultRequest } = require('../../utils/functions');
-const { notifyOrderDone } = require('../../mail/sender');
 
 const filtersForEdit = ['DISPONIBLE', 'ANULADO']; // Filtros para elegir en el dropdown al momento de editar un pedido desde admin
 

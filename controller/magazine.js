@@ -1,5 +1,5 @@
 const { queryDB } = require('../database/pool');
-const { notifySubscriptionMagazine } = require('../mail/sender');
+const { notifySubscriptionMagazine } = require('../notifier/sender');
 
 const getMagazineWithToken = async (req, res) => {
     const { alias } = req.params;

@@ -1,5 +1,5 @@
 const { queryDB } = require('../database/pool');
-const { notifyReactionOnOrder } = require('../mail/sender');
+const { notifyReactionOnOrder } = require('../notifier/sender');
 
 const postStatisticWithToken = async (req, res) => {
   const { actionId, claims, email, orderId, magazineId, active, socialNetworkName } = req.body;

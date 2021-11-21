@@ -4,7 +4,7 @@ const stream = require('stream');
 const moment = require('moment');
 const { v4: uuidv4 } = require('uuid');
 const { uploadResultRequest } = require('../utils/functions');
-const { notifyOrderDone, notifySubscriptionMagazine } = require('../mail/sender');
+const { notifyOrderDone, notifySubscriptionMagazine } = require('../notifier/sender');
 
 // Generate test pdf order
 const generateTestPdfOrder = async (req, res) => {
@@ -27,7 +27,7 @@ const sendTestOrderEmail = async (req, res) => {
     const order = req.body;
 
     const testClient = { clientNames: 'Prueba', clientEmail: 'gricardov@gmail.com' };
-    const testOrder = { titleWork: 'Título de prueba', id: 'id de prueba', serviceId: 'CRITICA' }
+    const testOrder = { workerUserId: '000001', resultUrl: 'https://templeluna.app', titleWork: 'Título de prueba', id: 'id de prueba', serviceId: 'DISENO', clientPhone: '+51927153346', clientAppId: 'WSP' };
 
     const ok = await notifyOrderDone(testClient, testOrder);
 

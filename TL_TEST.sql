@@ -2239,7 +2239,8 @@ BEGIN
 END; //
 DELIMITER ;
 
--- Obtiene los datos PRIVADOS de un pedido. Esto es para verlo en un dashboard o ver los detalles en el perfil propio. El parámetros P_USER_ID_FOR_ACTION puede ser null y solo sirve para ver si dicho usuario ha dejado una reacción en el pedido (tabla ACTIONS_BY_USER_ON_ITEM)
+-- Obtiene los datos PRIVADOS de un pedido. Esto es para verlo en un dashboard o ver los detalles en el perfil propio. El parámetro P_USER_ID_FOR_ACTION puede ser null y solo sirve para ver si dicho usuario ha dejado una reacción en el pedido (tabla ACTIONS_BY_USER_ON_ITEM).
+-- Este procedimiento es el único que incluye los campos 'workerPhone' y 'workerAppId', porque también se usa para enviar notificaciones
 DROP PROCEDURE IF EXISTS USP_GET_PRIVATE_ORDER;
 DELIMITER //
 CREATE PROCEDURE USP_GET_PRIVATE_ORDER (P_ORDER_ID INT, P_USER_ID_FOR_ACTION INT)
@@ -2270,6 +2271,8 @@ SELECT
     U.networks as 'workerNetworks',
     U.contactEmail as 'workerContactEmail',
     U.urlProfileImg as 'workerUrlProfileImg',
+    U.phone as 'workerPhone',
+    U.appId as 'workerAppId',
 	O.serviceId,
 	O.subserviceId,
 	O.statusId,
