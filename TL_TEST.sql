@@ -9,7 +9,8 @@ SET NAMES utf8mb4;
 SET CHARACTER SET utf8mb4;
 SET CHARACTER_SET_SERVER = utf8mb4;
 SET COLLATION_SERVER = utf8mb4_unicode_ci;*/
-
+SELECT * FROM USERS;
+UPDATE USERS SET appId = 'WSP', phone = '+51927153346' WHERE id = 1;
 CREATE DATABASE IF NOT EXISTS TL_TEST;
 
 USE TL_TEST;
@@ -2793,9 +2794,10 @@ SELECT*FROM ORDERS;
 SELECT*FROM USERS;
 
 -- USE TL_TEST;
-
+SELECT @@sql_mode
 -- update orders set expiresAt = '2021-08-31 23:40:52' where id = 1;
 -- update orders set expiresAt = '2021-09-05 20:50:52' where id = 2;
+-- CALL USP_GET_PRIVATE_ORDERS_BY_EDITORIAL_ID(1,'DISPONIBLE','CRITICA',NULL,1,'2021-11-26T18:31:23.000Z',NULL,5);
 
 -- INSERT INTO events VALUES (DEFAULT,'Evento 1',DEFAULT,'https://www.youtube.com/watch?v=cD2bQH8-pos&t=424s&ab_channel=Ra%C3%BAlValverde',DEFAULT,'["Objetivo1", "Objetivo2"]','["Beneficio1", "Beneficio2"]','["Tema1","Tema2"]',0,NULL,DEFAULT,DEFAULT,DEFAULT,DEFAULT,'Título del evento','Cuéntame que es de tu vida y trataré de quererte todavía',DEFAULT,DEFAULT,'[{"name":"Obras llevadas al teatro","link":{"name":"Leer aquí","href":"https://www.google.com"}}]','GRAN-TEXTO-GUION-TEXTO-Y-NOVELA-CCADENA-1',DEFAULT,DEFAULT,DEFAULT);
 

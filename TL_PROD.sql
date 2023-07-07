@@ -2821,12 +2821,226 @@ DEFAULT,
 DEFAULT
 );
 
---
+-- Les asigno el rol a Mía Belés
+INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
+(87, 1, 'CRITICA', NULL, 'Artista', 1);
+
+-- Axs Vonn
+UPDATE USERS SET roleId = 'COLAB' WHERE id = 100;
+
+-- Agrego a Axs Vonn a la editorial Temple Luna
+INSERT INTO EDITORIAL_MEMBERS VALUES 
+(100, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+
+-- Les asigno el rol a Axs Vonn
+INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
+(100, 1, 'DISENO', NULL, 'Artista', 1);
+
+-- JB
+UPDATE USERS
+SET roleId = 'COLAB',
+urlProfileImg = 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fj2b.jpg?alt=media&token=232e1957-da22-4cab-be02-e7424168399b',
+about = 'Soy un escritor orgulloso de mi herencia, la del amor por mi país y sus bellas costumbres, de su historia, sus misterios y sus secretos, que sin duda son mi mayor influencia como escritor, ansío contar la siguiente historia de misterio, suspenso, intriga o  terror que me permita plasmar en ella toda la capacidad de mi imaginación y creatividad, como siempre, esperando que sea del agrado del público, del lector que desee sentir curiosidad por lo que le sucederá al personaje en el misterioso contenido de la siguiente página.',
+networks = '["http://facebook.com/J2Bescritor","http://twitter.com/julio_2_b","https://www.instagram.com/j2bescritor/","https://www.youtube.com/channel/UCpHMPl9lnvesj6yBXrUZi9w"]'
+WHERE id = 147;
+
+-- Agrego a JB a la editorial Temple Luna
+INSERT INTO EDITORIAL_MEMBERS VALUES 
+(147, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+
+-- Les asigno el rol a JB
+INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
+(147, 1, 'DISENO', NULL, 'Artista', 1);
+
+-- Iván Ayala
+UPDATE USERS
+SET roleId = 'COLAB',
+urlProfileImg = 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fivanayala.jpg?alt=media&token=baaaafa9-5745-4589-bfc6-97a1bda97ad3',
+about = 'Participó de números talleres de escritura, entre los cuales se destaca con la Escritora Irina Ráfols.\nEstudiante del 4to. Año de la carrera de Derecho en la Universidad Nacional del Villarica del Espíritu Santo UNVES.\nApasionado por al lectura y escritura.',
+networks = '["https://www.facebook.com/ivansamuel25","https://www.instagram.com/ivansamuel258/"]'
+WHERE id = 153;
+
+-- Agrego a Iván Ayala a la editorial Temple Luna
+INSERT INTO EDITORIAL_MEMBERS VALUES 
+(153, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+
+-- Les asigno el rol a Iván Ayala
+INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
+(153, 1, 'CRITICA', NULL, 'Artista', 1);
+
+-- Kevin López
+UPDATE USERS
+SET roleId = 'COLAB',
+urlProfileImg = 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fkevinlopez.jpg?alt=media&token=096113c2-26ca-437e-81ac-6bd6cca762d9',
+networks = '["https://www.instagram.com/benvenute123/?hl=es-la"]'
+WHERE id = 154;
+
+-- Agrego a Kevin López a la editorial Temple Luna
+INSERT INTO EDITORIAL_MEMBERS VALUES 
+(154, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+
+-- Les asigno el rol a Kevin López
+INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
+(154, 1, 'CRITICA', NULL, 'Artista', 1);
+
+-- Elizabeth Gómez
+UPDATE USERS
+SET roleId = 'COLAB',
+urlProfileImg = 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Felizalopez.png?alt=media&token=b6bb409e-3849-485c-9a35-d5656c8b115d',
+about = 'Docente de profesión, escritora por diversión y lectora incansable de todo lo que llegue a mis manos. Actualmente, publico novelas del género romántico en la plataforma Booknet.',
+networks = '["https://www.instagram.com/elizabethgomezautora","https://www.facebook.com/elizabethgomezautora"]'
+WHERE id = 152;
+
+-- Agrego a Elizabeth Gómez a la editorial Temple Luna
+INSERT INTO EDITORIAL_MEMBERS VALUES 
+(152, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+
+-- Les asigno el rol a Elizabeth Gómez
+INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
+(152, 1, 'CRITICA', NULL, 'Artista', 1);
+
+-- Laczully
+UPDATE USERS
+SET roleId = 'COLAB',
+urlProfileImg = 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Flaczully.jpg?alt=media&token=9d796040-faae-4641-aa79-4c21fa7eccee',
+about = 'Escritora de Wattpad ❤️\nLibros en físico y digital ❤️\nLectora ❤️',
+networks = '["https://www.instagram.com/p/CYF7cjVO43L/?utm_medium=copy_link","https://vm.tiktok.com/ZML1MD442/"]'
+WHERE id = 72;
+
+-- Agrego a Laczully a la editorial Temple Luna
+INSERT INTO EDITORIAL_MEMBERS VALUES 
+(72, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+
+-- Les asigno el rol a Laczully
+INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
+(72, 1, 'CRITICA', NULL, 'Artista', 1);
+
+-- Camila Anastasia
+UPDATE USERS
+SET roleId = 'COLAB',
+urlProfileImg = 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fcamilaanastasia.jpg?alt=media&token=88f0dec4-ad7c-4af7-88f8-af28a699be63',
+about = 'Sobre mi: Soy una escritora de todo tipo de historias, los temas que más me gustan son misterio, romance y ficción. Me gusta crear historias basadas en hechos reales y agregarles toques de romanticismo y suspenso ❤️',
+networks = '["https://www.instagram.com/Camiifr/"]'
+WHERE id = 155;
+
+-- Agrego a Camila Anastasia a la editorial Temple Luna
+INSERT INTO EDITORIAL_MEMBERS VALUES 
+(155, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+
+-- Les asigno el rol a Camila Anastasia
+INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
+(155, 1, 'DISENO', NULL, 'Artista', 1);
+
+-- Kathe
+UPDATE USERS
+SET roleId = 'COLAB',
+urlProfileImg = 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fkathe.jpg?alt=media&token=8f61339d-5a56-4da1-9064-9d522d5b7c6c',
+about = 'Sobre mi: Soy una escritora de todo tipo de historias, los temas que más me gustan son misterio, romance y ficción. Me gusta crear historias basadas en hechos reales y agregarles toques de romanticismo y suspenso ❤️',
+networks = '[]'
+WHERE id = 157;
+
+-- Agrego a Kathe a la editorial Temple Luna
+INSERT INTO EDITORIAL_MEMBERS VALUES 
+(157, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+
+-- Les asigno el rol a Kathe
+INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
+(157, 1, 'CRITICA', NULL, 'Artista', 1);
+
+-- Karasu
+UPDATE USERS
+SET roleId = 'COLAB',
+urlProfileImg = 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fsiama.jpg?alt=media&token=8e4757a4-6479-48c8-90e0-2b4d23cc2131',
+about = 'Me gusta mucho lo que se relaciona a la hora del té y las historias de época. Estoy recién titulada en Artes.',
+networks = '["https://instagram.com/karasu.dioniso"]'
+WHERE id = 159;
+
+-- Agrego a Karasu a la editorial Temple Luna
+INSERT INTO EDITORIAL_MEMBERS VALUES 
+(159, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+
+-- Les asigno el rol a Karasu
+INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
+(159, 1, 'CRITICA', NULL, 'Artista', 1);
+
+-- 07/06/2022 Asigno el rol de crítico a Julio Balderas
+INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
+(147, 1, 'CRITICA', NULL, 'Artista', 1);
+
+-- Ciel
+UPDATE USERS
+SET roleId = 'COLAB',
+urlProfileImg = 'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fciel.jpg?alt=media&token=74a3d6a5-d90e-453e-9f67-12a0f44e1c08',
+about = 'Para mí el escritor es el receptor de miles de mundos que quieren que cuenten su historia en un planeta llamado tierra, generando en aquel lector un millón de emociones”. Soy admiradora de lo desconocido, con una gran satisfacción de aprendizaje cuando se encuentra frente a quien está en el mundo de las letras. Me gusta imaginarme fantasías, conspiraciones, amores, desgracias, amo los idiomas, el arte y el cumplir sueños imposibles.',
+networks = '["https://web.facebook.com/profile.php?id=100082683753495","https://twitter.com/CarrionMciel"]'
+WHERE id = 166;
+
+-- Agrego a Karasu a la editorial Temple Luna
+INSERT INTO EDITORIAL_MEMBERS VALUES 
+(166, 1, 'COLAB', NULL, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+
+-- Les asigno el rol a Ciel
+INSERT INTO EDITORIAL_MEMBER_SERVICES VALUES
+(166, 1, 'CRITICA', NULL, 'Artista', 1),
+(166, 1, 'DISENO', NULL, 'Artista', 1);
+
+-- 02/03/2022: Inserción de SOS Castellano
+
+INSERT INTO EVENTS VALUES
+(3,
+'S.O.S. Castellano: Una cruzada para recuperar nuestro idioma',
+'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/eventos%2Ffondo-grupo-sos-castellano.jpeg?alt=media&token=6799473b-f69c-43d1-ae34-fc03240d4503',
+'',
+'["Tener interés en el idioma español, su redacción, curiosidades y narrativa", "Interactuar con otros miembros de la comunidad", "Participar de las reuniones semanales"]',
+'["Participar de dinámicas grupales semanales", "Conocer gente con interés en el idioma", "Ampliar conocimientos del español"]',
+'["Expandir conocimientos del idioma español por medio de la comunidad"]',
+'["Los temas son variables y se proponen cada semana en el grupo"]',
+0,
+NULL,
+'Zoom',
+NULL,
+NULL,
+NULL,
+'Grupo literario: S.O.S. Castellano',
+'¡Bienvenido(a)! ¿Te interesan las curiosidades del idioma español? ¿Amas la redacción, el verso y la narrativa? ¡Este grupo es para ti!. Nos unimos todos los viernes a las 7pm (Hora Colombia - Lima) para aprender y conocer gente. ¡Te encantará!',
+'15 inscritos como mínimo',
+NULL,
+NULL,
+NULL,
+'SOS-CASTELLANO-CHERRERA-2022',
+'https://chat.whatsapp.com/DLhmf1bPJWDCCwTtRbfczH',
+DEFAULT,
+DEFAULT,
+DEFAULT
+);
+
+INSERT INTO EVENT_DATES VALUES
+(DEFAULT, 3, '2022-11-05 00:00:00','2022-11-05 02:00:00', 1, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO INSTRUCTORS_BY_EVENT VALUES
+(DEFAULT, 3, NULL,'Carlos','Herrera',NULL,NULL,NULL,NULL,'https://firebasestorage.googleapis.com/v0/b/temple-luna.appspot.com/o/perfil%2Fcherrera.jpg?alt=media&token=9bbf40a9-ce36-4b1e-b2c2-22f3d3bbff33','Periodista, columnista, autor de libros e historiador',NULL,NULL,NULL,DEFAULT,DEFAULT);
+
+-- OTROS
+-- Consulta miembros de editorial 
+-- SELECT U.id, U.email, U.fName, U.lName, EM.roleId, EM.editorialId FROM EDITORIAL_MEMBERS EM JOIN USERS U ON EM.userId = U.id WHERE email LIKE '%mia%';
+-- SET @@sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+
+-- Consulta los servicios de un miembro de editorial
+-- SELECT * FROM EDITORIAL_MEMBER_SERVICES WHERE userId = 87;
+-- CALL USP_GET_PRIVATE_ORDERS_BY_EDITORIAL_ID(1,'DISPONIBLE','CRITICA',NULL,1,'2021-11-26T18:31:23.000Z',NULL,5);
+/*
+USE TL_PROD;
+SELECT*FROM USERS where email like '%katherinbaldo%';
+SELECT*FROM USERS WHERE email LIKE '%kathe%';
+SELECT*FROM USERS WHERE fName LIKE '%lac%';
+SELECT*FROM ORDERS WHERE id = 481;
+CALL USP_GET_PRIVATE_ORDERS_BY_EDITORIAL_ID(1,'DISPONIBLE','CRITICA',NULL,1,'2021-11-26T18:31:23.000Z',NULL,5);
 
 -- call USP_GET_MAGAZINE_SUBSCRIBERS;
 SELECT*FROM USER_ROLES;
 SELECT*FROM USERS WHERE roleId = 'COLAB';
 SELECT*FROM USERS WHERE email = 'axsvonn@gmail.com';
+SELECT*FROM ROLES_BY_USER;
+
 SELECT * FROM ORDERS WHERE workerUserId = 60;
 SELECT * FROM ORDERS WHERE statusId = 'DISPONIBLE';
 -- UPDATE ORDERS SET titleWork = 'La séptima ley' WHERE id = 383;
